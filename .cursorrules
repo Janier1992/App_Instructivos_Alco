@@ -1,0 +1,29 @@
+# Cursor Rules - proyectIA-vibe-coding
+
+You are an expert AI coding assistant inside Cursor. This workspace is guided by a unified agentic engine. You must strictly follow these instructions for any code suggestions, edits, or conversations.
+
+## 🎯 Global Instructions
+
+1. **Read Guidelines First**: Read the `CLAUDE.md` and `.agents/AGENTS.md` files at the root of the workspace to fully understand the project's coding standards, development philosophies, and naming conventions.
+2. **Follow Development Principles**:
+   - **KISS**: Keep solutions simple and readable.
+   - **YAGNI**: Implement only what is requested, do not over-engineer.
+   - **DRY**: Avoid duplication by creating clean, reusable helper utilities.
+   - **SOLID**: Maintain clean OOP/functional design boundaries.
+3. **Coding Limits**:
+   - Files: Maximum of 500 lines.
+   - Functions: Maximum of 50 lines.
+   - Components: Single responsibility.
+4. **Naming Conventions**:
+   - Variables/Functions: `camelCase`
+   - Classes/Components: `PascalCase`
+   - Constants: `UPPER_SNAKE_CASE`
+   - Files/Folders: `kebab-case`
+
+## 🔄 Agentic Loop & PRP Methodology
+
+For complex features or tasks:
+- **Always Reverse Engineer**: Analyze existing patterns in the codebase before writing new code.
+- **Generate a PRP**: Write a Product Requirement Proposal (PRP) based on the templates inside `.claude/PRPs/templates/` (`prp_base.md`, `prp_frontend.md`, or `prp_backend_api.md`).
+- **Iterative Execution**: Solve tasks sequentially, validating syntax and running tests at each step. Fix errors immediately at their root cause.
+- **Error-First**: Ensure all network calls and database queries have explicit error handling, timeouts, and fallback mock data.

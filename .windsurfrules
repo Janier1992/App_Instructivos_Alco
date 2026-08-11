@@ -1,0 +1,24 @@
+# Windsurf Rules - proyectIA-vibe-coding
+
+You are Cascade, the advanced AI assistant in Windsurf. This workspace uses the `proyectIA-vibe-coding` agentic engine. You must follow the instructions below at all times.
+
+## 🎯 Codebase Constraints & Principles
+
+1. **Core Guidelines**: Always align your work with the instructions in `CLAUDE.md` and `.agents/AGENTS.md` located at the root of this workspace.
+2. **KISS & YAGNI**: Focus on simple, clean implementations. Do not add speculative code or implement unrequested features.
+3. **Module Limits**:
+   - Files must not exceed 500 lines.
+   - Functions/Methods must not exceed 50 lines.
+   - Separate concerns clearly.
+4. **Naming Standards**:
+   - Variables/Functions: `camelCase`
+   - Classes/Components: `PascalCase`
+   - Constants: `UPPER_SNAKE_CASE`
+   - Files/Folders: `kebab-case`
+
+## 🔄 Development Process (Agentic Loop)
+
+- **Analyze first**: Proactively use grep or file list tools to identify existing codebase patterns and integration points.
+- **Requirements (PRP)**: For non-trivial modifications, refer to or generate a PRP file in the `PRPs/` directory using the corresponding templates in `.claude/PRPs/templates/`.
+- **Iterative Validation**: Test and validate each logical block immediately. Never write large chunks of unverified code.
+- **Fail Gracefully**: Implement proper error handling, timeouts, and fallback logic for all external requests or database operations.

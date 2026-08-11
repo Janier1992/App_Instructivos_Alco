@@ -1,0 +1,6 @@
+{
+  "name": "Control de Procesos de Calidad Alco",
+  "description": "Aplicativo mobile-first para consulta, control de calidad por proceso, matrices de autonomía y asistente IA especializado con RAG documental para Alco S.A.S.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
