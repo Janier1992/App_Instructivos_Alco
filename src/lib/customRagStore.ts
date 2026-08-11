@@ -1,5 +1,6 @@
 import * as pdfParseModule from 'pdf-parse';
 import { getSupabaseClient } from './supabaseService';
+import { PROCESSES } from '../data/processesData';
 
 // Fallback compatible import for ESM/CJS build
 const pdfParse: any = (pdfParseModule as any).default || pdfParseModule;
@@ -131,4 +132,29 @@ export function deleteCustomRagDocument(id: string): boolean {
   const initialLength = customDocumentsStore.length;
   customDocumentsStore = customDocumentsStore.filter(doc => doc.id !== id);
   return customDocumentsStore.length < initialLength;
+}
+
+/**
+ * Métricas de cobertura documental para el Dashboard de Supervisores:
+ * cuántos PDFs hay cargados por proceso y qué procesos aún no tienen ninguno.
+ */
+export function getRagCoverageMetrics() {
+  const totalDocuments = customDocumentsStore.length;
+
+  const byProcess = PROCESSES.map(p => ({
+    processSlug: p.slug,
+    processName: p.name,
+    documentCount: customDocumentsStore.filter(doc => doc.processSlug === p.slug).length
+  })).sort((a, b) => b.documentCount - a.documentCount);
+
+  const processesWithDocs = byProcess.filter(p => p.documentCount > 0).length;
+  const processesWithoutDocs = byProcess.filter(p => p.documentCount === 0).map(p => p.processName);
+
+  return {
+    totalDocuments,
+    totalProcesses: PROCESSES.length,
+    processesWithDocs,
+    processesWithoutDocs,
+    byProcess
+  };
 }

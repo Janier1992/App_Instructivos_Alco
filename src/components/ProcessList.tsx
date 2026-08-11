@@ -27,7 +27,7 @@ interface ProcessListProps {
   onOpenQRModal: (process: ProcessItem) => void;
 }
 
-const ICON_MAP: Record<string, React.ReactNode> = {
+export const ICON_MAP: Record<string, React.ReactNode> = {
   Layers: <Layers className="w-6 h-6 text-blue-600" />,
   Scissors: <Scissors className="w-6 h-6 text-amber-600" />,
   Grid: <Grid className="w-6 h-6 text-purple-600" />,

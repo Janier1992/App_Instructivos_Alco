@@ -1,25 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Sliders, 
-  Save, 
-  CheckCircle2, 
-  Globe, 
-  Key, 
-  ShieldCheck, 
-  Copy, 
-  ExternalLink,
+import {
+  Save,
+  Copy,
   Bot,
-  MessageSquare,
-  Building,
-  Clock,
   Sparkles,
   RefreshCw,
   Database,
-  Lock,
-  Smartphone,
-  Send,
-  Terminal,
-  Zap,
   FileText,
   UploadCloud,
   FileCheck,
@@ -31,33 +17,16 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-import { WhatsAppAgentConfig } from '../types';
+import { RagAgentConfig } from '../lib/agentConfigStore';
 import { SUPABASE_SQL_SCHEMA } from '../lib/supabaseService';
 import { CustomRagDocument } from '../lib/customRagStore';
 
 export const AgentConfigView: React.FC = () => {
-  const [config, setConfig] = useState<WhatsAppAgentConfig | null>(null);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [tone, setTone] = useState('');
-  const [handoffMessage, setHandoffMessage] = useState('');
-  const [phoneNumberId, setPhoneNumberId] = useState('');
-  const [wabaId, setWabaId] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [verifyToken, setVerifyToken] = useState('');
-  const [appSecret, setAppSecret] = useState('');
-  const [integrationMode, setIntegrationMode] = useState<'open_gateway' | 'simulator' | 'meta_official'>('open_gateway');
   const [isSaved, setIsSaved] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
   const [showSqlSchema, setShowSqlSchema] = useState(false);
   const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
-
-  // Estado para prueba rápida directa de webhook sin Meta
-  const [testPhone, setTestPhone] = useState('+573104567890');
-  const [testName, setTestName] = useState('Carlos Gómez (Planta Alco)');
-  const [testProcess, setTestProcess] = useState('corte-perfileria');
-  const [testMessage, setTestMessage] = useState('¿Cuál es la tolerancia permitida en el ángulo de corte?');
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simResponse, setSimResponse] = useState<string | null>(null);
 
   // ESTADOS DEL MÓDULO RAG PDF
   const [ragDocs, setRagDocs] = useState<CustomRagDocument[]>([]);
@@ -90,18 +59,10 @@ export const AgentConfigView: React.FC = () => {
 
   const loadConfig = async () => {
     try {
-      const res = await fetch('/api/whatsapp/config');
-      const data: WhatsAppAgentConfig = await res.json();
-      setConfig(data);
+      const res = await fetch('/api/agent/config');
+      const data: RagAgentConfig = await res.json();
       setSystemPrompt(data.systemPrompt);
       setTone(data.tone);
-      setHandoffMessage(data.handoffMessage);
-      setPhoneNumberId(data.phoneNumberId);
-      setWabaId(data.wabaId);
-      setAccessToken(data.accessToken);
-      setVerifyToken(data.verifyToken);
-      setAppSecret(data.appSecret);
-      setIntegrationMode(data.integrationMode || 'open_gateway');
 
       const healthRes = await fetch('/api/health');
       const healthData = await healthRes.json();
@@ -131,7 +92,7 @@ export const AgentConfigView: React.FC = () => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
-        
+
         const res = await fetch('/api/rag/upload-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -213,20 +174,10 @@ export const AgentConfigView: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const res = await fetch('/api/whatsapp/config', {
+      const res = await fetch('/api/agent/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemPrompt,
-          tone,
-          handoffMessage,
-          phoneNumberId,
-          wabaId,
-          accessToken,
-          verifyToken,
-          appSecret,
-          integrationMode
-        })
+        body: JSON.stringify({ systemPrompt, tone })
       });
       const data = await res.json();
       if (data.success) {
@@ -238,70 +189,20 @@ export const AgentConfigView: React.FC = () => {
     }
   };
 
-  const handleSimulateDirectWebhook = async () => {
-    setIsSimulating(true);
-    setSimResponse(null);
-    try {
-      const res = await fetch('/api/webhooks/whatsapp/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: testPhone,
-          name: testName,
-          processSlug: testProcess,
-          message: testMessage
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSimResponse(`✅ Evento recibido y procesado por el Agente. Consulta reflejada en la pestaña "Conversaciones" y sincronizada en Supabase.`);
-      } else {
-        setSimResponse(`❌ Error: ${data.error}`);
-      }
-    } catch (err: any) {
-      setSimResponse(`❌ Error conectando con la API: ${err.message}`);
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  const handleTestMetaConnection = async () => {
-    setTestResult('Probando conexión con Meta Graph API v25.0...');
-    setTimeout(() => {
-      setTestResult(`✅ Conexión Exitosa con Meta Graph API v25.0! (Phone Number ID: ${phoneNumberId || '109823471239845'}) - System User Access Token Validado.`);
-    }, 1200);
-  };
-
-  const webhookUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/api/webhooks/whatsapp`
-    : 'https://tu-dominio.com/api/webhooks/whatsapp';
-
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    alert('URL de Webhook copiada al portapapeles');
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Header Informativo */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-900">Personalización del Agente & Webhook WhatsApp</h2>
-            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-              integrationMode === 'open_gateway' ? 'bg-emerald-100 text-emerald-800' :
-              integrationMode === 'simulator' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800'
-            }`}>
-              {integrationMode === 'open_gateway' ? 'Modo Gateway Abierto (Sin Meta)' :
-               integrationMode === 'simulator' ? 'Modo Simulador Web' : 'Meta Graph API v25.0'}
-            </span>
+            <h2 className="text-xl font-bold text-slate-900">Personalización del Agente IA de Calidad</h2>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-purple-600" />
               Google AI Studio (Gemini 3.6 Flash)
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Configuración del modo de integración (Gateway Abierto Baileys/QR, Simulador o Meta Cloud API), prompt e IA RAG.
+            Ajusta el tono y las instrucciones del agente, y gestiona los documentos PDF que alimentan el motor RAG por proceso.
           </p>
         </div>
 
@@ -312,105 +213,6 @@ export const AgentConfigView: React.FC = () => {
           <Save className="w-4 h-4" />
           <span>{isSaved ? '¡Guardado con Éxito!' : 'Guardar Cambios'}</span>
         </button>
-      </div>
-
-      {/* SELECTOR DE MODO DE OPERACIÓN SIN META */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white space-y-4 shadow-lg border border-indigo-900">
-        <div className="flex items-center justify-between border-b border-indigo-800/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-400 animate-pulse" />
-            <h3 className="font-bold text-sm text-slate-100">Modo de Operación del Agente de WhatsApp</h3>
-          </div>
-          <span className="text-[11px] bg-indigo-900/80 text-indigo-300 font-semibold px-2.5 py-1 rounded-lg border border-indigo-700">
-            Operación 100% Funcional Sin Licencias de Meta
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Opción 1: Gateway Abierto (Recomendada Sin Meta) */}
-          <div 
-            onClick={() => setIntegrationMode('open_gateway')}
-            className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-              integrationMode === 'open_gateway' 
-                ? 'bg-emerald-950/70 border-emerald-500 ring-2 ring-emerald-500/50' 
-                : 'bg-slate-800/60 border-slate-700 hover:border-slate-500'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                {integrationMode === 'open_gateway' && (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                )}
-              </div>
-              <h4 className="font-bold text-sm text-emerald-300">1. Gateway Abierto / QR Autónomo</h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Conecta cualquier número escaneando un QR (Baileys, Evolution API, Z-API, cURL). Sin pagos a Meta ni verificación empresarial.
-              </p>
-            </div>
-            <div className="mt-3 text-[10px] text-emerald-400 font-semibold bg-emerald-900/40 px-2 py-1 rounded">
-              ✔ Cero Costos • Conexión Inmediata
-            </div>
-          </div>
-
-          {/* Opción 2: Simulador Web IA */}
-          <div 
-            onClick={() => setIntegrationMode('simulator')}
-            className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-              integrationMode === 'simulator' 
-                ? 'bg-indigo-950/70 border-indigo-500 ring-2 ring-indigo-500/50' 
-                : 'bg-slate-800/60 border-slate-700 hover:border-slate-500'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">
-                  <Bot className="w-5 h-5" />
-                </div>
-                {integrationMode === 'simulator' && (
-                  <CheckCircle2 className="w-5 h-5 text-indigo-400" />
-                )}
-              </div>
-              <h4 className="font-bold text-sm text-indigo-300">2. Simulador Web Interactivo</h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Interactúa directamente desde la pestaña "Agente WhatsApp". Prueba el RAG con Gemini, agendamiento de auditorías y transferencias.
-              </p>
-            </div>
-            <div className="mt-3 text-[10px] text-indigo-300 font-semibold bg-indigo-900/40 px-2 py-1 rounded">
-              ✔ Entorno Seguro de Demostración
-            </div>
-          </div>
-
-          {/* Opción 3: Meta WhatsApp Cloud API */}
-          <div 
-            onClick={() => setIntegrationMode('meta_official')}
-            className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-              integrationMode === 'meta_official' 
-                ? 'bg-blue-950/70 border-blue-500 ring-2 ring-blue-500/50' 
-                : 'bg-slate-800/60 border-slate-700 hover:border-slate-500'
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
-                  <Globe className="w-5 h-5" />
-                </div>
-                {integrationMode === 'meta_official' && (
-                  <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                )}
-              </div>
-              <h4 className="font-bold text-sm text-blue-300">3. Meta WhatsApp Cloud API</h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Integra credenciales oficiales de Meta Graph API v25.0 (System User Access Token, WABA ID y validación HMAC-SHA256).
-              </p>
-            </div>
-            <div className="mt-3 text-[10px] text-blue-300 font-semibold bg-blue-900/40 px-2 py-1 rounded">
-              ● Entorno Corporativo Meta
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* MÓDULO RAG: GESTIÓN DE PDFS TÉCNICOS Y CONSULTA DE BASE DE CONOCIMIENTO */}
@@ -433,7 +235,7 @@ export const AgentConfigView: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
               📚 Documentos RAG Activos: <strong className="text-purple-700">{ragDocs.length}</strong>
@@ -552,7 +354,7 @@ export const AgentConfigView: React.FC = () => {
               ) : (
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
                   {ragDocs.map((doc) => (
-                    <div 
+                    <div
                       key={doc.id}
                       className="p-3.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl transition flex flex-col md:flex-row md:items-center justify-between gap-3"
                     >
@@ -672,7 +474,7 @@ export const AgentConfigView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* PARTE 1: SYSTEM PROMPT Y PERSONALIZACIÓN DE IA */}
+        {/* SYSTEM PROMPT Y PERSONALIZACIÓN DE IA */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
@@ -691,237 +493,24 @@ export const AgentConfigView: React.FC = () => {
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-[11px] text-slate-400 mt-1">
-                Este prompt rige las reglas de respuesta, consulta de RAG, tono y flujo de agendamiento de auditorías vía WhatsApp.
+                Este prompt rige las reglas de respuesta del asistente: fidelidad a la documentación, cero alucinación y formato de respuesta.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Tono de Voz:</label>
-                <input
-                  type="text"
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Mensaje de Escalamiento / Handoff:</label>
-                <input
-                  type="text"
-                  value={handoffMessage}
-                  onChange={(e) => setHandoffMessage(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none"
-                />
-              </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Tono de Voz:</label>
+              <input
+                type="text"
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none"
+              />
             </div>
-          </div>
-
-          {/* PARTE 2: SIMULADOR DIRECTO DE WEBHOOK (PRUEBA SIN META) */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Send className="w-5 h-5 text-emerald-600" />
-                <h3 className="font-bold text-sm text-slate-900">Probador Directo de Webhook (Sin Meta)</h3>
-              </div>
-              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                Prueba Inmediata
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Envía un mensaje de prueba al endpoint <code className="text-indigo-700 font-mono">/api/webhooks/whatsapp</code> para comprobar que el Agente RAG procesa la consulta e imparte respuesta sin requerir API de Meta.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Teléfono Remitente:</label>
-                <input
-                  type="text"
-                  value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Nombre Operario:</label>
-                <input
-                  type="text"
-                  value={testName}
-                  onChange={(e) => setTestName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-1">
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Proceso Planta:</label>
-                <select
-                  value={testProcess}
-                  onChange={(e) => setTestProcess(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
-                >
-                  <option value="corte-perfileria">Corte y Perfilería</option>
-                  <option value="pintura">Pintura Electrostática</option>
-                  <option value="troquelado">Troquelado y Mecanizado</option>
-                  <option value="vidrio-crudo-templado">Vidrio Templado</option>
-                  <option value="ensamble">Ensamble Final</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Mensaje de Consulta:</label>
-                <input
-                  type="text"
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleSimulateDirectWebhook}
-              disabled={isSimulating}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              <span>{isSimulating ? 'Procesando mensaje en Webhook...' : 'Simular Recepción de Mensaje en Webhook'}</span>
-            </button>
-
-            {simResponse && (
-              <div className="p-3 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono border border-slate-700">
-                {simResponse}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* PARTE 2: CONFIGURACIÓN META WHATSAPP GRAPH API */}
+        {/* PERSISTENCIA SUPABASE */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-emerald-600" />
-                <h3 className="font-bold text-sm text-slate-900">Meta WhatsApp Cloud API (v25.0)</h3>
-              </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                Oficial
-              </span>
-            </div>
-
-            {/* URL de Webhook para Meta Developer Console o Gateways Abiertos */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-600 block">URL de Webhook para Gateways o cURL:</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={webhookUrl}
-                  className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-mono"
-                />
-                <button
-                  onClick={copyWebhookUrl}
-                  className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition"
-                  title="Copiar URL de Webhook"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Comando cURL listo para usar */}
-            <div className="p-3 bg-slate-900 text-slate-200 rounded-xl space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-1">
-                <span className="text-[11px] font-bold text-indigo-400 flex items-center gap-1">
-                  <Terminal className="w-3.5 h-3.5" />
-                  Comando cURL de Ingesta Directa
-                </span>
-                <button
-                  onClick={() => {
-                    const curlCmd = `curl -X POST ${webhookUrl} -H "Content-Type: application/json" -d '{"phone": "+573104567890", "name": "Operario Planta", "message": "¿Cuál es la tolerancia permitida en corte?", "processSlug": "corte-perfileria"}'`;
-                    navigator.clipboard.writeText(curlCmd);
-                    alert('Comando cURL copiado al portapapeles');
-                  }}
-                  className="text-[10px] text-sky-400 hover:text-sky-300 font-bold"
-                >
-                  Copiar cURL
-                </button>
-              </div>
-              <pre className="text-[10px] font-mono whitespace-pre-wrap text-slate-300">
-                {`curl -X POST ${webhookUrl} \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "phone": "+573104567890",
-    "name": "Operario Planta",
-    "message": "¿Tolerancia en corte?",
-    "processSlug": "corte-perfileria"
-  }'`}
-              </pre>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Verify Token (Webhook):</label>
-                <input
-                  type="text"
-                  value={verifyToken}
-                  onChange={(e) => setVerifyToken(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Phone Number ID (Meta):</label>
-                <input
-                  type="text"
-                  value={phoneNumberId}
-                  onChange={(e) => setPhoneNumberId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">WABA ID (WhatsApp Business Account):</label>
-                <input
-                  type="text"
-                  value={wabaId}
-                  onChange={(e) => setWabaId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">System User Access Token:</label>
-                <input
-                  type="password"
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={handleTestMetaConnection}
-                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
-              >
-                <ShieldCheck className="w-4 h-4 text-emerald-200" />
-                <span>Probar Conexión con Meta Graph API v25.0</span>
-              </button>
-
-              {testResult && (
-                <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-medium animate-in fade-in">
-                  {testResult}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tarjeta de Persistencia en Supabase y Seguridad HMAC-SHA256 */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -929,8 +518,8 @@ export const AgentConfigView: React.FC = () => {
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Persistencia Supabase & Job Queue</h3>
-                  <p className="text-[11px] text-slate-500">Almacenamiento asíncrono de mensajes y auditorías</p>
+                  <h3 className="font-bold text-slate-800 text-sm">Persistencia Supabase</h3>
+                  <p className="text-[11px] text-slate-500">Almacenamiento de documentos RAG entre reinicios</p>
                 </div>
               </div>
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
@@ -939,16 +528,6 @@ export const AgentConfigView: React.FC = () => {
                 <span className={`w-1.5 h-1.5 rounded-full ${supabaseConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
                 {supabaseConnected ? 'Supabase Conectado' : 'Modo Híbrido / Fallback Local'}
               </span>
-            </div>
-
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs text-slate-700">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                <Lock className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Validación HMAC-SHA256 Activa</span>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Cada webhook recibido en <code className="text-indigo-700 font-mono">/api/webhooks/whatsapp</code> valida la firma <code className="font-mono">X-Hub-Signature-256</code> con tu App Secret antes de aceptar el payload, garantizando origen 100% Meta.
-              </p>
             </div>
 
             <div>

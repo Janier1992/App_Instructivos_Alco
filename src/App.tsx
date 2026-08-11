@@ -10,14 +10,14 @@ import { ProcessDetail } from './components/ProcessDetail';
 import { QRScannerModal } from './components/QRScannerModal';
 import { QRGeneratorModal } from './components/QRGeneratorModal';
 import { GoldenEvaluatorModal } from './components/GoldenEvaluatorModal';
-import { WhatsAppSimulator } from './components/WhatsAppSimulator';
-import { WhatsAppConversations } from './components/WhatsAppConversations';
+import { FloatingAiAssistant } from './components/FloatingAiAssistant';
 import { AgentConfigView } from './components/AgentConfigView';
+import { DashboardView } from './components/DashboardView';
 
 export default function App() {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
   const [currentProcessSlug, setCurrentProcessSlug] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('whatsapp-sim');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('procesos');
 
   // Modales
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function App() {
 
   const handleGoHome = () => {
     setCurrentProcessSlug(null);
-    setActiveTab('whatsapp-sim');
+    setActiveTab('procesos');
     window.location.hash = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -97,15 +97,6 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 pb-12">
-        {activeTab === 'whatsapp-sim' && (
-          <WhatsAppSimulator
-            processes={processes}
-            selectedProcessSlug={currentProcessSlug}
-            onSelectProcessSlug={(slug) => setCurrentProcessSlug(slug)}
-            onOpenScanner={() => setIsScannerOpen(true)}
-          />
-        )}
-
         {activeTab === 'procesos' && (
           currentProcessSlug ? (
             <ProcessDetail
@@ -125,8 +116,8 @@ export default function App() {
           )
         )}
 
-        {activeTab === 'conversaciones' && (
-          <WhatsAppConversations />
+        {activeTab === 'dashboard' && (
+          <DashboardView />
         )}
 
         {activeTab === 'configuracion' && (
@@ -140,11 +131,11 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="font-bold text-slate-100">
-              Alco Windows & Doors S.A.S. — Plataforma WhatsApp & Calidad Cloud
+              Alco Windows & Doors S.A.S. — Plataforma de Calidad Cloud
             </span>
           </div>
           <p className="text-slate-400">
-            Estándares Vigentes • Webhook Meta Graph API v25.0 • Agente IA RAG
+            Estándares Vigentes • Asistente IA RAG por Proceso
           </p>
         </div>
       </footer>
@@ -154,10 +145,7 @@ export default function App() {
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         processes={processes}
-        onSelectProcess={(slug) => {
-          handleSelectProcess(slug);
-          setActiveTab('whatsapp-sim');
-        }}
+        onSelectProcess={handleSelectProcess}
       />
 
       <QRGeneratorModal
@@ -170,6 +158,9 @@ export default function App() {
         isOpen={isEvaluatorOpen}
         onClose={() => setIsEvaluatorOpen(false)}
       />
+
+      {/* Widget Flotante del Asistente IA (disponible en cualquier pestaña) */}
+      <FloatingAiAssistant processes={processes} />
     </div>
   );
 }
