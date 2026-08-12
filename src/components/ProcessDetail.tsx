@@ -119,10 +119,10 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href="/dashboard"
             id="back-to-processes-btn"
             className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
-            title="Volver a la lista de procesos"
+            title="Volver al Dashboard"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>

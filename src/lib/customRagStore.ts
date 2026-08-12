@@ -1,4 +1,3 @@
-import { PDFParse } from 'pdf-parse';
 import { getSupabaseClient } from './supabaseService';
 import { PROCESSES } from '../data/processesData';
 import { embedAndStoreChunks } from './ragRetrieval';
@@ -147,6 +146,12 @@ export async function processAndSavePdfDocument(
   let textExtracted = '';
   let pageCount = 1;
 
+  // Import perezoso: pdf-parse solo hace falta al procesar una subida real.
+  // Si se importara arriba a nivel de módulo, cualquier ruta que solo
+  // necesite otra función de este archivo (chat, dashboard, detalle de
+  // proceso — todas pasan por loadCustomRagDocumentsFromSupabase al
+  // hidratar) cargaría pdf-parse igual, sin necesitarlo.
+  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: fileBuffer });
   try {
     const result = await parser.getText();
