@@ -75,6 +75,19 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('rag-pdfs', 'rag-pdfs', false)
 ON CONFLICT (id) DO NOTHING;
 
+-- Nombre real del colaborador de planta asignado a cada nivel de autonomía
+-- de cada proceso (ej. "Nivel 2 de Corte y Perfilería" -> "Juan Pérez"), para
+-- que la Matriz de Autonomía y el agente de IA citen a la persona real, no
+-- solo el rol genérico. Se llena desde la propia interfaz, nunca se inventa.
+CREATE TABLE IF NOT EXISTS autonomy_role_assignments (
+  process_slug VARCHAR(100) NOT NULL,
+  level VARCHAR(20) NOT NULL,
+  collaborator_name VARCHAR(255) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (process_slug, level)
+);
+ALTER TABLE autonomy_role_assignments ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,

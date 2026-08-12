@@ -14,7 +14,6 @@ import { GOLDEN_DATASET } from './src/data/goldenDataset';
 import { processQualityQueryServer } from './src/lib/geminiClient';
 import { generateProcessQRSVG, generateProcessQRDataURL } from './src/lib/qrService';
 import { GoldenEvalResult } from './src/types';
-import { getAgentConfig, updateAgentConfig } from './src/lib/agentConfigStore';
 import { isSupabaseConfigured } from './src/lib/supabaseService';
 import { isOpenRouterConfigured } from './src/lib/openRouterClient';
 import { setLastGoldenEvalResult, getLastGoldenEvalResult } from './src/lib/goldenEvalCache';
@@ -27,13 +26,20 @@ import {
   getRagCoverageMetrics,
   loadCustomRagDocumentsFromSupabase
 } from './src/lib/customRagStore';
+import {
+  loadAutonomyAssignmentsFromSupabase,
+  getAutonomyAssignments,
+  setAutonomyAssignment
+} from './src/lib/autonomyAssignmentsStore';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Hidratar documentos RAG ya guardados en Supabase antes de aceptar tráfico
+  // Hidratar documentos RAG y asignaciones de autonomía guardados en Supabase
+  // antes de aceptar tráfico
   await loadCustomRagDocumentsFromSupabase();
+  await loadAutonomyAssignmentsFromSupabase();
 
   app.use(express.json({ limit: '5mb' }));
 
@@ -54,17 +60,6 @@ async function startServer() {
       supabaseConnected: isSupabaseConfigured(),
       openRouterConfigured: isOpenRouterConfigured()
     });
-  });
-
-  // --- CONFIGURACIÓN DEL AGENTE IA ---
-
-  app.get('/api/agent/config', (req, res) => {
-    res.json(getAgentConfig());
-  });
-
-  app.post('/api/agent/config', (req, res) => {
-    const updated = updateAgentConfig(req.body);
-    res.json({ success: true, config: updated });
   });
 
   // --- MÓDULO RAG: GESTIÓN DE DOCUMENTOS PDF TÉCNICOS Y CONSULTA IA ---
@@ -187,7 +182,11 @@ async function startServer() {
     const docs = DOCUMENTS[slug] || [];
     const controls = QUALITY_CONTROLS[slug] || [];
     const criteria = ACCEPTANCE_CRITERIA[slug] || [];
-    const autonomy = AUTONOMY_MATRIX[slug] || [];
+    const assignments = getAutonomyAssignments(slug);
+    const autonomy = (AUTONOMY_MATRIX[slug] || []).map(item => ({
+      ...item,
+      assignedCollaborator: assignments[item.level] || undefined
+    }));
 
     res.json({
       process,
@@ -196,6 +195,31 @@ async function startServer() {
       criteria,
       autonomy
     });
+  });
+
+  // Asignar/actualizar el nombre real del colaborador de planta en un nivel
+  // de autonomía de un proceso
+  app.post('/api/autonomy/:slug/:level', async (req, res) => {
+    try {
+      const { slug, level } = req.params;
+      const { collaboratorName } = req.body;
+
+      if (typeof collaboratorName !== 'string') {
+        res.status(400).json({ error: 'Se requiere collaboratorName (texto).' });
+        return;
+      }
+
+      const decodedLevel = decodeURIComponent(level);
+      const result = await setAutonomyAssignment(slug, decodedLevel, collaboratorName);
+      res.json({
+        success: result.success,
+        persistedToSupabase: result.persistedToSupabase,
+        assignedCollaborator: collaboratorName.trim()
+      });
+    } catch (err: any) {
+      console.error('Error guardando asignación de autonomía:', err);
+      res.status(500).json({ error: err?.message || 'Error interno del servidor.' });
+    }
   });
 
   // Endpoint de Chat RAG

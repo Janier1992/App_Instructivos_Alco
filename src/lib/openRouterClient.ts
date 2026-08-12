@@ -1,7 +1,12 @@
 // Los modelos gratuitos de OpenRouter pueden congestionarse en horas pico.
 // Se corta la espera pasado este tiempo para no dejar al usuario esperando
 // y pasar de inmediato al respaldo determinístico.
-const OPENROUTER_TIMEOUT_MS = 12000;
+// El modelo gratuito openai/gpt-oss-20b:free (usado antes) se saturó y el
+// respaldo elegido (nvidia/nemotron-3-nano-30b-a3b:free) tarda ~20s bajo el
+// contexto RAG completo real de esta app (medido en vivo), más que los 12s
+// originales — se ajusta el límite para darle margen real de completar en
+// vez de caer al respaldo determinístico genérico en la mayoría de consultas.
+const OPENROUTER_TIMEOUT_MS = 20000;
 
 /**
  * Cliente para OpenRouter (https://openrouter.ai) — API compatible con OpenAI,
@@ -11,7 +16,8 @@ const OPENROUTER_TIMEOUT_MS = 12000;
  */
 export async function callOpenRouterModel(
   systemInstruction: string,
-  userPrompt: string
+  userPrompt: string,
+  historyMessages: { role: 'user' | 'assistant'; content: string }[] = []
 ): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -34,6 +40,7 @@ export async function callOpenRouterModel(
         model,
         messages: [
           { role: 'system', content: systemInstruction },
+          ...historyMessages,
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.1

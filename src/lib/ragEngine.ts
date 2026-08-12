@@ -13,6 +13,7 @@ import {
 } from '../types';
 import { getCustomRagDocuments } from './customRagStore';
 import { searchRelevantChunks } from './ragRetrieval';
+import { getAutonomyAssignments } from './autonomyAssignmentsStore';
 
 export interface RAGContextResult {
   process: ProcessItem;
@@ -25,6 +26,7 @@ export interface RAGContextResult {
   isCrossProcess: boolean;
   targetOtherProcess?: ProcessItem;
   formattedContextText: string;
+  pdfSourceReferences: SourceReference[];
 }
 
 /**
@@ -53,16 +55,31 @@ export function checkPromptInjection(question: string): boolean {
   return injectionPatterns.some(pattern => lower.includes(pattern));
 }
 
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Detecta si la pregunta se refiere a otro proceso distinto al actual
+ * Detecta si la pregunta pide explícitamente información DE OTRO proceso
+ * distinto al actual (ej. "el proceso de pintura", "módulo de ensamble").
+ *
+ * Un simple `includes()` del nombre del proceso es demasiado agresivo: varios
+ * procesos se llaman igual que palabras españolas comunes de planta ("Pintura",
+ * "Ensamble", "Transporte", "Despachos", "Alistamiento"), así que una pregunta
+ * perfectamente válida del proceso actual que solo las menciona de paso (ej.
+ * "¿esta pieza ya puede pasar a ensamble?" dentro de Perfilería y Corte)
+ * terminaba siendo rechazada como "fuera de alcance" sin motivo real.
  */
 export function checkCrossProcessQuery(currentProcessSlug: string, question: string): ProcessItem | null {
   const lower = question.toLowerCase();
   for (const proc of PROCESSES) {
     if (proc.slug !== currentProcessSlug) {
-      const processNameLower = proc.name.toLowerCase();
-      // Si menciona explícitamente el nombre de otro proceso
-      if (lower.includes(processNameLower)) {
+      const nameLower = escapeRegex(proc.name.toLowerCase());
+      const explicitTopicPattern = new RegExp(
+        `\\b(proceso|m[oó]dulo|[aá]rea|secci[oó]n)\\s+de\\s+${nameLower}\\b|\\b${nameLower}\\s+(proceso|m[oó]dulo)\\b`,
+        'i'
+      );
+      if (explicitTopicPattern.test(lower)) {
         return proc;
       }
     }
@@ -117,7 +134,11 @@ export async function getRAGContext(processSlug: string, question: string): Prom
   
   const controls = QUALITY_CONTROLS[processSlug] || [];
   const criteria = ACCEPTANCE_CRITERIA[processSlug] || [];
-  const autonomy = AUTONOMY_MATRIX[processSlug] || [];
+  const autonomyAssignments = getAutonomyAssignments(processSlug);
+  const autonomy = (AUTONOMY_MATRIX[processSlug] || []).map(item => ({
+    ...item,
+    assignedCollaborator: autonomyAssignments[item.level] || undefined
+  }));
 
   // Formatear contexto estructurado para el Prompt
   let contextText = `=== PROCESO ACTUAL: ${currentProcess.name.toUpperCase()} (Código: ${currentProcess.code}) ===\n`;
@@ -147,7 +168,8 @@ export async function getRAGContext(processSlug: string, question: string): Prom
 
   contextText += `\n--- MATRIZ DE AUTONOMÍA ALCO (Nivel 1 a Nivel 4) ---\n`;
   for (const a of autonomy) {
-    contextText += `- [${a.level}] ${a.title} (${a.role})\n  Alcance: ${a.scope}\n  Acciones Permitidas: ${a.allowedActions.join('; ')}\n  Condición de Escalamiento: ${a.escalationCondition}\n  Contacto: ${a.contactPerson}\n`;
+    const contactLine = a.assignedCollaborator ? `${a.contactPerson} — ${a.assignedCollaborator}` : a.contactPerson;
+    contextText += `- [${a.level}] ${a.title} (${a.role})\n  Alcance: ${a.scope}\n  Acciones Permitidas: ${a.allowedActions.join('; ')}\n  Condición de Escalamiento: ${a.escalationCondition}\n  Contacto: ${contactLine}\n`;
   }
 
   // AGREGAR DOCUMENTOS PDF TÉCNICOS CARGADOS POR EL USUARIO EN EL MÓDULO RAG
@@ -155,6 +177,27 @@ export async function getRAGContext(processSlug: string, question: string): Prom
   // a la pregunta); si no está disponible (sin Supabase, sin embeddings, error),
   // se cae al comportamiento anterior de incluir el texto completo de los PDFs.
   const customPdfDocs = getCustomRagDocuments(processSlug);
+  // Fuentes PDF realmente usadas para responder — se agregan a las fuentes
+  // oficiales estáticas más abajo, para que el badge "Fuente Oficial" de la UI
+  // coincida con lo que el agente cita de verdad en el cuerpo de la respuesta
+  // (antes solo mostraba documentos estáticos, aunque la respuesta se hubiera
+  // basado en un PDF cargado por el usuario).
+  const pdfSourceReferences: SourceReference[] = [];
+  const seenPdfSourceKeys = new Set<string>();
+  const addPdfSourceRef = (title: string, code: string | null, uploadedAt?: string) => {
+    const key = `${title}|${code || ''}`;
+    if (seenPdfSourceKeys.has(key)) return;
+    seenPdfSourceKeys.add(key);
+    pdfSourceReferences.push({
+      documentTitle: title,
+      code: code || 'N/A',
+      version: 'PDF',
+      section: 'Documento PDF cargado al módulo RAG',
+      effectiveDate: uploadedAt || '',
+      status: 'vigente'
+    });
+  };
+
   if (customPdfDocs.length > 0) {
     const relevantChunks = await searchRelevantChunks(processSlug, question);
 
@@ -164,6 +207,8 @@ export async function getRAGContext(processSlug: string, question: string): Prom
         contextText += `DOCUMENTO PDF: "${chunk.documentTitle}"${chunk.documentCode ? ` (Código: ${chunk.documentCode})` : ''}\n`;
         contextText += `Fragmento relevante:\n${chunk.content}\n`;
         contextText += `--------------------------------------------------\n`;
+        const matchedDoc = customPdfDocs.find(d => d.code === chunk.documentCode || d.title === chunk.documentTitle);
+        addPdfSourceRef(chunk.documentTitle, chunk.documentCode, matchedDoc?.uploadedAt);
       }
     } else {
       contextText += `\n--- DOCUMENTOS PDF TÉCNICOS ADICIONALES CARGADOS EN MÓDULO RAG ---\n`;
@@ -172,6 +217,7 @@ export async function getRAGContext(processSlug: string, question: string): Prom
         contextText += `Fecha Carga: ${pdfDoc.uploadedAt}\n`;
         contextText += `Contenido Extraído:\n${pdfDoc.extractedText}\n`;
         contextText += `--------------------------------------------------\n`;
+        addPdfSourceRef(pdfDoc.title, pdfDoc.code, pdfDoc.uploadedAt);
       }
     }
   }
@@ -186,7 +232,8 @@ export async function getRAGContext(processSlug: string, question: string): Prom
     isInjectionAttempt: isInjection,
     isCrossProcess: !!otherProcess,
     targetOtherProcess: otherProcess || undefined,
-    formattedContextText: contextText
+    formattedContextText: contextText,
+    pdfSourceReferences
   };
 }
 

@@ -9,7 +9,6 @@ import { ProcessList } from './components/ProcessList';
 import { ProcessDetail } from './components/ProcessDetail';
 import { QRGeneratorModal } from './components/QRGeneratorModal';
 import { FloatingAiAssistant } from './components/FloatingAiAssistant';
-import { AgentSettingsModal } from './components/AgentSettingsModal';
 import { DashboardView } from './components/DashboardView';
 
 export default function App() {
@@ -18,7 +17,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('procesos');
 
   // Modales
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [qrModalProcess, setQrModalProcess] = useState<ProcessItem | null>(null);
 
   // Cargar lista de procesos al iniciar
@@ -87,7 +85,7 @@ export default function App() {
           }
         }}
         onGoHome={handleGoHome}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onExit={handleGoHome}
         currentProcessName={activeProcessItem?.name}
       />
 
@@ -136,11 +134,6 @@ export default function App() {
         isOpen={!!qrModalProcess}
         onClose={() => setQrModalProcess(null)}
         process={qrModalProcess}
-      />
-
-      <AgentSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
       />
 
       {/* Widget Flotante del Asistente IA (disponible en cualquier pestaña) */}

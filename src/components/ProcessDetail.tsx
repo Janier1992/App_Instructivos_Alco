@@ -13,7 +13,11 @@ import {
   FileText,
   UserCheck,
   Info,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  Check,
+  X,
+  User
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 
@@ -28,6 +32,10 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos'>('autonomia');
   const [loading, setLoading] = useState(true);
+  const [ragDocsCount, setRagDocsCount] = useState(0);
+  const [editingLevel, setEditingLevel] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [savingLevel, setSavingLevel] = useState<string | null>(null);
   const [data, setData] = useState<{
     process: ProcessItem;
     documents: DocumentItem[];
@@ -53,8 +61,45 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
         if (isMounted) setLoading(false);
       });
 
+    // Documentos PDF cargados al motor RAG para este proceso — el conteo del
+    // tab "Documentos Vigentes" debe reflejar el total real (estáticos + PDFs
+    // subidos), no solo la documentación estática.
+    fetch(`/api/rag/documents?processSlug=${encodeURIComponent(slug)}`)
+      .then(res => res.json())
+      .then(resData => {
+        if (isMounted && resData.success) {
+          setRagDocsCount(resData.total || 0);
+        }
+      })
+      .catch(err => console.error('Error cargando conteo de documentos RAG:', err));
+
     return () => { isMounted = false; };
   }, [slug]);
+
+  const handleSaveCollaborator = async (level: string) => {
+    setSavingLevel(level);
+    try {
+      const res = await fetch(`/api/autonomy/${slug}/${encodeURIComponent(level)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collaboratorName: editingName })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setData(prev => prev && {
+          ...prev,
+          autonomy: prev.autonomy.map(item =>
+            item.level === level ? { ...item, assignedCollaborator: resData.assignedCollaborator } : item
+          )
+        });
+        setEditingLevel(null);
+      }
+    } catch (err) {
+      console.error('Error guardando colaborador asignado:', err);
+    } finally {
+      setSavingLevel(null);
+    }
+  };
 
   if (loading || !data) {
     return (
@@ -126,7 +171,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           }`}
         >
           <FileText className="w-4 h-4 text-[#003366] shrink-0" />
-          <span>Documentos Vigentes ({documents.length})</span>
+          <span>Documentos Vigentes ({documents.length + ragDocsCount})</span>
         </button>
       </div>
 
@@ -164,6 +209,53 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 
                   <h4 className="font-bold text-slate-900 text-sm">{item.title}</h4>
                   <p className="text-xs text-slate-600 italic">"{item.scope}"</p>
+
+                  <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg space-y-1.5">
+                    <span className="text-[11px] font-bold text-[#003366] uppercase tracking-wider flex items-center gap-1">
+                      <User className="w-3.5 h-3.5" />
+                      Colaborador(es) Asignado(s)
+                    </span>
+                    {editingLevel === item.level ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          placeholder="Nombre del colaborador de planta"
+                          className="flex-1 min-w-0 px-2 py-1.5 text-xs bg-white border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                        <button
+                          onClick={() => handleSaveCollaborator(item.level)}
+                          disabled={savingLevel === item.level}
+                          className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 shrink-0"
+                          title="Guardar"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingLevel(null)}
+                          className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition shrink-0"
+                          title="Cancelar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-xs ${item.assignedCollaborator ? 'font-semibold text-slate-800' : 'text-slate-400 italic'}`}>
+                          {item.assignedCollaborator || 'Sin asignar todavía'}
+                        </span>
+                        <button
+                          onClick={() => { setEditingLevel(item.level); setEditingName(item.assignedCollaborator || ''); }}
+                          className="p-1.5 text-blue-700 hover:bg-blue-100 rounded-lg transition shrink-0"
+                          title="Editar colaborador asignado"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="pt-2 space-y-1">
                     <span className="text-[11px] font-bold text-[#003366] uppercase tracking-wider block">Acciones Autorizadas:</span>

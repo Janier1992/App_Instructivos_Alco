@@ -14,6 +14,18 @@ let geminiCooldownUntilMs = 0;
 const GEMINI_COOLDOWN_MS = 5 * 60 * 1000;
 const GEMINI_TIMEOUT_MS = 12000;
 
+// Máximo de turnos previos (usuario+asistente) que se reenvían como contexto
+// conversacional — suficiente para resolver preguntas de seguimiento ("¿y si
+// supera esa tolerancia?") sin inflar el prompt en conversaciones largas.
+const MAX_HISTORY_TURNS = 6;
+
+function getRecentHistoryTurns(history: ChatMessage[]): { role: 'user' | 'assistant'; content: string }[] {
+  return history
+    .filter(m => (m.role === 'user' || m.role === 'assistant') && !m.isError && m.content?.trim())
+    .slice(-MAX_HISTORY_TURNS)
+    .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+}
+
 function isQuotaExhaustedError(error: any): boolean {
   const message = String(error?.message || error || '');
   return error?.status === 429 || /RESOURCE_EXHAUSTED|quota/i.test(message);
@@ -72,7 +84,7 @@ export async function processQualityQueryServer(
     };
   }
 
-  const sources = buildSourceReferences(processSlug);
+  const sources = [...buildSourceReferences(processSlug), ...ragResult.pdfSourceReferences];
 
   // Construir una sola vez el system prompt y el prompt de usuario: los usan
   // por igual Gemini y OpenRouter, para que el comportamiento sea consistente
@@ -106,6 +118,11 @@ REGLAS OBLIGATORIAS DE OPERACIÓN RAG:
 
   const prompt = `CONTEXTO RAG DE DOCUMENTOS Y NORMAS VIGENTES DE PLANTA ALCO:\n${ragResult.formattedContextText}\n\nPREGUNTA DEL COLABORADOR DE PLANTA:\n"${userQuestion}"\n\nAplica estrictamente el sistema de prompts configurado y el protocolo RAG de Calidad Alco. Responde en el formato indicado.`;
 
+  // Turnos previos de la conversación (sin la pregunta actual, que ya va en
+  // `prompt` junto con el contexto RAG) — le dan memoria conversacional real
+  // al agente para resolver preguntas de seguimiento.
+  const historyTurns = getRecentHistoryTurns(history);
+
   const buildAiResult = (responseText: string) => {
     const isEscalation = responseText.includes('No encuentro en la documentación') || responseText.includes('escalarse a Calidad');
     return {
@@ -124,9 +141,13 @@ REGLAS OBLIGATORIAS DE OPERACIÓN RAG:
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== 'DUMMY_KEY_FOR_FALLBACK' && !geminiInCooldown) {
       const ai = getGeminiClient();
+      const contents = [
+        ...historyTurns.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+        { role: 'user', parts: [{ text: prompt }] }
+      ];
       const response = await ai.models.generateContent({
         model: 'gemini-3.6-flash',
-        contents: prompt,
+        contents,
         config: {
           systemInstruction,
           temperature: 0.1, // Temperatura baja para respuestas determinísticas de norma técnica
@@ -151,7 +172,7 @@ REGLAS OBLIGATORIAS DE OPERACIÓN RAG:
 
   // 2. Intentar OpenRouter (respaldo con IA real si Gemini falló o no está configurado)
   try {
-    const openRouterText = await callOpenRouterModel(systemInstruction, prompt);
+    const openRouterText = await callOpenRouterModel(systemInstruction, prompt, historyTurns);
     if (openRouterText) {
       return buildAiResult(openRouterText);
     }
@@ -191,6 +212,20 @@ function extractKeywords(text: string): string[] {
   ));
 }
 
+const LEADING_GREETING_PATTERN = /^(hola|buenos?\s*d[ií]as|buenas\s*tardes|buenas\s*noches|hey+|hi|qu[eé]\s*tal|c[oó]mo\s*est[aá]s?|gracias|ok|listo[a]?)[\s,.!¡¿?]*/i;
+
+// Quita saludos/cortesías iniciales en cadena (ej. "Hola, buenos días, ") para
+// poder evaluar si queda alguna pregunta real detrás.
+function stripLeadingGreetings(text: string): string {
+  let result = text.trim();
+  let previous: string;
+  do {
+    previous = result;
+    result = result.replace(LEADING_GREETING_PATTERN, '').trim();
+  } while (result !== previous && result.length > 0);
+  return result;
+}
+
 // Cuenta cuántas de las palabras clave de la pregunta aparecen en un texto objetivo
 function scoreKeywordOverlap(keywords: string[], targetText: string): number {
   const normalizedTarget = stripAccents(targetText.toLowerCase());
@@ -211,6 +246,33 @@ function fallbackDeterministicRAG(
   const { process, relevantDocs, relevantCriteria, relevantControls, relevantAutonomy } = ragResult;
   const questionKeywords = extractKeywords(userQuestion);
   const MIN_MATCH_SCORE = 2;
+
+  // 0. Saludo o mensaje de cortesía sin contenido técnico: responder con una
+  // orientación amable en vez de caer en el mensaje de "no documentado /
+  // escalar a Calidad", que resulta alarmante y confuso para un simple "Hola".
+  // (Ojo: palabras como "hola"/"buenos"/"dias" tienen ≥4 letras y no son
+  // stopwords, así que igual cuentan como "keywords" — por eso no basta con
+  // mirar `questionKeywords.length`; hay que despojar el saludo del texto y
+  // ver si queda contenido real detrás.)
+  const remainderAfterGreeting = stripLeadingGreetings(userQuestion);
+  const isPureGreeting = remainderAfterGreeting.length === 0
+    || (remainderAfterGreeting.length < 12 && extractKeywords(remainderAfterGreeting).length === 0);
+  if (isPureGreeting) {
+    return {
+      reply: `**Respuesta:**
+¡Hola! Soy el agente de Calidad para el proceso de **${process.name}** (${process.code} ${process.activeVersion}). Puedo ayudarte con:
+- Criterios de aceptación y rechazo.
+- Controles críticos y tolerancias.
+- Tu nivel de autonomía para tomar una decisión (Nivel 1 a Nivel 4).
+- Cuándo y a quién escalar una anomalía.
+
+Cuéntame qué necesitas verificar.`,
+      classification: 'A_CONSULTA_DOCUMENTAL' as QueryClassification,
+      sourceReferences: [],
+      autonomyLevel: relevantAutonomy[0]?.level || 'Nivel 1',
+      escalationRequired: false
+    };
+  }
 
   // 1. Mejor coincidencia entre los criterios de aceptación/rechazo del proceso
   const bestCriterion = relevantCriteria
@@ -325,7 +387,7 @@ En el proceso de **${process.name}**, la Matriz de Autonomía de Alco define las
 ${a.allowedActions.map((act: string) => `• ${act}`).join('\n')}
 
 **Qué hacer si superas tu nivel:**
-${a.escalationCondition} (Contactar a: ${a.contactPerson}).
+${a.escalationCondition} (Contactar a: ${a.contactPerson}${a.assignedCollaborator ? ` — ${a.assignedCollaborator}` : ''}).
 
 **Fuente:**
 Matriz de Autonomía ${process.name} — ${process.code} ${process.activeVersion}.`,
@@ -345,7 +407,7 @@ No voy a asumir ni inventar un criterio de calidad. La situación debe escalarse
 **Acción recomendada de escalamiento:**
 1. Separar el lote o pieza afectada.
 2. Identificar con tarjeta roja de "EN REVISIÓN DE CALIDAD".
-3. Notificar al Inspector de Calidad del Proceso (${relevantAutonomy[2]?.contactPerson || 'Calidad Alco'}).`,
+3. Notificar al Inspector de Calidad del Proceso (${relevantAutonomy[2]?.contactPerson || 'Calidad Alco'}${relevantAutonomy[2]?.assignedCollaborator ? ` — ${relevantAutonomy[2].assignedCollaborator}` : ''}).`,
     classification: 'E_CASO_NO_DOCUMENTADO' as QueryClassification,
     sourceReferences: [],
     escalationRequired: true,

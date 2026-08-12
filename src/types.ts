@@ -58,6 +58,8 @@ export interface AutonomyLevelItem {
   allowedActions: string[];
   escalationCondition: string;
   contactPerson: string;
+  /** Nombre real del colaborador de planta asignado a este nivel (editable desde la app). */
+  assignedCollaborator?: string;
 }
 
 export interface DocumentItem {

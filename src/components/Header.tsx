@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, ListFilter, LayoutDashboard } from 'lucide-react';
+import { LogOut, ListFilter, LayoutDashboard } from 'lucide-react';
 import { AlcoLogo } from './AlcoLogo';
 
 export type ActiveTab = 'procesos' | 'dashboard';
@@ -8,7 +8,7 @@ interface HeaderProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onGoHome: () => void;
-  onOpenSettings: () => void;
+  onExit: () => void;
   currentProcessName?: string;
 }
 
@@ -16,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
   onGoHome,
-  onOpenSettings,
+  onExit,
   currentProcessName
 }) => {
   return (
@@ -32,28 +32,23 @@ export const Header: React.FC<HeaderProps> = ({
             <AlcoLogo className="h-8" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold text-base sm:text-lg leading-tight tracking-tight text-white">
-                Plataforma de Calidad Alco
-              </h1>
-              <span className="hidden sm:inline-block px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full">
-                Asistente IA RAG
-              </span>
-            </div>
+            <h1 className="font-bold text-base sm:text-lg leading-tight tracking-tight text-white">
+              Plataforma de Calidad Alco
+            </h1>
             <p className="text-xs text-slate-300">
               {currentProcessName ? `Proceso: ${currentProcessName}` : 'Agente IA • Documentación RAG'}
             </p>
           </div>
         </div>
 
-        {/* Ajustes del Agente */}
+        {/* Salir */}
         <button
-          onClick={onOpenSettings}
-          id="open-settings-button"
+          onClick={onExit}
+          id="exit-app-button"
           className="p-2.5 text-white bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
-          title="Ajustes del Agente IA"
+          title="Salir"
         >
-          <Settings className="w-4 h-4" />
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
 
