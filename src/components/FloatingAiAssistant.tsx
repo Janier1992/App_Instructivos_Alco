@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { ProcessItem } from '../types';
 import { Bot, X, ChevronLeft, Sparkles, FileText } from 'lucide-react';

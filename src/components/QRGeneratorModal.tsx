@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { ProcessItem } from '../types';
 import { generateProcessQRSVG, buildProcessUrl } from '../lib/qrService';

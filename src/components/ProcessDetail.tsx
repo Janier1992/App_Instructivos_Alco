@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   ProcessItem,
   DocumentItem,
@@ -23,12 +26,10 @@ import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 
 interface ProcessDetailProps {
   slug: string;
-  onBack: () => void;
 }
 
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
-  slug,
-  onBack
+  slug
 }) => {
   const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos'>('autonomia');
   const [loading, setLoading] = useState(true);
@@ -117,14 +118,14 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {/* Botón Volver & Header del Proceso */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
+          <Link
+            href="/"
             id="back-to-processes-btn"
             className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
             title="Volver a la lista de procesos"
           >
             <ArrowLeft className="w-5 h-5" />
-          </button>
+          </Link>
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">

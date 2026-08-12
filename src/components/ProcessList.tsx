@@ -1,30 +1,32 @@
+'use client';
+
 import React, { useState } from 'react';
-import { 
-  ProcessItem 
+import Link from 'next/link';
+import {
+  ProcessItem
 } from '../types';
-import { 
-  Search, 
-  QrCode, 
-  ChevronRight, 
-  CheckCircle2, 
-  Layers, 
-  Scissors, 
-  Grid, 
-  Palette, 
-  Maximize2, 
-  Box, 
-  PackageCheck, 
-  Truck, 
-  ShieldCheck, 
+import {
+  Search,
+  QrCode,
+  ChevronRight,
+  CheckCircle2,
+  Layers,
+  Scissors,
+  Grid,
+  Palette,
+  Maximize2,
+  Box,
+  PackageCheck,
+  Truck,
+  ShieldCheck,
   FileText,
   Flame,
   ClipboardCheck
 } from 'lucide-react';
+import { QRGeneratorModal } from './QRGeneratorModal';
 
 interface ProcessListProps {
   processes: ProcessItem[];
-  onSelectProcess: (slug: string) => void;
-  onOpenQRModal: (process: ProcessItem) => void;
 }
 
 export const ICON_MAP: Record<string, React.ReactNode> = {
@@ -40,12 +42,9 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
   ClipboardCheck: <ClipboardCheck className="w-6 h-6 text-teal-600" />
 };
 
-export const ProcessList: React.FC<ProcessListProps> = ({
-  processes,
-  onSelectProcess,
-  onOpenQRModal
-}) => {
+export const ProcessList: React.FC<ProcessListProps> = ({ processes }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [qrModalProcess, setQrModalProcess] = useState<ProcessItem | null>(null);
 
   const filteredProcesses = processes.filter(p => {
     const term = searchTerm.toLowerCase();
@@ -153,7 +152,7 @@ export const ProcessList: React.FC<ProcessListProps> = ({
               {/* Acciones del Proceso */}
               <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button
-                  onClick={() => onOpenQRModal(process)}
+                  onClick={() => setQrModalProcess(process)}
                   id={`btn-qr-${process.slug}`}
                   className="p-2 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-slate-200"
                   title={`Ver Código QR de ${process.name}`}
@@ -161,19 +160,25 @@ export const ProcessList: React.FC<ProcessListProps> = ({
                   <QrCode className="w-4 h-4" />
                 </button>
 
-                <button
-                  onClick={() => onSelectProcess(process.slug)}
+                <Link
+                  href={`/procesos/${process.slug}`}
                   id={`btn-open-${process.slug}`}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-blue-600 rounded-lg transition-colors shadow-sm"
                 >
                   Consultar Estándar
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      <QRGeneratorModal
+        isOpen={!!qrModalProcess}
+        onClose={() => setQrModalProcess(null)}
+        process={qrModalProcess}
+      />
     </div>
   );
 };

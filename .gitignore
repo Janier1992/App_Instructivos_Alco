@@ -2,8 +2,9 @@ node_modules/
 build/
 dist/
 coverage/
-# Generado por vercel.json (buildCommand) al empaquetar src/server/vercelHandler.ts
-api/index.js
+.next/
+next-env.d.ts
+*.tsbuildinfo
 .DS_Store
 *.log
 .env*

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '../types';
 import { Bot, Send, RefreshCw, ShieldAlert } from 'lucide-react';
