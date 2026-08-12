@@ -12,6 +12,7 @@ import {
   SourceReference 
 } from '../types';
 import { getCustomRagDocuments } from './customRagStore';
+import { searchRelevantChunks } from './ragRetrieval';
 
 export interface RAGContextResult {
   process: ProcessItem;
@@ -104,7 +105,7 @@ export function classifyQuery(question: string, isInjection: boolean, otherProce
 /**
  * Motor RAG Aislado por Proceso
  */
-export function getRAGContext(processSlug: string, question: string): RAGContextResult {
+export async function getRAGContext(processSlug: string, question: string): Promise<RAGContextResult> {
   const currentProcess = PROCESSES.find(p => p.slug === processSlug) || PROCESSES[0];
   const isInjection = checkPromptInjection(question);
   const otherProcess = checkCrossProcessQuery(processSlug, question);
@@ -150,14 +151,28 @@ export function getRAGContext(processSlug: string, question: string): RAGContext
   }
 
   // AGREGAR DOCUMENTOS PDF TÉCNICOS CARGADOS POR EL USUARIO EN EL MÓDULO RAG
+  // Primero se intenta búsqueda semántica real (solo los fragmentos relevantes
+  // a la pregunta); si no está disponible (sin Supabase, sin embeddings, error),
+  // se cae al comportamiento anterior de incluir el texto completo de los PDFs.
   const customPdfDocs = getCustomRagDocuments(processSlug);
   if (customPdfDocs.length > 0) {
-    contextText += `\n--- DOCUMENTOS PDF TÉCNICOS ADICIONALES CARGADOS EN MÓDULO RAG ---\n`;
-    for (const pdfDoc of customPdfDocs) {
-      contextText += `DOCUMENTO PDF: "${pdfDoc.title}" (Código: ${pdfDoc.code} | Archivo: ${pdfDoc.fileName} | Páginas: ${pdfDoc.pageCount})\n`;
-      contextText += `Fecha Carga: ${pdfDoc.uploadedAt}\n`;
-      contextText += `Contenido Extraído:\n${pdfDoc.extractedText}\n`;
-      contextText += `--------------------------------------------------\n`;
+    const relevantChunks = await searchRelevantChunks(processSlug, question);
+
+    if (relevantChunks && relevantChunks.length > 0) {
+      contextText += `\n--- FRAGMENTOS RELEVANTES DE DOCUMENTOS PDF (búsqueda semántica) ---\n`;
+      for (const chunk of relevantChunks) {
+        contextText += `DOCUMENTO PDF: "${chunk.documentTitle}"${chunk.documentCode ? ` (Código: ${chunk.documentCode})` : ''}\n`;
+        contextText += `Fragmento relevante:\n${chunk.content}\n`;
+        contextText += `--------------------------------------------------\n`;
+      }
+    } else {
+      contextText += `\n--- DOCUMENTOS PDF TÉCNICOS ADICIONALES CARGADOS EN MÓDULO RAG ---\n`;
+      for (const pdfDoc of customPdfDocs) {
+        contextText += `DOCUMENTO PDF: "${pdfDoc.title}" (Código: ${pdfDoc.code} | Archivo: ${pdfDoc.fileName} | Páginas: ${pdfDoc.pageCount})\n`;
+        contextText += `Fecha Carga: ${pdfDoc.uploadedAt}\n`;
+        contextText += `Contenido Extraído:\n${pdfDoc.extractedText}\n`;
+        contextText += `--------------------------------------------------\n`;
+      }
     }
   }
 

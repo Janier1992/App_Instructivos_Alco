@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import multer from 'multer';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import {
@@ -19,16 +20,29 @@ import { isOpenRouterConfigured } from './src/lib/openRouterClient';
 import { setLastGoldenEvalResult, getLastGoldenEvalResult } from './src/lib/goldenEvalCache';
 import {
   getCustomRagDocuments,
+  getCustomRagDocumentById,
+  getPdfFileBuffer,
   processAndSavePdfDocument,
   deleteCustomRagDocument,
-  getRagCoverageMetrics
+  getRagCoverageMetrics,
+  loadCustomRagDocumentsFromSupabase
 } from './src/lib/customRagStore';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  // Hidratar documentos RAG ya guardados en Supabase antes de aceptar tráfico
+  await loadCustomRagDocumentsFromSupabase();
+
+  app.use(express.json({ limit: '5mb' }));
+
+  // Subida de PDFs vía multipart/form-data (mucho más eficiente que base64 en JSON,
+  // que inflaba ~33% el tamaño y obligaba a límites de body enormes para todo el API).
+  const uploadPdf = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 60 * 1024 * 1024 } // 60MB por archivo PDF
+  });
 
   // --- RUTAS DE LA API ---
 
@@ -63,30 +77,28 @@ async function startServer() {
   });
 
   // Subir y procesar nuevo PDF para el motor RAG
-  app.post('/api/rag/upload-pdf', async (req, res) => {
+  app.post('/api/rag/upload-pdf', uploadPdf.single('file'), async (req, res) => {
     try {
-      const { fileBase64, fileName, fileSize, processSlug, title } = req.body;
-      if (!fileBase64 || !fileName) {
-        res.status(400).json({ error: 'fileBase64 y fileName son requeridos para procesar el PDF.' });
+      if (!req.file) {
+        res.status(400).json({ error: 'Se requiere un archivo PDF (campo "file").' });
         return;
       }
 
-      // Convertir base64 a Buffer
-      const cleanBase64 = fileBase64.replace(/^data:application\/pdf;base64,/, '');
-      const buffer = Buffer.from(cleanBase64, 'base64');
+      const { processSlug, title } = req.body;
 
-      const document = await processAndSavePdfDocument(
-        buffer,
-        fileName,
-        fileSize || buffer.length,
+      const { document, persistedToSupabase } = await processAndSavePdfDocument(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.size,
         processSlug || 'general',
         title
       );
 
       res.json({
         success: true,
-        message: `PDF "${fileName}" procesado exitosamente y cargado al motor RAG.`,
-        document
+        message: `PDF "${req.file.originalname}" procesado exitosamente y cargado al motor RAG.`,
+        document,
+        persistedToSupabase
       });
     } catch (err: any) {
       console.error('Error al procesar PDF RAG:', err);
@@ -94,10 +106,29 @@ async function startServer() {
     }
   });
 
+  // Servir el archivo PDF original para visualizarlo embebido en la app
+  app.get('/api/rag/documents/:id/file', async (req, res) => {
+    const doc = getCustomRagDocumentById(req.params.id);
+    if (!doc) {
+      res.status(404).json({ error: 'Documento no encontrado.' });
+      return;
+    }
+
+    const buffer = await getPdfFileBuffer(doc);
+    if (!buffer) {
+      res.status(404).json({ error: 'Este documento no tiene el archivo original guardado. Vuelve a subirlo para poder visualizarlo en PDF.' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.fileName)}"`);
+    res.send(buffer);
+  });
+
   // Eliminar un PDF del motor RAG
-  app.delete('/api/rag/documents/:id', (req, res) => {
+  app.delete('/api/rag/documents/:id', async (req, res) => {
     const { id } = req.params;
-    const deleted = deleteCustomRagDocument(id);
+    const deleted = await deleteCustomRagDocument(id);
     if (!deleted) {
       res.status(404).json({ error: 'Documento PDF no encontrado en el store RAG.' });
       return;
@@ -307,6 +338,23 @@ async function startServer() {
   // Métricas agregadas para el Dashboard de Supervisores (cobertura documental RAG + Golden Dataset)
   app.get('/api/dashboard/metrics', (req, res) => {
     res.json(getRagCoverageMetrics());
+  });
+
+  // Manejador de errores: SIEMPRE responde JSON, nunca la página de error HTML por
+  // defecto de Express — evita que el frontend intente parsear HTML como JSON
+  // (ej. cuando multer rechaza un PDF por exceder el tamaño máximo permitido).
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      console.warn('⚠️ Archivo PDF rechazado por exceder el tamaño máximo (60MB).');
+      res.status(413).json({ error: 'El archivo PDF supera el tamaño máximo permitido (60MB).' });
+      return;
+    }
+    console.error('Error no controlado en la API:', err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor.' });
   });
 
   // --- CONFIGURACIÓN DE VITE / ESTÁTICOS ---

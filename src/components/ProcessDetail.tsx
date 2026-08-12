@@ -8,30 +8,25 @@ import {
 } from '../types';
 import {
   ArrowLeft,
-  QrCode,
   CheckCircle2,
   AlertTriangle,
-  Bot,
   FileText,
   UserCheck,
   Info,
-  RefreshCw,
-  Sparkles
+  RefreshCw
 } from 'lucide-react';
-import { AiChatPanel } from './AiChatPanel';
+import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 
 interface ProcessDetailProps {
   slug: string;
   onBack: () => void;
-  onOpenQRModal: (process: ProcessItem) => void;
 }
 
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug,
-  onBack,
-  onOpenQRModal
+  onBack
 }) => {
-  const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos' | 'chat'>('autonomia');
+  const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos'>('autonomia');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{
     process: ProcessItem;
@@ -104,26 +99,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           </div>
         </div>
 
-        {/* Acciones de Cabecera */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onOpenQRModal(process)}
-            id="open-process-qr-btn"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-[#003366] bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-sm transition-all"
-          >
-            <QrCode className="w-4 h-4 text-[#003366]" />
-            Código QR de Proceso
-          </button>
-
-          <button
-            onClick={() => setActiveTab('chat')}
-            id="open-process-ai-tab-btn"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-white bg-[#003366] hover:bg-[#002244] rounded-lg shadow-sm transition-all"
-          >
-            <Bot className="w-4 h-4" />
-            Agente IA de Calidad
-          </button>
-        </div>
       </div>
 
       {/* Navegación por Tabs de Proceso Exclusivamente Solicitados */}
@@ -152,19 +127,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
         >
           <FileText className="w-4 h-4 text-[#003366] shrink-0" />
           <span>Documentos Vigentes ({documents.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('chat')}
-          id="tab-chat"
-          className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-lg transition-colors border-b-2 min-h-[44px] ${
-            activeTab === 'chat'
-              ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>Agente IA de Calidad</span>
         </button>
       </div>
 
@@ -234,6 +196,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 
       {/* MODULO 2: DOCUMENTOS VIGENTES */}
       {activeTab === 'documentos' && (
+        <div className="space-y-6">
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>
@@ -359,16 +322,10 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             </div>
           </div>
         </div>
-      )}
 
-      {/* MODULO 3: AGENTE DE IA DE CALIDAD */}
-      {activeTab === 'chat' && (
-        <AiChatPanel
-          processSlug={slug}
-          processName={process.name}
-          processCode={process.code}
-          processVersion={process.activeVersion}
-        />
+          {/* Documentos PDF cargados por el usuario para este proceso, con indexación RAG */}
+          <ProcessDocumentsPanel processSlug={slug} />
+        </div>
       )}
     </div>
   );

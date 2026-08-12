@@ -1,15 +1,14 @@
 import React from 'react';
-import { QrCode, Cpu, ListFilter, Sliders, LayoutDashboard } from 'lucide-react';
+import { Settings, ListFilter, LayoutDashboard } from 'lucide-react';
 import { AlcoLogo } from './AlcoLogo';
 
-export type ActiveTab = 'procesos' | 'dashboard' | 'configuracion';
+export type ActiveTab = 'procesos' | 'dashboard';
 
 interface HeaderProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onGoHome: () => void;
-  onOpenScanner: () => void;
-  onOpenEvaluator: () => void;
+  onOpenSettings: () => void;
   currentProcessName?: string;
 }
 
@@ -17,8 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
   onGoHome,
-  onOpenScanner,
-  onOpenEvaluator,
+  onOpenSettings,
   currentProcessName
 }) => {
   return (
@@ -48,28 +46,15 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons for Plant Floor Operatives */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={onOpenScanner}
-            id="scan-qr-header-button"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
-            title="Escanear Código QR de Proceso"
-          >
-            <QrCode className="w-4 h-4 text-slate-200" />
-            <span className="hidden md:inline">Escanear QR</span>
-          </button>
-
-          <button
-            onClick={onOpenEvaluator}
-            id="golden-evaluator-header-button"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-500/50 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            title="Pruebas de Calidad RAG y Golden Dataset"
-          >
-            <Cpu className="w-4 h-4 text-emerald-200" />
-            <span className="hidden sm:inline">Golden Dataset</span>
-          </button>
-        </div>
+        {/* Ajustes del Agente */}
+        <button
+          onClick={onOpenSettings}
+          id="open-settings-button"
+          className="p-2.5 text-white bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+          title="Ajustes del Agente IA"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Navigation Tab Bar */}
@@ -97,18 +82,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <LayoutDashboard className="w-4 h-4 text-blue-300" />
             <span>Dashboard</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('configuracion')}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
-              activeTab === 'configuracion'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Sliders className="w-4 h-4 text-blue-300" />
-            <span>Configuración</span>
           </button>
         </div>
       </div>

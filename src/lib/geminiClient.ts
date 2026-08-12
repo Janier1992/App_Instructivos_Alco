@@ -50,7 +50,7 @@ export async function processQualityQueryServer(
   escalationRequired: boolean;
   escalationReason?: string;
 }> {
-  const ragResult = getRAGContext(processSlug, userQuestion);
+  const ragResult = await getRAGContext(processSlug, userQuestion);
 
   // 1. Manejo inmediato de Intentos de Inyección de Prompt / Manipulación
   if (ragResult.isInjectionAttempt) {

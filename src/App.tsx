@@ -7,11 +7,9 @@ import { ProcessItem } from './types';
 import { Header, ActiveTab } from './components/Header';
 import { ProcessList } from './components/ProcessList';
 import { ProcessDetail } from './components/ProcessDetail';
-import { QRScannerModal } from './components/QRScannerModal';
 import { QRGeneratorModal } from './components/QRGeneratorModal';
-import { GoldenEvaluatorModal } from './components/GoldenEvaluatorModal';
 import { FloatingAiAssistant } from './components/FloatingAiAssistant';
-import { AgentConfigView } from './components/AgentConfigView';
+import { AgentSettingsModal } from './components/AgentSettingsModal';
 import { DashboardView } from './components/DashboardView';
 
 export default function App() {
@@ -20,8 +18,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('procesos');
 
   // Modales
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isEvaluatorOpen, setIsEvaluatorOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [qrModalProcess, setQrModalProcess] = useState<ProcessItem | null>(null);
 
   // Cargar lista de procesos al iniciar
@@ -90,8 +87,7 @@ export default function App() {
           }
         }}
         onGoHome={handleGoHome}
-        onOpenScanner={() => setIsScannerOpen(true)}
-        onOpenEvaluator={() => setIsEvaluatorOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         currentProcessName={activeProcessItem?.name}
       />
 
@@ -105,7 +101,6 @@ export default function App() {
                 setCurrentProcessSlug(null);
                 window.location.hash = '';
               }}
-              onOpenQRModal={(proc) => setQrModalProcess(proc)}
             />
           ) : (
             <ProcessList
@@ -118,10 +113,6 @@ export default function App() {
 
         {activeTab === 'dashboard' && (
           <DashboardView />
-        )}
-
-        {activeTab === 'configuracion' && (
-          <AgentConfigView />
         )}
       </main>
 
@@ -141,22 +132,15 @@ export default function App() {
       </footer>
 
       {/* Modales Interactivos */}
-      <QRScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        processes={processes}
-        onSelectProcess={handleSelectProcess}
-      />
-
       <QRGeneratorModal
         isOpen={!!qrModalProcess}
         onClose={() => setQrModalProcess(null)}
         process={qrModalProcess}
       />
 
-      <GoldenEvaluatorModal
-        isOpen={isEvaluatorOpen}
-        onClose={() => setIsEvaluatorOpen(false)}
+      <AgentSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
 
       {/* Widget Flotante del Asistente IA (disponible en cualquier pestaña) */}
@@ -164,4 +148,3 @@ export default function App() {
     </div>
   );
 }
-
