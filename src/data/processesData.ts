@@ -1128,6 +1128,44 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
         { title: '1. Requisitos Dimensionales y Ángulos', content: 'Longitud ±0.5 mm. Ángulo ±0.2°. Espesor de pared ±0.10 mm. Flecha ≤ 1.0 mm/m.' },
         { title: '2. Mantenimiento y Calibración', content: 'Revisar dientes de disco cada 500 cortes y verificar escuadras metálicas de mesa Clase II.' }
       ]
+    },
+    {
+      id: 'doc-cyp-31',
+      processId: 'proc-corte-perfileria',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Perfilería',
+      code: 'INS-CMP-CYP',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO PERFILERÍA
+Responsable: Coordinador de perfilería, Oficial y Auxiliar de perfilería.
+Alcance: Cubre desde almacén hasta el corte de perfilería en el cuidado y manejo de la producción.
+Objetivo: Estandarizar el manejo y cuidado del material en producción y del producto terminado.
+
+BUENAS PRÁCTICAS:
+1. Al manipular la perfilería, evitar que las puntas hagan contacto con los otros paquetes. Pedir ayuda a un compañero para alzar perfiles que superen 25 kg.
+2. No caminar ni pisar las superficies de perfilería.
+3. Abrir las cajas de perfilería con la punta del cuchillo hacia arriba, cortando por cavidades o caras no visibles para evitar rayones.
+4. Si se ponen perfiles sobre el piso, descargar cuidadosamente sobre icopor; si son largos, icopor en extremos y en el medio.
+5. Perfiles sobrantes de una caja tras abastecer la línea: envolver de nuevo y ubicar en su lugar para evitar fricción con otros arrumes.
+6. Arrumar de acuerdo a la geometría de los paquetes: sobre la cara más ancha, en forma horizontal.
+7. Ubicar correctamente la perfilería en el carro (cubículo); con distintas medidas, proteger con plástico en los extremos o zunchos y separar en cajones distintos.
+8. Perfilería que supere 2.4 m no se introduce en el carro: ubicar en el suelo con icopor y evitar agrupar perfiles grandes que generen mucho peso.
+9. No ubicar perfilería en zonas que obstaculicen el paso; organizar arrumes en los costados sin invadir las líneas amarillas de circulación.
+10. Empacar, marcar y acomodar de forma adecuada cuando los perfiles tienen medidas diferentes, separando con cartón o plástico en extremos.
+11. Garantizar que la máquina esté libre de partículas de limalla que puedan generar defectos en la perfilería.
+12. Al empacar, verificar que la perfilería esté libre de limalla; limpiar con pistola de aire si es necesario.
+13. Ubicar el retal según su referencia y acabado para reducir manipulación.
+14-19. Empaque y embalaje: pisavidrios AOC-0019 en royos; zócalos ALE-0955/0907/0908/AOC-0031 y divisores ALE-0899/0919 con cartón intermedio; no descargar perfiles colillados sobre las puntas (arrumar sobre icopor u horizontal); referencias PER-0002 y OPT-034M empacadas según patrón definido para evitar fricción/engrafado; pasamanos con protección de cartón y papel stretch en extremos y centro.
+
+Documento versión 2 (30/01/2026). Control de cambios: v1 creación e implementación del procedimiento (Mónica Arenas Zapata); actualización de forma en encabezado/pie de página y control de cambios (Niver Metaute García); v2 se modifica el alcance, se agrega el cargo de Coordinador del área y se mejora la redacción (Niver Metaute García).`,
+      sections: [
+        { title: 'Manipulación segura', content: 'Perfiles de más de 25 kg se alzan entre dos personas. Perfiles mayores a 2.4 m no van en el carro/cubículo: se ubican en el suelo sobre icopor.' },
+        { title: 'Empaque de referencias específicas', content: 'Pisavidrios AOC-0019 se empacan en royos. Zócalos ALE-0955, 0907, 0908, AOC-0031 y divisores ALE-0899, 0919 se empacan con cartón en el intermedio.' }
+      ]
     }
   ],
   troquelado: [
@@ -1155,6 +1193,46 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
    - N3: Inhabilitar troquel que genere perforaciones fuera de cota.`,
       sections: [
         { title: 'Ubicación de Desagües', content: 'A 50 mm de cada extremo y luego distanciados cada 400 mm máximo entre centros.' }
+      ]
+    },
+    {
+      id: 'doc-trq-21',
+      processId: 'proc-troquelado',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Troquelado',
+      code: 'INS-CMP-TRQ',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO TROQUELADO
+Responsable: Auxiliar de troquelado.
+
+BUENAS PRÁCTICAS:
+1. Abrir las cajas de perfilería con la punta del cuchillo hacia arriba, cortando por cavidades o caras no visibles para evitar rayones.
+2. Usar icopor o cartón cuando se arrume perfilería en el suelo, para que no se friccione.
+3. Verificar que la máquina esté libre de partículas; si se encuentran desechos, limpiar con pistola de aire.
+4. Inspeccionar que la máquina esté en condiciones óptimas; si hay desnivel por falta de soporte, reportar de inmediato al supervisor para reparación por mantenimiento.
+5. Quitar la rebaba de los perfiles; asegurar que las cajas estén libres de rebaba antes de empacar para evitar rayones.
+6. Proteger las cajas troqueladas colocando cartón en medio de los perfiles.
+7. Arrumar de manera correcta en los carros de transporte, según la geometría de los perfiles, para evitar fricción.
+9. Verificar que las patas-torre estén protegidas con plástico stretch, cinta o caucho.
+10. Verificar que los carros patinadores estén protegidos en los extremos; si no tienen protección, informar al supervisor o mantenimiento.
+11-12. Empaque y embalaje: pisavidrios AOC-0019 se empacan en arrumes cuando van verticales y en royos cuando van horizontales.
+13. Sistemas 3310, 3380 y VP-OPT que requieran troquelado para recibidor de manijas importadas deben llevar protección (cartón entre cada perfil).
+14. Evitar colocar perfilería colillada de forma vertical; arrumar horizontal o sobre icopor.
+15. Al retirar producción parcial, sujetar la perfilería suelta con zunchos.
+16. Al arrumar, ubicar primero la perfilería más grande protegiendo los extremos con plástico, y por último la más pequeña.
+17. Perfilería grande o pesada se transporta al hombro entre dos compañeros.
+18. Transportar la perfilería horizontalmente dentro del carro.
+19. Zócalos ALE-0955/0907/0908/AOC-0031 y divisores ALE-0899/0919 se empacan con cartón en el intermedio.
+20. Referencia OPT-034M se empaca según el patrón definido de acción correcta.
+
+Documento versión 2 (30/01/2026).`,
+      sections: [
+        { title: 'Mantenimiento preventivo', content: 'Si la máquina presenta desnivel por falta de soporte, se reporta de inmediato al supervisor para reparación oportuna por mantenimiento — no se opera con desviaciones.' },
+        { title: 'Protección de piezas troqueladas', content: 'Cajas troqueladas se protegen con cartón entre perfiles. Sistemas 3310, 3380 y VP-OPT con troquelado para recibidor de manijas importadas requieren protección adicional entre cada perfil.' }
       ]
     }
   ],
@@ -1186,6 +1264,49 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
       sections: [
         { title: 'Corte y Rutero de Vidrio Crudo', content: 'Vidrio crudo monolítico sin requerimiento térmico se envía directamente a la sección de ensamble o despachos mediante coche identificado.' },
         { title: 'Arrisado Obligatorio', content: 'Queda prohibido ingresar vidrios con cantos vivos al horno de templado para evitar estallidos.' }
+      ]
+    },
+    {
+      id: 'doc-vdt-21',
+      processId: 'proc-vidrio-crudo-templado',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Vidrio Crudo, Templado y Laminado',
+      code: 'INS-CMP-VDT',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - VIDRIO TEMPLADO, LAMINADO Y CRUDO
+Responsables: Oficiales y auxiliares de vidrio templado, vidrio laminado y vidrio crudo.
+
+VIDRIO TEMPLADO (VDT):
+1. Separar con cartón los vidrios que presenten distintas medidas para evitar rayones.
+2. Utilizar icopor al apoyar el vidrio templado sobre la pared, y tablas de madera en el suelo.
+3. Verificar que los carros patinadores estén en buen estado para transportar el vidrio templado; si no lo están, no usarlos y avisar al supervisor.
+4. Manipular el vidrio de a 1 unidad después de salir del horno y ubicarlo en los burros, evitando sobrepeso y caídas.
+5. Al arrumar, evitar hacerlo de forma inclinada porque los vidrios pueden rayarse.
+6. Sujetar los carros de patinado usando caucho alrededor del arrume.
+
+VIDRIO LAMINADO (VLA):
+1. Separar con cartón los vidrios de medidas diferentes en el mismo arrume.
+2. Utilizar icopor al apoyar el vidrio sobre la pared y tablas de madera en el suelo.
+3. Verificar que los carros transportadores estén en buen estado; si no, no utilizarlos y reportar al jefe inmediato.
+4. Evitar arrumar los vidrios de forma inclinada para prevenir rayones.
+5. Sujetar los carros de patinado con caucho alrededor del arrume.
+
+VIDRIO CRUDO (VDC):
+1. Separar con cartón los vidrios de distintas medidas para evitar rayones.
+2. Utilizar icopor al apoyar el vidrio crudo sobre la pared y tablas de madera en el suelo.
+3. Verificar que los carros patinadores estén en buen estado para transportar el vidrio; si no, avisar al supervisor.
+5. Evitar inclinar los vidrios al momento de arrumar.
+6. Limpiar las mesas de corte para evitar acumulación de partículas que generen fricción.
+7. Sujetar los carros de patinado con caucho alrededor del arrume.
+
+Documento versión 2 (30/01/2026).`,
+      sections: [
+        { title: 'Manipulación de vidrio recién templado', content: 'El vidrio se manipula de a 1 unidad al salir del horno antes de ubicarlo en los burros, para evitar sobrepeso y caídas.' },
+        { title: 'Transporte en carros patinadores', content: 'Antes de transportar cualquier tipo de vidrio (crudo, templado o laminado), verificar que el carro esté en buen estado; si no lo está, no usarlo y reportar al supervisor o jefe inmediato.' }
       ]
     }
   ],
@@ -1219,6 +1340,30 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
         { title: 'Prueba de Adherencia (Cross Hatch)', content: 'Realizar 6 cortes verticales y 6 horizontales a 1mm de distancia con cortador multilama, aplicar cinta 3M 610, frotar y halar a 90°. Resultado obligatorio: 5B.' },
         { title: 'Medición de Espesor', content: 'Tomar 5 lecturas por perfil con medidor de corriente de Eddy calibrado con galga de 75µm sobre sustrato de aluminio.' }
       ]
+    },
+    {
+      id: 'doc-pnt-22',
+      processId: 'proc-pintura',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Pintura',
+      code: 'INS-CMP-PNT',
+      version: 'v1',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO PINTURA
+Responsable: Coordinador de pintura, Oficial y Auxiliar de pintura.
+
+BUENAS PRÁCTICAS:
+1. Ubicar la perfilería en un lugar donde no sufra caídas ni fricciones después de lavar, según el espacio y la cantidad de perfiles disponible.
+2. Proteger el material después de pintado, utilizando cinta stretch para garantizar una buena protección.
+
+Documento versión 1 (30/01/2026).`,
+      sections: [
+        { title: 'Post-lavado', content: 'La perfilería recién lavada se ubica en un sitio que no sufra caídas ni fricciones antes de ingresar al proceso de pintura.' },
+        { title: 'Post-pintado', content: 'Todo material ya pintado se protege con cinta stretch para evitar daño al acabado antes de continuar el flujo.' }
+      ]
     }
   ],
   'empaques-felpas': [
@@ -1246,6 +1391,41 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
    - N3: Obligar re-empaquetado si hay empaque tensionado.`,
       sections: [
         { title: 'Control de Elongación', content: 'Si se hala el empaque al insertarlo, con los días se encogerá dejando rendijas descubiertas en las esquinas por donde entrará agua.' }
+      ]
+    },
+    {
+      id: 'doc-emp-13',
+      processId: 'proc-empaques-felpas',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Felpa y Empaque',
+      code: 'INS-CMP-EMP',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO FELPA Y EMPAQUE
+Responsable: Auxiliar de felpa y empaque.
+
+BUENAS PRÁCTICAS:
+1. Abrir las cajas de perfilería con la punta del cuchillo hacia arriba, cortando por cavidades o caras no visibles para evitar rayones.
+2. Usar icopor o cartón cuando se arrume sobre el suelo, para que la perfilería no se friccione.
+3. Proteger las cajas maquinadas colocando cartón en medio de los perfiles, ya que algunas cajas quedan con rebaba que ocasiona fricción.
+4. Al finalizar el pegado de felpa y/o empaque, proteger con plástico los extremos de la perfilería evitando que las puntas queden expuestas.
+5. Limpiar y ordenar constantemente la mesa de trabajo, evitando la acumulación de partículas que puedan friccionar el material.
+6. Evitar colocar perfilería colillada de forma vertical; arrumar horizontal o sobre icopor.
+7. Arrumar los perfiles más grandes al principio del arrume, en forma piramidal (de mayor a menor) para distribuir el peso.
+8-9. Empaque y embalaje: pisavidrios AOC-0019 en arrumes cuando van verticales, en royos cuando van horizontales.
+10. Sistemas 3310, 3380 y VP-OPT que requieran troquelado para recibidor de manijas importadas: proteger con cartón entre cada perfil.
+11. Verificar que las prensas estén protegidas con cinta; si no lo están, informar al jefe inmediato.
+12. Al destapar los paquetes, evitar tirarlos: destapar la perfilería con precaución para no dañarla.
+13. Empacar la referencia OPT-034M según el patrón de acción correcta, para evitar fricción o engrafado.
+19. Zócalos ALE-0955/0907/0908/AOC-0031 y divisores ALE-0899/0919 se empacan con cartón en el intermedio.
+
+Documento versión 2 (30/01/2026).`,
+      sections: [
+        { title: 'Después del pegado de felpa/empaque', content: 'Proteger inmediatamente con plástico los extremos de la perfilería para que las puntas no queden expuestas a fricción.' },
+        { title: 'Estado de prensas y herramientas', content: 'Las prensas deben permanecer protegidas con cinta; si se detecta una sin protección, se informa de inmediato al jefe inmediato antes de continuar usándola.' }
       ]
     }
   ],
@@ -1277,6 +1457,42 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
       sections: [
         { title: 'Escuadreo de Diagonales', content: 'Medir en X con cinta métrica metálica desde la punta exterior del inglete superior izquierdo al inferior derecho, y viceversa.' },
         { title: 'Prueba de Cierre de Hoja', content: 'Verificar que los puntos de cierre falleba / cremona enganchen completamente en sus cerraderos de marco sin forzar.' }
+      ]
+    },
+    {
+      id: 'doc-ens-32',
+      processId: 'proc-ensamble',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Ensamble',
+      code: 'INS-CMP-ENS',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO ENSAMBLE
+Responsable: Oficial y auxiliar de ensamble.
+Alcance: Cumplir con los parámetros establecidos para darle una buena gestión al material que sale de la empresa hasta llegar al cliente final.
+
+BUENAS PRÁCTICAS:
+1. Separar con icopor y/o cartón los arrumes de material de distinta medida para evitar fricciones.
+2. Proteger todo tipo de material con una correcta protección cuando se vaya a ubicar en el suelo.
+3. No recostar producción sobre los vidrios, para evitar quebrarlos.
+4. No ubicar producto terminado sobre producto en proceso; mantenerlos separados para no generar confusiones.
+5. Arrumar la producción de forma intercalada, de manera que enganches, traslapes y/o accesorios (chapas, manijas, pivotes) queden intercalados.
+6. Proteger los vidrios con icopor o cartón en las puntas cuando presenten diferentes medidas.
+7. Mantener libre la zona de circulación para que los patinadores se desplacen sin tropiezos que afecten la producción.
+8. Evitar colocar perfilería colillada de forma vertical; arrumar horizontal o sobre icopor.
+9. No colocar producción sobre las paredes sin protección; usar cartón o icopor.
+10. Limpiar y ordenar el puesto de trabajo, libre de limalla, tornillos y brocas sueltas.
+11. Arrumar el producto en proceso de manera ordenada, aprovechando su geometría para reducir la fricción entre piezas.
+12. Colocar zunchos de sujeción en los fijos (vertical y horizontal, según aplique, en ventanas corredizas): fijos ≥ 2500 mm de longitud llevan zuncho horizontal; fijos ≥ 1200 mm de altura llevan zuncho vertical; si cumple ambas condiciones, se colocan ambos zunchos cruzados. Esto evita el desprendimiento de los perfiles ensamblados durante la manipulación en el transporte.
+13. Empacar todo tipo de pasamanos con protección de cartón y papel stretch en sus extremos y en el medio, para evitar fricción que afecte la estética y/o el acabado de recubrimiento.
+
+Documento versión 2 (30/01/2026).`,
+      sections: [
+        { title: 'Zunchos de sujeción en ventanas corredizas', content: 'Fijos ≥ 2500 mm de longitud: zuncho horizontal. Fijos ≥ 1200 mm de altura: zuncho vertical. Si cumple ambas medidas, se colocan ambos zunchos cruzados — evita el desprendimiento de perfiles ensamblados durante el transporte.' },
+        { title: 'Separación de vidrios y producto', content: 'Nunca recostar producción sobre vidrios (riesgo de quiebre). Producto terminado y producto en proceso se mantienen separados para evitar confusiones.' }
       ]
     }
   ],
@@ -1337,6 +1553,40 @@ export const DOCUMENTS: Record<string, DocumentItem[]> = {
    - N3: Detener salidas sin esquineros o con película rotas.`,
       sections: [
         { title: 'Rotulado Obligatorio', content: 'Etiqueta autoadhesiva indeleble pegada en la esquina inferior derecha del empaque del marco.' }
+      ]
+    },
+    {
+      id: 'doc-dsp-21',
+      processId: 'proc-despachos',
+      title: 'Instructivo Cuidado y Manipulación de la Producción - Despachos',
+      code: 'INS-CMP-DSP',
+      version: 'v2',
+      status: 'vigente',
+      effectiveDate: '2026-01-30',
+      owner: 'Niver Metaute García - Coordinador de Control Interno',
+      approvedBy: 'Víctor Bermúdez (Jefe de Producción) / Antonio Arévalo (Gerente General)',
+      documentType: 'instructivo',
+      contentText: `INSTRUCTIVO CUIDADO Y MANIPULACIÓN DE LA PRODUCCIÓN - PROCESO DESPACHOS
+Responsables: Auxiliares de despachos, asistente de abastecimiento, auxiliares de abastecimiento.
+
+BUENAS PRÁCTICAS:
+1. Separar con icopor y/o cartón los arrumes de distinta medida cuando se ubiquen sobre el suelo, para evitar deterioro del producto.
+2. No poner ventanas ni puertas (pequeñas o grandes) sobre otro vidrio; al descargar producción sobre soportes, verificar que no sea contra un vidrio para evitar daños por sobrepeso.
+3. Proteger los vidrios de diferentes medidas con icopor y/o cartón.
+4. Mantener libre la zona de circulación para evitar caídas que puedan ocasionar rupturas o imperfectos.
+5. Proteger el producto antes de despachar (cinta adhesiva de protección) para evitar rayones en vidrio y perfiles.
+6. No arrumar producto directamente sobre paredes u otras superficies sin protegerlo con cartón o icopor.
+7. Al ingresar material al camión, colocar cartón encima para evitar rayones o rupturas por vibración durante el viaje.
+8. Sujetar la producción a ambos lados de los carros de patinado, para evitar caídas y daños.
+9. Ubicar el PRODUCTO NO CONFORME en su sitio indicado; si se encuentra en un lugar indebido, reubicarlo con cuidado en la zona asignada.
+10. Arrumar la producción de forma intercalada, de manera que enganches, traslapes y/o accesorios queden intercalados.
+11. Si el destino es fuera de Medellín, proteger el suelo y las paredes del camión con cartón, esquineros y/o icopor para separar la producción.
+12. Empacar y sujetar correctamente la materia prima para su transporte: embalar según geometría, proteger con cartón las puntas de perfiles de distintas medidas para evitar roce, y asegurar con zunchos para evitar accidentes por caída durante el transporte.
+
+Documento versión 2 (30/01/2026).`,
+      sections: [
+        { title: 'Producto no conforme', content: 'Todo producto no conforme se ubica en su sitio indicado — nunca se despacha ni se deja en un lugar indebido, para asegurar trazabilidad y evitar despachos erróneos.' },
+        { title: 'Despachos fuera de Medellín', content: 'Cuando el destino es fuera de Medellín se refuerza la protección: suelo y paredes del camión cubiertos con cartón, esquineros y/o icopor para separar la producción durante trayectos más largos.' }
       ]
     }
   ],

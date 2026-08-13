@@ -151,8 +151,15 @@ export async function processAndSavePdfDocument(
   // necesite otra función de este archivo (chat, dashboard, detalle de
   // proceso — todas pasan por loadCustomRagDocumentsFromSupabase al
   // hidratar) cargaría pdf-parse igual, sin necesitarlo.
+  //
+  // CanvasFactory es obligatorio en este entorno: pdfjs-dist (que pdf-parse
+  // usa por dentro) necesita DOMMatrix/Canvas para ciertas operaciones, que
+  // no existen en el runtime serverless de Node de Vercel. Sin esto, la
+  // extracción fallaba en silencio (excepción capturada abajo) y caía a un
+  // respaldo que solo vuelca los bytes crudos del PDF como "texto".
+  const { CanvasFactory } = await import('pdf-parse/worker');
   const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: fileBuffer });
+  const parser = new PDFParse({ data: fileBuffer, CanvasFactory });
   try {
     const result = await parser.getText();
     // Quita los separadores de página que agrega la librería ("-- 1 of 3 --")

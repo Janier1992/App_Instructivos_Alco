@@ -9,3 +9,8 @@ next-env.d.ts
 *.log
 .env*
 !.env.example
+
+# Documentos fuente (PDFs/Excel) usados para enriquecer processesData.ts y el
+# RAG — su contenido ya quedó transcrito en el código y/o subido a Supabase,
+# no hace falta versionar ~36MB de binarios en el repo.
+DOCUMENT.md/
