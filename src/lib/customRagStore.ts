@@ -145,6 +145,46 @@ export async function processAndSavePdfDocument(
   processSlug: string,
   customTitle?: string
 ): Promise<ProcessPdfResult> {
+  const normalizedProcessSlug = processSlug || 'general';
+  const supabase = getSupabaseClient();
+
+  // Evita documentos duplicados cuando el mismo archivo se envía dos veces
+  // seguidas (doble clic, reintento de red tras un timeout en celular, etc.):
+  // si ya existe un documento con el mismo nombre y tamaño para este proceso,
+  // se reutiliza la fila existente en vez de crear una nueva.
+  if (supabase) {
+    const { data: existingRow } = await supabase
+      .from('rag_custom_documents')
+      .select('*')
+      .eq('process_slug', normalizedProcessSlug)
+      .eq('file_name', fileName)
+      .eq('file_size', fileSize)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRow) {
+      console.log(`ℹ️ El archivo "${fileName}" ya estaba indexado para "${normalizedProcessSlug}" — se reutiliza en vez de duplicarlo.`);
+      const existingDoc: CustomRagDocument = {
+        id: existingRow.id,
+        fileName: existingRow.file_name,
+        fileSize: existingRow.file_size,
+        processSlug: existingRow.process_slug,
+        title: existingRow.title,
+        code: existingRow.code,
+        uploadedAt: existingRow.created_at,
+        extractedText: existingRow.extracted_text || '',
+        pageCount: existingRow.page_count || 1,
+        chunkCount: existingRow.chunk_count || 1,
+        summary: existingRow.summary || undefined,
+        storagePath: existingRow.storage_path || undefined
+      };
+      if (!customDocumentsStore.find(d => d.id === existingDoc.id)) {
+        customDocumentsStore.unshift(existingDoc);
+      }
+      return { document: existingDoc, persistedToSupabase: true };
+    }
+  }
+
   console.log(`📄 Procesando archivo PDF para RAG: ${fileName} (${fileSize} bytes)...`);
 
   let textExtracted = '';
@@ -192,7 +232,7 @@ export async function processAndSavePdfDocument(
     id: docId,
     fileName,
     fileSize,
-    processSlug: processSlug || 'general',
+    processSlug: normalizedProcessSlug,
     title,
     code,
     uploadedAt: new Date().toISOString(),
@@ -206,7 +246,6 @@ export async function processAndSavePdfDocument(
   let persistedToSupabase = false;
 
   // Intentar guardar en Supabase si la tabla existe
-  const supabase = getSupabaseClient();
   if (supabase) {
     try {
       // Subir el PDF original a Storage para poder visualizarlo dentro de la app

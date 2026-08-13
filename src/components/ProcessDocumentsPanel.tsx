@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw,
   FileText,
@@ -29,6 +29,11 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [previewingDoc, setPreviewingDoc] = useState<CustomRagDocument | null>(null);
   const [showExtractedText, setShowExtractedText] = useState(false);
+  // Además de `isUploading` (asíncrono, tarda un render en reflejarse en el
+  // botón), un ref sincrónico evita que un doble clic o un doble toque en
+  // celular dispare dos subidas del mismo archivo antes de que React
+  // deshabilite el botón.
+  const isUploadingRef = useRef(false);
 
   const loadRagDocs = useCallback(async () => {
     try {
@@ -47,6 +52,8 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
   }, [loadRagDocs]);
 
   const handleUploadPdf = async () => {
+    if (isUploadingRef.current) return;
+
     if (!selectedFile) {
       setUploadMsg('⚠️ Por favor selecciona un archivo PDF válido.');
       return;
@@ -57,6 +64,7 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
       return;
     }
 
+    isUploadingRef.current = true;
     setIsUploading(true);
     setUploadMsg('⏳ Subiendo y extrayendo texto del PDF para el motor RAG...');
 
@@ -91,6 +99,7 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
     } catch (err: any) {
       setUploadMsg(`❌ Error al subir archivo: ${err.message}`);
     } finally {
+      isUploadingRef.current = false;
       setIsUploading(false);
     }
   };
