@@ -46,10 +46,14 @@ Cualquier desviación en la medición del ángulo mayor a 0.5° genera paro de m
 ];
 
 export function getCustomRagDocuments(processSlug?: string): CustomRagDocument[] {
-  if (!processSlug || processSlug === 'all' || processSlug === 'general') {
+  if (!processSlug || processSlug === 'all') {
     return customDocumentsStore;
   }
-  return customDocumentsStore.filter(doc => doc.processSlug === processSlug || doc.processSlug === 'general');
+  // Aislamiento estricto: el agente de un proceso solo debe consultar los
+  // PDFs cargados específicamente a ese proceso, no los de "general" ni los
+  // de otros procesos — evita que documentación de otra área se filtre en
+  // las respuestas de un proceso distinto.
+  return customDocumentsStore.filter(doc => doc.processSlug === processSlug);
 }
 
 export function getAllCustomRagDocuments(): CustomRagDocument[] {

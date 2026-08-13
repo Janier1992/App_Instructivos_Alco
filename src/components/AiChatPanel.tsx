@@ -172,17 +172,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                 )}
               </div>
 
-              {msg.sourceReferences && msg.sourceReferences.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-500 px-1">
-                  <span className="font-bold text-[#003366]">Fuente Oficial:</span>
-                  {msg.sourceReferences.map((sr, sIdx) => (
-                    <span key={sIdx} className="px-2 py-0.5 bg-slate-200 rounded text-slate-700 font-mono">
-                      {sr.documentTitle} ({sr.code} {sr.version})
-                    </span>
-                  ))}
-                </div>
-              )}
-
               <span className="text-[10px] text-slate-400 block px-1">
                 {msg.timestamp}
               </span>

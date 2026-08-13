@@ -12,7 +12,8 @@ import {
   Sparkles,
   FilePlus,
   AlertCircle,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react';
 import { CustomRagDocument } from '../lib/customRagStore';
 
@@ -311,12 +312,26 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {previewingDoc.storagePath && (
-                  <button
-                    onClick={() => setShowExtractedText(!showExtractedText)}
-                    className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg hover:bg-purple-50 transition whitespace-nowrap"
-                  >
-                    {showExtractedText ? 'Ver PDF' : 'Ver texto indexado'}
-                  </button>
+                  <>
+                    {/* En varios navegadores móviles el iframe no renderiza PDFs — este
+                        enlace abre el archivo directo, que el sistema operativo del
+                        celular sí sabe manejar (visor nativo o descarga). */}
+                    <a
+                      href={`/api/rag/documents/${previewingDoc.id}/file`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg hover:bg-purple-50 transition whitespace-nowrap"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Abrir en pestaña nueva
+                    </a>
+                    <button
+                      onClick={() => setShowExtractedText(!showExtractedText)}
+                      className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg hover:bg-purple-50 transition whitespace-nowrap"
+                    >
+                      {showExtractedText ? 'Ver PDF' : 'Ver texto indexado'}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => setPreviewingDoc(null)}
@@ -341,11 +356,16 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
                   {previewingDoc.extractedText}
                 </div>
               ) : (
-                <iframe
-                  src={`/api/rag/documents/${previewingDoc.id}/file`}
-                  title={previewingDoc.title}
-                  className="w-full h-full border-0"
-                />
+                <div className="h-full flex flex-col">
+                  <div className="sm:hidden p-2.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 text-center shrink-0">
+                    ¿No se ve el PDF? Usa <strong>&quot;Abrir en pestaña nueva&quot;</strong> arriba — varios navegadores de celular no muestran el PDF incrustado aquí.
+                  </div>
+                  <iframe
+                    src={`/api/rag/documents/${previewingDoc.id}/file`}
+                    title={previewingDoc.title}
+                    className="w-full flex-1 border-0"
+                  />
+                </div>
               )}
             </div>
 

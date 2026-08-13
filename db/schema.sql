@@ -48,8 +48,10 @@ CREATE INDEX IF NOT EXISTS idx_rag_chunks_process_slug ON rag_document_chunks(pr
 CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_document_chunks USING hnsw (embedding vector_cosine_ops);
 ALTER TABLE rag_document_chunks ENABLE ROW LEVEL SECURITY;
 
--- Búsqueda por similitud coseno: retorna los fragmentos más relevantes de un
--- proceso (más los marcados como "general") para el embedding de una pregunta.
+-- Búsqueda por similitud coseno: retorna los fragmentos más relevantes,
+-- aislados estrictamente al proceso indicado (sin fallback a documentos
+-- "general" de otros procesos — cada agente solo debe ver lo que se cargó
+-- específicamente en su propio módulo).
 CREATE OR REPLACE FUNCTION match_document_chunks(
   query_embedding VECTOR(768),
   target_process_slug VARCHAR,
@@ -61,7 +63,7 @@ LANGUAGE sql STABLE AS $$
   SELECT document_title, document_code, content,
          1 - (embedding <=> query_embedding) AS similarity
   FROM rag_document_chunks
-  WHERE (process_slug = target_process_slug OR process_slug = 'general')
+  WHERE process_slug = target_process_slug
     AND 1 - (embedding <=> query_embedding) > match_threshold
   ORDER BY embedding <=> query_embedding
   LIMIT match_count;

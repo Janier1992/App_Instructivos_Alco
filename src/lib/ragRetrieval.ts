@@ -162,10 +162,12 @@ export interface RetrievedChunk {
 }
 
 /**
- * Embebe la pregunta del usuario y busca los fragmentos más relevantes del
- * proceso (más los documentos marcados como "general") por similitud coseno.
- * Devuelve null si no se pudo buscar (sin Supabase, sin embeddings, error) —
- * quien llama debe caer al comportamiento de respaldo en ese caso.
+ * Embebe la pregunta del usuario y busca los fragmentos más relevantes,
+ * aislados estrictamente al proceso actual (la función SQL solo compara
+ * contra fragmentos con ese `process_slug` exacto — sin fallback a
+ * documentos "general" de otros procesos). Devuelve null si no se pudo
+ * buscar (sin Supabase, sin embeddings, error) — quien llama debe caer al
+ * comportamiento de respaldo en ese caso.
  */
 export async function searchRelevantChunks(
   processSlug: string,
