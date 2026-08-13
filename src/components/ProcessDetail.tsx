@@ -23,6 +23,7 @@ import {
   User
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
+import { ProcessVideosPanel } from './ProcessVideosPanel';
 
 interface ProcessDetailProps {
   slug: string;
@@ -418,6 +419,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 
           {/* Documentos PDF cargados por el usuario para este proceso, con indexación RAG */}
           <ProcessDocumentsPanel processSlug={slug} />
+
+          {/* Videos explicativos de operaciones de este proceso */}
+          <ProcessVideosPanel processSlug={slug} />
         </div>
       )}
     </div>

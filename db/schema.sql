@@ -90,6 +90,19 @@ CREATE TABLE IF NOT EXISTS autonomy_role_assignments (
 );
 ALTER TABLE autonomy_role_assignments ENABLE ROW LEVEL SECURITY;
 
+-- Enlaces a videos explicativos por proceso (ej. grabaciones de OneDrive
+-- mostrando cómo se ejecuta una operación) — se ven embebidos dentro de la
+-- app, en la pestaña "Documentos" de cada proceso, debajo de los PDF.
+CREATE TABLE IF NOT EXISTS process_videos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  video_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_process_videos_process_slug ON process_videos(process_slug);
+ALTER TABLE process_videos ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,
