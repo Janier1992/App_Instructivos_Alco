@@ -132,16 +132,16 @@ export const ProcessVideosPanel: React.FC<ProcessVideosPanelProps> = ({ processS
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Enlace del Video (OneDrive u otro):</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Enlace del Video:</label>
               <input
                 type="text"
-                placeholder="https://onedrive.live.com/embed?..."
+                placeholder="https://www.youtube.com/watch?v=..."
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                En OneDrive usa la opción &quot;Insertar&quot; (Embed) al compartir el video, no el enlace normal de &quot;Compartir&quot; — así se puede reproducir dentro de la app.
+                Recomendado: sube el video a YouTube como &quot;no listado&quot; y pega aquí el link normal de compartir (lo convertimos automáticamente). Los enlaces de OneDrive/SharePoint de Alco no se pueden mostrar aquí: el administrador de Microsoft 365 tiene bloqueado el embebido externo.
               </p>
             </div>
 

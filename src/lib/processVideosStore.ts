@@ -16,6 +16,40 @@ export interface ProcessVideo {
 
 let videosStore: ProcessVideo[] = [];
 
+/**
+ * Convierte enlaces normales de YouTube (watch?v=, youtu.be/) al formato
+ * /embed/ que sí se puede mostrar dentro de un iframe — así el usuario
+ * puede pegar el link que YouTube le da por defecto al compartir, sin tener
+ * que saber que existe un formato "embed" distinto. Enlaces que no son de
+ * YouTube (OneDrive, Vimeo, etc.) se devuelven sin tocar.
+ */
+export function normalizeVideoEmbedUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    const host = url.hostname.replace(/^www\./, '');
+
+    if (host === 'youtu.be') {
+      const videoId = url.pathname.slice(1);
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : rawUrl;
+    }
+
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      if (url.pathname === '/watch') {
+        const videoId = url.searchParams.get('v');
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : rawUrl;
+      }
+      if (url.pathname.startsWith('/shorts/')) {
+        const videoId = url.pathname.split('/')[2];
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : rawUrl;
+      }
+    }
+
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
 export async function loadProcessVideosFromSupabase(): Promise<void> {
   const supabase = getSupabaseClient();
   if (!supabase) return;
@@ -56,7 +90,7 @@ export async function addProcessVideo(
     id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     processSlug,
     title: title.trim(),
-    videoUrl: videoUrl.trim(),
+    videoUrl: normalizeVideoEmbedUrl(videoUrl),
     createdAt: new Date().toISOString()
   };
 
