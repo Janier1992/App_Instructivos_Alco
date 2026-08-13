@@ -29,6 +29,11 @@ interface ProcessDetailProps {
   slug: string;
 }
 
+// Flags temporales para ocultar secciones de la vista sin eliminar su
+// implementación (quedan pendientes de retomar más adelante).
+const SHOW_NORMATIVE_DOCS_SECTION = false;
+const SHOW_PROCESS_VIDEOS_SECTION = false;
+
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
@@ -370,58 +375,60 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             </div>
           )}
 
-          {/* Listado de Documentos del Proceso */}
-          <div className="space-y-3 pt-2">
-            <h4 className="text-xs font-bold text-[#003366] uppercase tracking-wider">
-              Documentos Normativos Oficiales
-            </h4>
-            <div className="space-y-4">
-              {documents.map((doc) => (
-                <div 
-                  key={doc.id}
-                  className={`p-5 rounded-xl border transition-all ${
-                    doc.status === 'vigente'
-                      ? 'border-emerald-300 bg-emerald-50/20 shadow-2xs'
-                      : 'border-slate-200 bg-slate-100 opacity-60'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <FileText className={`w-5 h-5 ${doc.status === 'vigente' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                      <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
+          {/* Listado de Documentos del Proceso (oculto temporalmente, ver SHOW_NORMATIVE_DOCS_SECTION) */}
+          {SHOW_NORMATIVE_DOCS_SECTION && (
+            <div className="space-y-3 pt-2">
+              <h4 className="text-xs font-bold text-[#003366] uppercase tracking-wider">
+                Documentos Normativos Oficiales
+              </h4>
+              <div className="space-y-4">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className={`p-5 rounded-xl border transition-all ${
+                      doc.status === 'vigente'
+                        ? 'border-emerald-300 bg-emerald-50/20 shadow-2xs'
+                        : 'border-slate-200 bg-slate-100 opacity-60'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <FileText className={`w-5 h-5 ${doc.status === 'vigente' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-slate-600">{doc.code}</span>
+                        <span className={`px-2.5 py-0.5 text-xs font-bold rounded-md uppercase ${
+                          doc.status === 'vigente'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {doc.version} - {doc.status}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-slate-600">{doc.code}</span>
-                      <span className={`px-2.5 py-0.5 text-xs font-bold rounded-md uppercase ${
-                        doc.status === 'vigente' 
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                          : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        {doc.version} - {doc.status}
-                      </span>
+
+                    <div className="py-3 text-xs text-slate-700 space-y-2 whitespace-pre-line font-mono bg-white p-4 rounded-lg border border-slate-200 mt-3">
+                      {doc.contentText}
+                    </div>
+
+                    <div className="pt-2 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>Autor: {doc.owner}</span>
+                      <span>Aprobado por: {doc.approvedBy}</span>
+                      <span>Vigencia: {doc.effectiveDate}</span>
                     </div>
                   </div>
-
-                  <div className="py-3 text-xs text-slate-700 space-y-2 whitespace-pre-line font-mono bg-white p-4 rounded-lg border border-slate-200 mt-3">
-                    {doc.contentText}
-                  </div>
-
-                  <div className="pt-2 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-medium">
-                    <span>Autor: {doc.owner}</span>
-                    <span>Aprobado por: {doc.approvedBy}</span>
-                    <span>Vigencia: {doc.effectiveDate}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
           {/* Documentos PDF cargados por el usuario para este proceso, con indexación RAG */}
           <ProcessDocumentsPanel processSlug={slug} />
 
-          {/* Videos explicativos de operaciones de este proceso */}
-          <ProcessVideosPanel processSlug={slug} />
+          {/* Videos explicativos de operaciones de este proceso (oculto temporalmente, ver SHOW_PROCESS_VIDEOS_SECTION) */}
+          {SHOW_PROCESS_VIDEOS_SECTION && <ProcessVideosPanel processSlug={slug} />}
         </div>
       )}
     </div>

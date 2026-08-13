@@ -95,6 +95,21 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
     }
   };
 
+  const isMobileDevice = () =>
+    typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  const handleViewDoc = (doc: CustomRagDocument) => {
+    // En móvil, el visor de PDF embebido en iframe no es confiable (Chrome/Safari
+    // móvil suelen dejarlo en blanco o forzar descarga). Se navega directo al
+    // archivo: el sistema operativo lo abre con su visor nativo de PDF.
+    if (isMobileDevice() && doc.storagePath) {
+      window.open(`/api/rag/documents/${doc.id}/file`, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setPreviewingDoc(doc);
+    setShowExtractedText(false);
+  };
+
   const handleDeletePdfDoc = async (docId: string) => {
     if (!confirm('¿Estás seguro de eliminar este PDF del motor RAG?')) return;
     try {
@@ -269,7 +284,7 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
                       <td className="py-3 px-3">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => { setPreviewingDoc(doc); setShowExtractedText(false); }}
+                            onClick={() => handleViewDoc(doc)}
                             className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-semibold transition flex items-center gap-1"
                             title="Ver contenido extraído"
                           >
