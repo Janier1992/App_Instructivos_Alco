@@ -27,6 +27,8 @@ import { QRGeneratorModal } from './QRGeneratorModal';
 
 interface ProcessListProps {
   processes: ProcessItem[];
+  /** Cantidad real de documentos (estáticos + PDFs cargados al RAG) por proceso, indexada por slug. */
+  documentCounts?: Record<string, number>;
 }
 
 export const ICON_MAP: Record<string, React.ReactNode> = {
@@ -42,7 +44,7 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
   ClipboardCheck: <ClipboardCheck className="w-6 h-6 text-teal-600" />
 };
 
-export const ProcessList: React.FC<ProcessListProps> = ({ processes }) => {
+export const ProcessList: React.FC<ProcessListProps> = ({ processes, documentCounts = {} }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [qrModalProcess, setQrModalProcess] = useState<ProcessItem | null>(null);
 
@@ -146,6 +148,12 @@ export const ProcessList: React.FC<ProcessListProps> = ({ processes }) => {
                       </li>
                     ))}
                   </ul>
+                </div>
+
+                {/* Documentos Vigentes: cantidad real (estáticos + PDFs cargados) */}
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-fit">
+                  <FileText className="w-3.5 h-3.5 text-[#003366]" />
+                  <span>{documentCounts[process.slug] ?? 0} documento{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'} vigente{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'}</span>
                 </div>
               </div>
 
