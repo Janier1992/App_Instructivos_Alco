@@ -47,7 +47,10 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
 
   const handleLogout = async () => {
     await fetch('/api/crm/auth/logout', { method: 'POST' });
-    router.push('/crm/login');
+    // Al cerrar sesión se sale por completo del portal hacia la vista
+    // principal — si luego se quiere reingresar (Ctrl+Q o el engranaje),
+    // el middleware ya no encontrará sesión válida y pedirá login de nuevo.
+    router.push('/');
   };
 
   // "Volver a la App Principal" navega a "/" sin tocar la sesión — el
