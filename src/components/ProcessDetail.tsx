@@ -17,13 +17,11 @@ import {
   UserCheck,
   Info,
   RefreshCw,
-  Pencil,
-  Check,
-  X,
   User
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
+import { ProcessCircularesPanel } from './ProcessCircularesPanel';
 
 interface ProcessDetailProps {
   slug: string;
@@ -40,9 +38,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos'>('autonomia');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
-  const [editingLevel, setEditingLevel] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [savingLevel, setSavingLevel] = useState<string | null>(null);
   const [data, setData] = useState<{
     process: ProcessItem;
     documents: DocumentItem[];
@@ -82,31 +77,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 
     return () => { isMounted = false; };
   }, [slug]);
-
-  const handleSaveCollaborator = async (level: string) => {
-    setSavingLevel(level);
-    try {
-      const res = await fetch(`/api/autonomy/${slug}/${encodeURIComponent(level)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collaboratorName: editingName })
-      });
-      const resData = await res.json();
-      if (resData.success) {
-        setData(prev => prev && {
-          ...prev,
-          autonomy: prev.autonomy.map(item =>
-            item.level === level ? { ...item, assignedCollaborator: resData.assignedCollaborator } : item
-          )
-        });
-        setEditingLevel(null);
-      }
-    } catch (err) {
-      console.error('Error guardando colaborador asignado:', err);
-    } finally {
-      setSavingLevel(null);
-    }
-  };
 
   if (loading || !data) {
     return (
@@ -222,46 +192,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
                       <User className="w-3.5 h-3.5" />
                       Colaborador(es) Asignado(s)
                     </span>
-                    {editingLevel === item.level ? (
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          placeholder="Nombre del colaborador de planta"
-                          className="flex-1 min-w-0 px-2 py-1.5 text-xs bg-white border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
-                        <button
-                          onClick={() => handleSaveCollaborator(item.level)}
-                          disabled={savingLevel === item.level}
-                          className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 shrink-0"
-                          title="Guardar"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingLevel(null)}
-                          className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition shrink-0"
-                          title="Cancelar"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-xs ${item.assignedCollaborator ? 'font-semibold text-slate-800' : 'text-slate-400 italic'}`}>
-                          {item.assignedCollaborator || 'Sin asignar todavía'}
-                        </span>
-                        <button
-                          onClick={() => { setEditingLevel(item.level); setEditingName(item.assignedCollaborator || ''); }}
-                          className="p-1.5 text-blue-700 hover:bg-blue-100 rounded-lg transition shrink-0"
-                          title="Editar colaborador asignado"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                    <span className={`text-xs block ${item.assignedCollaborator ? 'font-semibold text-slate-800' : 'text-slate-400 italic'}`}>
+                      {item.assignedCollaborator || 'Sin asignar todavía'}
+                    </span>
                   </div>
 
                   <div className="pt-2 space-y-1">
@@ -296,6 +229,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {/* MODULO 2: DOCUMENTOS VIGENTES */}
       {activeTab === 'documentos' && (
         <div className="space-y-6">
+        <ProcessCircularesPanel processSlug={slug} />
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>

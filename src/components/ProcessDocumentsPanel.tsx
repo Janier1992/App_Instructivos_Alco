@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   RefreshCw,
   FileText,
-  UploadCloud,
   FileCheck,
-  Trash2,
   Eye,
   BookOpen,
-  Sparkles,
-  FilePlus,
   AlertCircle,
   X,
   ExternalLink
@@ -21,19 +17,15 @@ interface ProcessDocumentsPanelProps {
   processSlug: string;
 }
 
+/**
+ * Vista de solo consulta de los PDFs indexados para este proceso. Subir o
+ * eliminar documentos se hace desde el Portal de Administración (/crm/documentos)
+ * — esta vista pública ya no tiene esas acciones.
+ */
 export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ processSlug }) => {
   const [ragDocs, setRagDocs] = useState<CustomRagDocument[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadTitleInput, setUploadTitleInput] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [previewingDoc, setPreviewingDoc] = useState<CustomRagDocument | null>(null);
   const [showExtractedText, setShowExtractedText] = useState(false);
-  // Además de `isUploading` (asíncrono, tarda un render en reflejarse en el
-  // botón), un ref sincrónico evita que un doble clic o un doble toque en
-  // celular dispare dos subidas del mismo archivo antes de que React
-  // deshabilite el botón.
-  const isUploadingRef = useRef(false);
 
   const loadRagDocs = useCallback(async () => {
     try {
@@ -51,59 +43,6 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
     loadRagDocs();
   }, [loadRagDocs]);
 
-  const handleUploadPdf = async () => {
-    if (isUploadingRef.current) return;
-
-    if (!selectedFile) {
-      setUploadMsg('⚠️ Por favor selecciona un archivo PDF válido.');
-      return;
-    }
-
-    if (!selectedFile.name.toLowerCase().endsWith('.pdf')) {
-      setUploadMsg('⚠️ El archivo seleccionado debe estar en formato PDF.');
-      return;
-    }
-
-    isUploadingRef.current = true;
-    setIsUploading(true);
-    setUploadMsg('⏳ Subiendo y extrayendo texto del PDF para el motor RAG...');
-
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('processSlug', processSlug);
-      formData.append('title', uploadTitleInput || selectedFile.name.replace(/\.pdf$/i, ''));
-
-      const res = await fetch('/api/rag/upload-pdf', {
-        method: 'POST',
-        body: formData
-      });
-
-      const contentType = res.headers.get('content-type') || '';
-      const data = contentType.includes('application/json')
-        ? await res.json()
-        : { error: `Respuesta inesperada del servidor (${res.status}). Intenta con un archivo más pequeño.` };
-
-      if (res.ok && data.success) {
-        if (data.persistedToSupabase === false) {
-          setUploadMsg(`⚠️ PDF "${selectedFile.name}" procesado, pero no se pudo guardar en Supabase — se perderá si el servidor se reinicia. Revisa que el script db/schema.sql esté actualizado.`);
-        } else {
-          setUploadMsg(`✅ ¡Éxito! PDF "${selectedFile.name}" procesado e indexado en el motor RAG.`);
-        }
-        setSelectedFile(null);
-        setUploadTitleInput('');
-        await loadRagDocs();
-      } else {
-        setUploadMsg(`❌ Error: ${data.error || 'No se pudo procesar el PDF.'}`);
-      }
-    } catch (err: any) {
-      setUploadMsg(`❌ Error al subir archivo: ${err.message}`);
-    } finally {
-      isUploadingRef.current = false;
-      setIsUploading(false);
-    }
-  };
-
   const isMobileDevice = () =>
     typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -119,19 +58,6 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
     setShowExtractedText(false);
   };
 
-  const handleDeletePdfDoc = async (docId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este PDF del motor RAG?')) return;
-    try {
-      const res = await fetch(`/api/rag/documents/${docId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        await loadRagDocs();
-      }
-    } catch (err) {
-      console.error('Error al eliminar PDF:', err);
-    }
-  };
-
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -140,16 +66,9 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-slate-900">Documentación PDF de este Proceso</h3>
-              <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-purple-600" />
-                Indexación Automática
-              </span>
-            </div>
+            <h3 className="text-lg font-bold text-slate-900">Documentación PDF de este Proceso</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Sube manuales técnicos, normas o fichas de este proceso en PDF. Se indexan automáticamente para que el
-              agente IA responda con base en su contenido.
+              Manuales técnicos, normas y fichas indexadas para el agente IA de este proceso.
             </p>
           </div>
         </div>
@@ -159,163 +78,85 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
         </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* FORMULARIO DE SUBIDA */}
-        <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2 font-bold text-sm text-slate-800 border-b border-slate-200 pb-2">
-            <UploadCloud className="w-4 h-4 text-purple-600" />
-            <span>Subir Nuevo Documento PDF</span>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
+            <FileCheck className="w-4 h-4 text-emerald-600" />
+            <span>Documentos PDF Indexados</span>
           </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Título Personalizado (Opcional):</label>
-              <input
-                type="text"
-                placeholder="Ej: Manual Técnico de Tronzadoras Alco 2026"
-                value={uploadTitleInput}
-                onChange={(e) => setUploadTitleInput(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Seleccionar Archivo PDF:</label>
-              <div className="border-2 border-dashed border-purple-300 bg-purple-50/50 hover:bg-purple-50 rounded-xl p-4 text-center cursor-pointer transition relative">
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setSelectedFile(e.target.files[0]);
-                    }
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <FilePlus className="w-8 h-8 text-purple-600 mx-auto mb-1" />
-                {selectedFile ? (
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-purple-900 truncate">{selectedFile.name}</p>
-                    <p className="text-[10px] text-slate-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-xs font-semibold text-purple-800">Haz clic o arrastra un archivo PDF aquí</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Máximo 60MB</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleUploadPdf}
-              disabled={isUploading || !selectedFile}
-              className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-              <span>{isUploading ? 'Procesando e Indexando PDF...' : 'Indexar PDF en Motor RAG'}</span>
-            </button>
-
-            {uploadMsg && (
-              <div className={`p-3 rounded-xl text-xs font-medium border ${
-                uploadMsg.startsWith('✅') ? 'bg-emerald-50 text-emerald-900 border-emerald-200' :
-                uploadMsg.startsWith('⏳') ? 'bg-purple-50 text-purple-900 border-purple-200' : 'bg-amber-50 text-amber-900 border-amber-200'
-              }`}>
-                {uploadMsg}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={loadRagDocs}
+            className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Actualizar
+          </button>
         </div>
 
-        {/* LISTA DE DOCUMENTOS */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
-              <FileCheck className="w-4 h-4 text-emerald-600" />
-              <span>Documentos PDF Indexados</span>
-            </div>
-            <button
-              onClick={loadRagDocs}
-              className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Actualizar
-            </button>
+        {ragDocs.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
+            <p className="text-xs font-semibold text-slate-600">No hay archivos PDF cargados todavía para este proceso.</p>
           </div>
-
-          {ragDocs.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-              <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="text-xs font-semibold text-slate-600">No hay archivos PDF cargados todavía para este proceso.</p>
-              <p className="text-[11px] text-slate-400">Sube un documento técnico a la izquierda para incorporarlo al agente IA.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto border border-slate-200 rounded-xl">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="text-left text-[10px] uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
-                    <th className="py-2 px-3 font-bold whitespace-nowrap">Fecha</th>
-                    <th className="py-2 px-3 font-bold">Documento</th>
-                    <th className="py-2 px-3 font-bold text-right whitespace-nowrap">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {ragDocs.map((doc) => (
-                    <tr key={doc.id} className="align-top hover:bg-slate-50/60">
-                      <td className="py-3 px-3 whitespace-nowrap text-slate-600 font-medium">
-                        {new Date(doc.uploadedAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        <span className="block text-[10px] text-slate-400">
-                          {new Date(doc.uploadedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+        ) : (
+          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-left text-[10px] uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
+                  <th className="py-2 px-3 font-bold whitespace-nowrap">Fecha</th>
+                  <th className="py-2 px-3 font-bold">Documento</th>
+                  <th className="py-2 px-3 font-bold text-right whitespace-nowrap">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {ragDocs.map((doc) => (
+                  <tr key={doc.id} className="align-top hover:bg-slate-50/60">
+                    <td className="py-3 px-3 whitespace-nowrap text-slate-600 font-medium">
+                      {new Date(doc.uploadedAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      <span className="block text-[10px] text-slate-400">
+                        {new Date(doc.uploadedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900 truncate">{doc.title}</span>
+                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                          {doc.code}
                         </span>
-                      </td>
-                      <td className="py-3 px-3 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-slate-900 truncate">{doc.title}</span>
-                          <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                            {doc.code}
+                        {doc.chunkCount > 0 ? (
+                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                            🔎 Indexado ({doc.chunkCount})
                           </span>
-                          {doc.chunkCount > 0 ? (
-                            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap">
-                              🔎 Indexado ({doc.chunkCount})
-                            </span>
-                          ) : (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap" title="Conecta Supabase para indexación semántica; por ahora se usa el texto completo del PDF.">
-                              ⚠️ Solo texto completo
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap mt-1">
-                          <span>📄 {doc.fileName}</span>
-                          <span>• {(doc.fileSize / 1024).toFixed(1)} KB</span>
-                          <span>• {doc.pageCount} pág.</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleViewDoc(doc)}
-                            className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-semibold transition flex items-center gap-1"
-                            title="Ver contenido extraído"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Ver</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeletePdfDoc(doc.id)}
-                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition"
-                            title="Eliminar PDF"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                        ) : (
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap" title="Conecta Supabase para indexación semántica; por ahora se usa el texto completo del PDF.">
+                            ⚠️ Solo texto completo
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap mt-1">
+                        <span>📄 {doc.fileName}</span>
+                        <span>• {(doc.fileSize / 1024).toFixed(1)} KB</span>
+                        <span>• {doc.pageCount} pág.</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleViewDoc(doc)}
+                          className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-semibold transition flex items-center gap-1"
+                          title="Ver contenido extraído"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Ver</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* MODAL DE VISUALIZACIÓN DEL PDF */}
@@ -371,9 +212,6 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-2">
                   <AlertCircle className="w-8 h-8 text-amber-500" />
                   <p className="text-sm font-semibold text-slate-700">Este documento no tiene el archivo original guardado.</p>
-                  <p className="text-xs text-slate-500 max-w-sm">
-                    Se subió antes de esta funcionalidad. Elimínalo y vuelve a subirlo para poder visualizarlo en PDF.
-                  </p>
                 </div>
               ) : showExtractedText ? (
                 <div className="p-5 overflow-y-auto h-full font-mono text-xs text-slate-200 bg-slate-900 whitespace-pre-wrap leading-relaxed">

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
+import { requireSession } from '@/src/lib/adminAuth';
 import { processAndSavePdfDocument } from '@/src/lib/customRagStore';
+import { recordAuditEvent } from '@/src/lib/auditLog';
 
 // Los PDF de manuales técnicos pueden tardar unos segundos en extraerse e
 // indexarse (embeddings). Vercel Hobby permite hasta 60s de "maxDuration".
@@ -8,6 +10,9 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   await ensureHydrated();
+
+  const auth = await requireSession(request);
+  if ('error' in auth) return auth.error;
 
   try {
     const formData = await request.formData();
@@ -29,6 +34,15 @@ export async function POST(request: NextRequest) {
       processSlug,
       title
     );
+
+    await recordAuditEvent({
+      adminUserId: auth.session.sub,
+      adminEmail: auth.session.email,
+      action: 'create',
+      entityType: 'document',
+      entityId: document.id,
+      metadata: { processSlug, fileName: file.name, title: document.title }
+    });
 
     return NextResponse.json({
       success: true,

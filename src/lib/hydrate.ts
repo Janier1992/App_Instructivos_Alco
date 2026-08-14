@@ -1,6 +1,7 @@
 import { loadCustomRagDocumentsFromSupabase } from './customRagStore';
 import { loadAutonomyAssignmentsFromSupabase } from './autonomyAssignmentsStore';
 import { loadProcessVideosFromSupabase } from './processVideosStore';
+import { loadCircularesFromSupabase } from './circularesStore';
 
 /**
  * Hidrata los stores en memoria (documentos RAG, asignaciones de autonomía,
@@ -17,7 +18,8 @@ export function ensureHydrated(): Promise<void> {
     hydrationPromise = Promise.all([
       loadCustomRagDocumentsFromSupabase(),
       loadAutonomyAssignmentsFromSupabase(),
-      loadProcessVideosFromSupabase()
+      loadProcessVideosFromSupabase(),
+      loadCircularesFromSupabase()
     ]).then(() => undefined);
   }
   return hydrationPromise;

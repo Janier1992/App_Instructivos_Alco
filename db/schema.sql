@@ -104,6 +104,67 @@ CREATE INDEX IF NOT EXISTS idx_process_videos_process_slug ON process_videos(pro
 ALTER TABLE process_videos ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
+-- PORTAL DE ADMINISTRACIÓN / CRM RESTRINGIDO
+-- Toda operación administrativa (subir/eliminar documentos, videos,
+-- circulares, asignar autonomía) se valida en backend contra estas tablas
+-- (ver middleware.ts + src/lib/adminAuth.ts) — nunca solo ocultando UI.
+-- ============================================================
+
+-- Usuarios del CRM. Contraseñas siempre con hash bcrypt, nunca en texto
+-- plano. El primer usuario se crea con scripts/seed-admin-user.mjs (no hay
+-- endpoint público de registro); los siguientes se crean desde el propio CRM.
+CREATE TABLE IF NOT EXISTS admin_users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('administrador','editor')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ
+);
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+
+-- Circulares informativas: texto y/o adjunto, asociadas a uno o varios
+-- procesos (arreglo vacío = aplica a todas las áreas). La app pública solo
+-- debe mostrar las que tengan status = 'published'.
+CREATE TABLE IF NOT EXISTS circulares (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  body_text TEXT,
+  attachment_storage_path VARCHAR(255),
+  attachment_file_name VARCHAR(255),
+  process_slugs TEXT[] NOT NULL DEFAULT '{}',
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
+  created_by UUID REFERENCES admin_users(id),
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_circulares_status ON circulares(status);
+ALTER TABLE circulares ENABLE ROW LEVEL SECURITY;
+
+-- Adjuntos de circulares (PDF/imagen), bucket privado igual que rag-pdfs.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('circular-attachments', 'circular-attachments', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Auditoría de toda operación administrativa (crear/editar/publicar/
+-- despublicar/eliminar/login) ejecutada desde el CRM.
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  admin_user_id UUID REFERENCES admin_users(id),
+  admin_email VARCHAR(255) NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id VARCHAR(100),
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON admin_audit_log(created_at DESC);
+ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,
 -- whatsapp_conversations, whatsapp_messages, whatsapp_appointments), ya
