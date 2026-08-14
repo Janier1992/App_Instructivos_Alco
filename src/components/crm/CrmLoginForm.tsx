@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, ArrowLeft } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 
 export const CrmLoginForm: React.FC = () => {
@@ -96,6 +97,14 @@ export const CrmLoginForm: React.FC = () => {
           {isSubmitting ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
+
+      <Link
+        href="/"
+        className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#003366] transition"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Volver a la aplicación principal
+      </Link>
     </div>
   );
 };
