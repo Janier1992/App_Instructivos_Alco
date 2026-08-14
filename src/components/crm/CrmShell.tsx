@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
-  X
+  X,
+  Home
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -48,6 +49,34 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
     await fetch('/api/crm/auth/logout', { method: 'POST' });
     router.push('/crm/login');
   };
+
+  // "Volver a la App Principal" navega a "/" sin tocar la sesión — el
+  // usuario sigue con la sesión activa y puede reentrar al CRM con Ctrl+Q o
+  // el engranaje sin volver a iniciar sesión. Solo "Cerrar sesión" la
+  // termina de verdad (y ahí sí exige login de nuevo para volver a entrar).
+  const AccountActions = (
+    <>
+      <div className="px-1">
+        <p className="text-xs font-bold text-white truncate">{user.fullName || user.email}</p>
+        <p className="text-[11px] text-slate-400 capitalize">{user.role}</p>
+      </div>
+      <Link
+        href="/"
+        onClick={() => setMobileNavOpen(false)}
+        className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:text-white hover:bg-emerald-600/20 rounded-xl transition"
+      >
+        <Home className="w-4 h-4" />
+        Volver a la App Principal
+      </Link>
+      <button
+        onClick={handleLogout}
+        className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition"
+      >
+        <LogOut className="w-4 h-4" />
+        Cerrar sesión
+      </button>
+    </>
+  );
 
   const NavLinks = (
     <nav className="space-y-1">
@@ -85,17 +114,7 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
         </div>
         {NavLinks}
         <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
-          <div className="px-1">
-            <p className="text-xs font-bold text-white truncate">{user.fullName || user.email}</p>
-            <p className="text-[11px] text-slate-400 capitalize">{user.role}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition"
-          >
-            <LogOut className="w-4 h-4" />
-            Cerrar sesión
-          </button>
+          {AccountActions}
         </div>
       </aside>
 
@@ -117,17 +136,7 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
           <div className="lg:hidden bg-[#002244] text-white p-4 space-y-4 border-b border-white/10">
             {NavLinks}
             <div className="pt-2 border-t border-white/10 space-y-2">
-              <div className="px-1">
-                <p className="text-xs font-bold text-white truncate">{user.fullName || user.email}</p>
-                <p className="text-[11px] text-slate-400 capitalize">{user.role}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition"
-              >
-                <LogOut className="w-4 h-4" />
-                Cerrar sesión
-              </button>
+              {AccountActions}
             </div>
           </div>
         )}
