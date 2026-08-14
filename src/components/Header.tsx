@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LogOut, ListFilter, LayoutDashboard } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LogOut, ListFilter, LayoutDashboard, Settings } from 'lucide-react';
 import { AlcoLogo } from './AlcoLogo';
 
 interface HeaderProps {
@@ -12,7 +12,29 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ currentProcessName }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const isDashboard = pathname === '/dashboard';
+
+  // Acceso al Portal de Administración: a propósito no se anuncia en la
+  // navegación pública. En computador se entra con Ctrl+Q; en celular (donde
+  // ese atajo no aplica) se ofrece el engranaje junto al botón "Salir".
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping = !!target && (
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      );
+      if (isTyping) return;
+
+      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'q') {
+        e.preventDefault();
+        router.push('/crm');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
 
   return (
     <header className="bg-[#003366] text-white border-b border-[#002244] sticky top-0 z-40 shadow-md">
@@ -36,15 +58,27 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName }) => {
           </div>
         </Link>
 
-        {/* Salir */}
-        <Link
-          href="/"
-          id="exit-app-button"
-          className="p-2.5 text-white bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
-          title="Salir"
-        >
-          <LogOut className="w-4 h-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Portal de Administración — solo visible en celular (en computador: Ctrl+Q) */}
+          <Link
+            href="/crm"
+            id="crm-access-button"
+            className="sm:hidden p-2.5 text-white bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+            title="Portal de Administración"
+          >
+            <Settings className="w-4 h-4" />
+          </Link>
+
+          {/* Salir */}
+          <Link
+            href="/"
+            id="exit-app-button"
+            className="p-2.5 text-white bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-all border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+            title="Salir"
+          >
+            <LogOut className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Navigation Tab Bar */}

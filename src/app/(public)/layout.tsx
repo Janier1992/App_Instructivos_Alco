@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { AppShell } from '@/src/components/AppShell';
-import './globals.css';
+import '../globals.css';
 
 export const metadata: Metadata = {
   title: 'Control de Calidad Alco S.A.S.',
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function PublicRootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
       <body>
