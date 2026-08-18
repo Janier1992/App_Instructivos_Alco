@@ -153,6 +153,18 @@ export const CrmDocumentsManager: React.FC = () => {
 
             <div className="space-y-3">
               <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Sección / Proceso de destino:</label>
+                <ProcessPicker
+                  value={processSlug}
+                  onChange={setProcessSlug}
+                  className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-sm font-bold text-[#003366] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Este documento solo se mostrará y será consultado por el agente IA en esta sección — no en las demás.
+                </p>
+              </div>
+
+              <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Título Personalizado (Opcional):</label>
                 <input
                   type="text"
