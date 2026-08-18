@@ -306,31 +306,37 @@ export async function processAndSavePdfDocument(
 
 export async function deleteCustomRagDocument(id: string): Promise<boolean> {
   const docToDelete = customDocumentsStore.find(doc => doc.id === id);
-  const initialLength = customDocumentsStore.length;
   customDocumentsStore = customDocumentsStore.filter(doc => doc.id !== id);
-  const deletedInMemory = customDocumentsStore.length < initialLength;
 
   const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      // Los fragmentos en rag_document_chunks se borran solos (ON DELETE CASCADE)
-      const { error: deleteError } = await supabase.from('rag_custom_documents').delete().eq('id', id);
-      if (deleteError) {
-        console.warn('⚠️ Error eliminando documento RAG en Supabase:', deleteError.message);
-      }
+  // Sin Supabase configurado, el store en memoria de esta instancia es la
+  // única fuente de verdad posible.
+  if (!supabase) return !!docToDelete;
 
-      if (docToDelete?.storagePath) {
-        const { error: removeError } = await supabase.storage.from(RAG_PDF_BUCKET).remove([docToDelete.storagePath]);
-        if (removeError) {
-          console.warn('⚠️ Error eliminando el PDF original en Supabase Storage:', removeError.message);
-        }
-      }
-    } catch (err) {
-      console.warn('⚠️ Error eliminando documento RAG en Supabase:', err);
+  try {
+    // Los fragmentos en rag_document_chunks se borran solos (ON DELETE CASCADE)
+    const { error: deleteError } = await supabase.from('rag_custom_documents').delete().eq('id', id);
+    if (deleteError) {
+      console.warn('⚠️ Error eliminando documento RAG en Supabase:', deleteError.message);
+      return false;
     }
-  }
 
-  return deletedInMemory;
+    if (docToDelete?.storagePath) {
+      const { error: removeError } = await supabase.storage.from(RAG_PDF_BUCKET).remove([docToDelete.storagePath]);
+      if (removeError) {
+        console.warn('⚠️ Error eliminando el PDF original en Supabase Storage:', removeError.message);
+      }
+    }
+
+    // Éxito determinado por el resultado real en Supabase, no por si esta
+    // instancia serverless en particular tenía el documento en su caché en
+    // memoria — dos requests seguidos pueden caer en instancias distintas,
+    // cada una hidratada en un momento diferente.
+    return true;
+  } catch (err) {
+    console.warn('⚠️ Error eliminando documento RAG en Supabase:', err);
+    return false;
+  }
 }
 
 /**

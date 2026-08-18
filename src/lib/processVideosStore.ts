@@ -121,21 +121,26 @@ export async function addProcessVideo(
 }
 
 export async function deleteProcessVideo(id: string): Promise<boolean> {
-  const initialLength = videosStore.length;
+  const existedInMemory = videosStore.some(v => v.id === id);
   videosStore = videosStore.filter(v => v.id !== id);
-  const deletedInMemory = videosStore.length < initialLength;
 
   const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { error } = await supabase.from('process_videos').delete().eq('id', id);
-      if (error) {
-        console.warn('⚠️ Error eliminando video de proceso en Supabase:', error.message);
-      }
-    } catch (err: any) {
-      console.warn('⚠️ Error eliminando video de proceso:', err?.message || err);
-    }
-  }
+  // Sin Supabase configurado, el store en memoria de esta instancia es la
+  // única fuente de verdad posible.
+  if (!supabase) return existedInMemory;
 
-  return deletedInMemory;
+  try {
+    const { error } = await supabase.from('process_videos').delete().eq('id', id);
+    if (error) {
+      console.warn('⚠️ Error eliminando video de proceso en Supabase:', error.message);
+      return false;
+    }
+    // Éxito determinado por el resultado real en Supabase, no por si esta
+    // instancia serverless en particular tenía el video en su caché en
+    // memoria — dos requests seguidos pueden caer en instancias distintas.
+    return true;
+  } catch (err: any) {
+    console.warn('⚠️ Error eliminando video de proceso:', err?.message || err);
+    return false;
+  }
 }

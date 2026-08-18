@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession, requireRole } from '@/src/lib/adminAuth';
-import { updateCircular, deleteCircular, getCircularById } from '@/src/lib/circularesStore';
+import { updateCircular, deleteCircular } from '@/src/lib/circularesStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,9 +11,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if ('error' in auth) return auth.error;
 
   const { id } = await params;
-  if (!getCircularById(id)) {
-    return NextResponse.json({ error: 'Circular no encontrada.' }, { status: 404 });
-  }
 
   try {
     const body = await request.json();

@@ -229,7 +229,14 @@ export async function updateCircular(
   }
 
   const circular = mapRow(data);
-  circularesStore = circularesStore.map(c => (c.id === id ? circular : c));
+  // Si esta instancia serverless no tenía la fila en su caché en memoria
+  // (se creó en una instancia distinta, con otra hidratación), .map() no la
+  // habría agregado — se agrega explícitamente para que quede consistente
+  // en esta instancia también.
+  const existsInMemory = circularesStore.some(c => c.id === id);
+  circularesStore = existsInMemory
+    ? circularesStore.map(c => (c.id === id ? circular : c))
+    : [circular, ...circularesStore];
   return { success: true, circular };
 }
 
