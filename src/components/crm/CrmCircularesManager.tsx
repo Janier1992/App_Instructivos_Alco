@@ -12,7 +12,8 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
-  FileClock
+  FileClock,
+  Link2
 } from 'lucide-react';
 import { ProcessItem } from '@/src/types';
 import { useCrmSession } from './CrmSessionContext';
@@ -22,6 +23,7 @@ interface CircularAdmin {
   title: string;
   bodyText: string | null;
   attachmentFileName: string | null;
+  embedUrl: string | null;
   processSlugs: string[];
   status: 'draft' | 'published';
   displayOrder: number;
@@ -45,6 +47,7 @@ export const CrmCircularesManager: React.FC = () => {
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
   const [applyToAll, setApplyToAll] = useState(true);
   const [displayOrder, setDisplayOrder] = useState(0);
+  const [embedUrl, setEmbedUrl] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -80,6 +83,7 @@ export const CrmCircularesManager: React.FC = () => {
     setSelectedSlugs([]);
     setApplyToAll(true);
     setDisplayOrder(0);
+    setEmbedUrl('');
     setAttachment(null);
   };
 
@@ -90,6 +94,7 @@ export const CrmCircularesManager: React.FC = () => {
     setApplyToAll(c.processSlugs.length === 0);
     setSelectedSlugs(c.processSlugs);
     setDisplayOrder(c.displayOrder);
+    setEmbedUrl(c.embedUrl || '');
     setAttachment(null);
     setSaveMsg(null);
   };
@@ -112,7 +117,8 @@ export const CrmCircularesManager: React.FC = () => {
             title,
             bodyText,
             processSlugs: applyToAll ? [] : selectedSlugs,
-            displayOrder
+            displayOrder,
+            embedUrl: embedUrl.trim() || null
           })
         });
         const data = await res.json();
@@ -129,6 +135,7 @@ export const CrmCircularesManager: React.FC = () => {
         formData.append('bodyText', bodyText);
         formData.append('processSlugs', JSON.stringify(applyToAll ? [] : selectedSlugs));
         formData.append('displayOrder', String(displayOrder));
+        if (embedUrl.trim()) formData.append('embedUrl', embedUrl.trim());
         if (attachment) formData.append('attachment', attachment);
 
         const res = await fetch('/api/crm/circulares', { method: 'POST', body: formData });
@@ -259,6 +266,20 @@ export const CrmCircularesManager: React.FC = () => {
               )}
 
               <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Enlace embebible (opcional):</label>
+                <input
+                  type="text"
+                  value={embedUrl}
+                  onChange={e => setEmbedUrl(e.target.value)}
+                  placeholder="Ej: link de Power BI 'Publicar en la Web', o de YouTube"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Si lo llenas, se muestra embebido e interactivo en vez de la imagen (indicador de Power BI, video de YouTube, etc.). En Power BI usa el enlace de &quot;Publicar en la Web&quot;.
+                </p>
+              </div>
+
+              <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Orden de visualización:</label>
                 <input
                   type="number"
@@ -348,6 +369,12 @@ export const CrmCircularesManager: React.FC = () => {
                               <span className="flex items-center gap-1">
                                 <Paperclip className="w-3 h-3" />
                                 {c.attachmentFileName}
+                              </span>
+                            )}
+                            {c.embedUrl && (
+                              <span className="flex items-center gap-1 text-blue-500">
+                                <Link2 className="w-3 h-3" />
+                                Enlace embebido
                               </span>
                             )}
                           </div>

@@ -28,10 +28,20 @@ export async function POST(request: NextRequest) {
     const bodyText = (formData.get('bodyText') as string) || '';
     const processSlugsRaw = (formData.get('processSlugs') as string) || '[]';
     const displayOrderRaw = formData.get('displayOrder') as string | null;
+    const embedUrlRaw = ((formData.get('embedUrl') as string) || '').trim();
     const file = formData.get('attachment');
 
     if (!title.trim()) {
       return NextResponse.json({ error: 'Se requiere un título.' }, { status: 400 });
+    }
+
+    if (embedUrlRaw) {
+      try {
+        const parsed = new URL(embedUrlRaw);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error();
+      } catch {
+        return NextResponse.json({ error: 'El enlace embebible no es una URL http/https válida.' }, { status: 400 });
+      }
     }
 
     let processSlugs: string[] = [];
@@ -60,6 +70,7 @@ export async function POST(request: NextRequest) {
       processSlugs,
       createdBy: auth.session.sub,
       displayOrder: Number.isFinite(displayOrder) ? displayOrder : 0,
+      embedUrl: embedUrlRaw || undefined,
       attachment
     });
 

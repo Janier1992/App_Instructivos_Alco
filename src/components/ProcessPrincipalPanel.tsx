@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Newspaper, Paperclip, RefreshCw, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Newspaper, Paperclip, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface PrincipalItem {
   id: string;
@@ -9,6 +9,7 @@ interface PrincipalItem {
   bodyText: string | null;
   attachmentFileName: string | null;
   attachmentContentType: string | null;
+  embedUrl: string | null;
   publishedAt: string | null;
   createdAt: string;
 }
@@ -96,6 +97,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const isImageAttachment = (current.attachmentContentType || '').startsWith('image/');
   const showImage = current.attachmentFileName && isImageAttachment && !brokenImageIds.has(current.id);
   const showAttachmentLink = current.attachmentFileName && !isImageAttachment;
+  const showEmbed = !!current.embedUrl;
 
   const goTo = (idx: number) => setActiveIndex(((idx % items.length) + items.length) % items.length);
 
@@ -108,7 +110,31 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
       onBlur={() => setIsPaused(false)}
     >
       <div className="relative">
-        {showImage ? (
+        {showEmbed ? (
+          <div className="relative">
+            <iframe
+              key={current.id}
+              src={current.embedUrl!}
+              title={current.title}
+              className="w-full h-72 sm:h-[28rem] border-0"
+              allow="fullscreen"
+              allowFullScreen
+            />
+            {/* Algunas plataformas (ej. OneDrive/SharePoint) bloquean el
+                embebido a nivel de administrador y el iframe queda en
+                blanco sin ningún error de JS detectable — este enlace es
+                el respaldo confiable en cualquier caso. */}
+            <a
+              href={current.embedUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute top-2 right-2 flex items-center gap-1 text-[11px] font-semibold text-[#003366] bg-white/90 hover:bg-white px-2 py-1 rounded-lg shadow transition"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Abrir en pestaña nueva
+            </a>
+          </div>
+        ) : showImage ? (
           <img
             key={current.id}
             src={`/api/circulares/${current.id}/attachment`}

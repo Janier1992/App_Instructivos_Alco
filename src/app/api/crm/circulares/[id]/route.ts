@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   try {
     const body = await request.json();
-    const { title, bodyText, processSlugs, status, displayOrder } = body;
+    const { title, bodyText, processSlugs, status, displayOrder, embedUrl } = body;
 
     if (status !== undefined && status !== 'draft' && status !== 'published') {
       return NextResponse.json({ error: 'status debe ser "draft" o "published".' }, { status: 400 });
@@ -25,8 +25,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (displayOrder !== undefined && typeof displayOrder !== 'number') {
       return NextResponse.json({ error: 'displayOrder debe ser un número.' }, { status: 400 });
     }
+    if (embedUrl) {
+      try {
+        const parsed = new URL(embedUrl);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error();
+      } catch {
+        return NextResponse.json({ error: 'El enlace embebible no es una URL http/https válida.' }, { status: 400 });
+      }
+    }
 
-    const result = await updateCircular(id, { title, bodyText, processSlugs, status, displayOrder });
+    const result = await updateCircular(id, { title, bodyText, processSlugs, status, displayOrder, embedUrl });
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'No se pudo actualizar la circular.' }, { status: 500 });
     }

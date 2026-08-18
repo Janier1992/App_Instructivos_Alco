@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabaseService';
+import { normalizeVideoEmbedUrl } from './processVideosStore';
 
 const CIRCULAR_ATTACHMENTS_BUCKET = 'circular-attachments';
 
@@ -11,6 +12,7 @@ export interface Circular {
   attachmentStoragePath: string | null;
   attachmentFileName: string | null;
   attachmentContentType: string | null;
+  embedUrl: string | null;
   processSlugs: string[];
   status: CircularStatus;
   displayOrder: number;
@@ -35,6 +37,7 @@ function mapRow(row: any): Circular {
     attachmentStoragePath: row.attachment_storage_path,
     attachmentFileName: row.attachment_file_name,
     attachmentContentType: row.attachment_content_type || null,
+    embedUrl: row.embed_url || null,
     processSlugs: row.process_slugs || [],
     status: row.status,
     displayOrder: row.display_order ?? 0,
@@ -132,6 +135,7 @@ export async function createCircular(params: {
   processSlugs: string[];
   createdBy: string;
   displayOrder?: number;
+  embedUrl?: string;
   attachment?: { fileBuffer: Buffer; fileName: string; contentType: string };
 }): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
@@ -145,6 +149,7 @@ export async function createCircular(params: {
       process_slugs: params.processSlugs,
       status: 'draft',
       display_order: params.displayOrder ?? 0,
+      embed_url: params.embedUrl ? normalizeVideoEmbedUrl(params.embedUrl.trim()) : null,
       created_by: params.createdBy
     })
     .select('*')
@@ -193,6 +198,7 @@ export async function updateCircular(
     processSlugs?: string[];
     status?: CircularStatus;
     displayOrder?: number;
+    embedUrl?: string | null;
   }
 ): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
@@ -203,6 +209,9 @@ export async function updateCircular(
   if (updates.bodyText !== undefined) patch.body_text = updates.bodyText.trim() || null;
   if (updates.processSlugs !== undefined) patch.process_slugs = updates.processSlugs;
   if (updates.displayOrder !== undefined) patch.display_order = updates.displayOrder;
+  if (updates.embedUrl !== undefined) {
+    patch.embed_url = updates.embedUrl ? normalizeVideoEmbedUrl(updates.embedUrl.trim()) : null;
+  }
   if (updates.status !== undefined) {
     patch.status = updates.status;
     // Al despublicar (status -> 'draft') NO se borra published_at: así se

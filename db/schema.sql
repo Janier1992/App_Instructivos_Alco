@@ -150,6 +150,12 @@ ALTER TABLE circulares ENABLE ROW LEVEL SECURITY;
 ALTER TABLE circulares ADD COLUMN IF NOT EXISTS display_order INT NOT NULL DEFAULT 0;
 ALTER TABLE circulares ADD COLUMN IF NOT EXISTS attachment_content_type VARCHAR(100);
 
+-- Enlace embebible (Power BI "Publicar en la Web", YouTube, u otra
+-- plataforma que permita iframe): si está presente, la pestaña Principal lo
+-- muestra embebido e interactivo en vez de la imagen. Los enlaces de
+-- YouTube se normalizan igual que en process_videos (normalizeVideoEmbedUrl).
+ALTER TABLE circulares ADD COLUMN IF NOT EXISTS embed_url TEXT;
+
 -- Adjuntos de circulares (PDF/imagen), bucket privado igual que rag-pdfs.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('circular-attachments', 'circular-attachments', false)
