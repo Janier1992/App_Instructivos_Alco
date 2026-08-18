@@ -1,5 +1,5 @@
 import { CrmCircularesManager } from '@/src/components/crm/CrmCircularesManager';
 
-export default function CrmCircularesPage() {
+export default function CrmPrincipalPage() {
   return <CrmCircularesManager />;
 }

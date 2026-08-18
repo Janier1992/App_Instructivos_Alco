@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
-      'Content-Type': 'application/octet-stream',
+      'Content-Type': circular.attachmentContentType || 'application/octet-stream',
       'Content-Disposition': `inline; filename="${encodeURIComponent(circular.attachmentFileName || 'adjunto')}"`
     }
   });

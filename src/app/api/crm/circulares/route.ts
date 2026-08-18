@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     const title = (formData.get('title') as string) || '';
     const bodyText = (formData.get('bodyText') as string) || '';
     const processSlugsRaw = (formData.get('processSlugs') as string) || '[]';
+    const displayOrderRaw = formData.get('displayOrder') as string | null;
     const file = formData.get('attachment');
 
     if (!title.trim()) {
@@ -51,11 +52,14 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    const displayOrder = displayOrderRaw !== null && displayOrderRaw !== '' ? Number(displayOrderRaw) : 0;
+
     const result = await createCircular({
       title,
       bodyText,
       processSlugs,
       createdBy: auth.session.sub,
+      displayOrder: Number.isFinite(displayOrder) ? displayOrder : 0,
       attachment
     });
 

@@ -10,8 +10,10 @@ export interface Circular {
   bodyText: string | null;
   attachmentStoragePath: string | null;
   attachmentFileName: string | null;
+  attachmentContentType: string | null;
   processSlugs: string[];
   status: CircularStatus;
+  displayOrder: number;
   createdBy: string | null;
   publishedAt: string | null;
   createdAt: string;
@@ -32,8 +34,10 @@ function mapRow(row: any): Circular {
     bodyText: row.body_text,
     attachmentStoragePath: row.attachment_storage_path,
     attachmentFileName: row.attachment_file_name,
+    attachmentContentType: row.attachment_content_type || null,
     processSlugs: row.process_slugs || [],
     status: row.status,
+    displayOrder: row.display_order ?? 0,
     createdBy: row.created_by,
     publishedAt: row.published_at,
     createdAt: row.created_at,
@@ -62,10 +66,17 @@ export async function loadCircularesFromSupabase(): Promise<void> {
   }
 }
 
+function sortForDisplay(circulars: Circular[]): Circular[] {
+  return [...circulars].sort((a, b) => {
+    if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
+    return new Date(b.publishedAt || b.createdAt).getTime() - new Date(a.publishedAt || a.createdAt).getTime();
+  });
+}
+
 export function getPublishedCirculares(processSlug?: string): Circular[] {
   const published = circularesStore.filter(c => c.status === 'published');
-  if (!processSlug) return published;
-  return published.filter(c => c.processSlugs.length === 0 || c.processSlugs.includes(processSlug));
+  if (!processSlug) return sortForDisplay(published);
+  return sortForDisplay(published.filter(c => c.processSlugs.length === 0 || c.processSlugs.includes(processSlug)));
 }
 
 export function getAllCircularesForAdmin(): Circular[] {
@@ -120,6 +131,7 @@ export async function createCircular(params: {
   bodyText?: string;
   processSlugs: string[];
   createdBy: string;
+  displayOrder?: number;
   attachment?: { fileBuffer: Buffer; fileName: string; contentType: string };
 }): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
@@ -132,6 +144,7 @@ export async function createCircular(params: {
       body_text: params.bodyText?.trim() || null,
       process_slugs: params.processSlugs,
       status: 'draft',
+      display_order: params.displayOrder ?? 0,
       created_by: params.createdBy
     })
     .select('*')
@@ -153,9 +166,18 @@ export async function createCircular(params: {
     if (storagePath) {
       await supabase
         .from('circulares')
-        .update({ attachment_storage_path: storagePath, attachment_file_name: params.attachment.fileName })
+        .update({
+          attachment_storage_path: storagePath,
+          attachment_file_name: params.attachment.fileName,
+          attachment_content_type: params.attachment.contentType
+        })
         .eq('id', circular.id);
-      circular = { ...circular, attachmentStoragePath: storagePath, attachmentFileName: params.attachment.fileName };
+      circular = {
+        ...circular,
+        attachmentStoragePath: storagePath,
+        attachmentFileName: params.attachment.fileName,
+        attachmentContentType: params.attachment.contentType
+      };
     }
   }
 
@@ -165,7 +187,13 @@ export async function createCircular(params: {
 
 export async function updateCircular(
   id: string,
-  updates: { title?: string; bodyText?: string; processSlugs?: string[]; status?: CircularStatus }
+  updates: {
+    title?: string;
+    bodyText?: string;
+    processSlugs?: string[];
+    status?: CircularStatus;
+    displayOrder?: number;
+  }
 ): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
@@ -174,9 +202,15 @@ export async function updateCircular(
   if (updates.title !== undefined) patch.title = updates.title.trim();
   if (updates.bodyText !== undefined) patch.body_text = updates.bodyText.trim() || null;
   if (updates.processSlugs !== undefined) patch.process_slugs = updates.processSlugs;
+  if (updates.displayOrder !== undefined) patch.display_order = updates.displayOrder;
   if (updates.status !== undefined) {
     patch.status = updates.status;
-    patch.published_at = updates.status === 'published' ? new Date().toISOString() : null;
+    // Al despublicar (status -> 'draft') NO se borra published_at: así se
+    // distingue "nunca publicado" (published_at nulo) de "despublicado"
+    // (tuvo published_at) para la vista de administración.
+    if (updates.status === 'published') {
+      patch.published_at = new Date().toISOString();
+    }
   }
 
   const { data, error } = await supabase.from('circulares').update(patch).eq('id', id).select('*').single();

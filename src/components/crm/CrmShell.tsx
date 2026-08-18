@@ -7,7 +7,7 @@ import {
   FileText,
   Video,
   UserCheck,
-  Megaphone,
+  Newspaper,
   Users,
   ShieldCheck,
   LogOut,
@@ -27,10 +27,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: '/crm/principal', label: 'Principal', icon: Newspaper },
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
-  { href: '/crm/circulares', label: 'Circulares', icon: Megaphone },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
   { href: '/crm/auditoria', label: 'Auditoría', icon: ShieldCheck, adminOnly: true }
 ];

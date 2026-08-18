@@ -17,11 +17,12 @@ import {
   UserCheck,
   Info,
   RefreshCw,
-  User
+  User,
+  Newspaper
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
-import { ProcessCircularesPanel } from './ProcessCircularesPanel';
+import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 
 interface ProcessDetailProps {
   slug: string;
@@ -35,7 +36,7 @@ const SHOW_PROCESS_VIDEOS_SECTION = false;
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
-  const [activeTab, setActiveTab] = useState<'autonomia' | 'documentos'>('autonomia');
+  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [data, setData] = useState<{
@@ -126,6 +127,19 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {/* Navegación por Tabs de Proceso Exclusivamente Solicitados */}
       <div className="flex items-center gap-1 sm:gap-2 border-b border-slate-200 overflow-x-auto pb-1 scrollbar-none">
         <button
+          onClick={() => setActiveTab('principal')}
+          id="tab-principal"
+          className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+            activeTab === 'principal'
+              ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Newspaper className="w-4 h-4 text-[#003366] shrink-0" />
+          <span>Principal</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('autonomia')}
           id="tab-autonomia"
           className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
@@ -151,6 +165,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           <span>Documentos Vigentes ({documents.length + ragDocsCount})</span>
         </button>
       </div>
+
+      {/* MODULO 0: PRINCIPAL — vista informativa por defecto de la sección */}
+      {activeTab === 'principal' && <ProcessPrincipalPanel processSlug={slug} />}
 
       {/* MODULO 1: MATRIZ DE AUTONOMÍA */}
       {activeTab === 'autonomia' && (
@@ -229,7 +246,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {/* MODULO 2: DOCUMENTOS VIGENTES */}
       {activeTab === 'documentos' && (
         <div className="space-y-6">
-        <ProcessCircularesPanel processSlug={slug} />
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>

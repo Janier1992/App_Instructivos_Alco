@@ -17,13 +17,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   try {
     const body = await request.json();
-    const { title, bodyText, processSlugs, status } = body;
+    const { title, bodyText, processSlugs, status, displayOrder } = body;
 
     if (status !== undefined && status !== 'draft' && status !== 'published') {
       return NextResponse.json({ error: 'status debe ser "draft" o "published".' }, { status: 400 });
     }
+    if (displayOrder !== undefined && typeof displayOrder !== 'number') {
+      return NextResponse.json({ error: 'displayOrder debe ser un número.' }, { status: 400 });
+    }
 
-    const result = await updateCircular(id, { title, bodyText, processSlugs, status });
+    const result = await updateCircular(id, { title, bodyText, processSlugs, status, displayOrder });
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'No se pudo actualizar la circular.' }, { status: 500 });
     }

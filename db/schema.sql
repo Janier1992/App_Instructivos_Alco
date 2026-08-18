@@ -144,6 +144,12 @@ CREATE TABLE IF NOT EXISTS circulares (
 CREATE INDEX IF NOT EXISTS idx_circulares_status ON circulares(status);
 ALTER TABLE circulares ENABLE ROW LEVEL SECURITY;
 
+-- Módulo "Principal" (pestaña por defecto de cada proceso): reutiliza esta
+-- misma tabla — mismo dato, presentación nueva (carrusel con imagen
+-- protagonista y orden de visualización).
+ALTER TABLE circulares ADD COLUMN IF NOT EXISTS display_order INT NOT NULL DEFAULT 0;
+ALTER TABLE circulares ADD COLUMN IF NOT EXISTS attachment_content_type VARCHAR(100);
+
 -- Adjuntos de circulares (PDF/imagen), bucket privado igual que rag-pdfs.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('circular-attachments', 'circular-attachments', false)
