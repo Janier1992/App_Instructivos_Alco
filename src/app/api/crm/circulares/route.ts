@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireSession(request);
   if ('error' in auth) return auth.error;
 
-  const circulares = getAllCircularesForAdmin();
+  const circulares = await getAllCircularesForAdmin();
   return NextResponse.json({ success: true, circulares, total: circulares.length });
 }
 

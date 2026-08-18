@@ -82,7 +82,18 @@ export function getPublishedCirculares(processSlug?: string): Circular[] {
   return sortForDisplay(published.filter(c => c.processSlugs.length === 0 || c.processSlugs.includes(processSlug)));
 }
 
-export function getAllCircularesForAdmin(): Circular[] {
+/**
+ * A diferencia de getPublishedCirculares (que sirve la caché en memoria de
+ * esta instancia, aceptable para el tráfico público de solo lectura), la
+ * lista de administración se recarga siempre directo desde Supabase: dos
+ * requests del panel admin pueden caer en instancias serverless distintas,
+ * cada una hidratada en un momento diferente, y mostrar una fila como
+ * "no publicada" o "aún existente" justo después de que otra instancia ya
+ * la publicó o la eliminó realmente — confunde al administrador aunque la
+ * operación sí haya funcionado.
+ */
+export async function getAllCircularesForAdmin(): Promise<Circular[]> {
+  await loadCircularesFromSupabase();
   return circularesStore;
 }
 
