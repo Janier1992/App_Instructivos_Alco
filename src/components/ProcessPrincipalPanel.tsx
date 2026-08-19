@@ -139,7 +139,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             key={current.id}
             src={`/api/circulares/${current.id}/attachment`}
             alt={current.title}
-            className="w-full h-56 sm:h-72 object-cover transition-opacity duration-300"
+            className="w-full h-56 sm:h-72 object-contain bg-slate-100 transition-opacity duration-300"
             onError={() => setBrokenImageIds(prev => new Set(prev).add(current.id))}
           />
         ) : (

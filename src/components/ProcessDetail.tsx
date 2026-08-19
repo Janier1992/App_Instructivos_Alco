@@ -31,7 +31,7 @@ interface ProcessDetailProps {
 // Flags temporales para ocultar secciones de la vista sin eliminar su
 // implementación (quedan pendientes de retomar más adelante).
 const SHOW_NORMATIVE_DOCS_SECTION = false;
-const SHOW_PROCESS_VIDEOS_SECTION = false;
+const SHOW_PROCESS_VIDEOS_SECTION = true;
 
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
@@ -162,7 +162,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           }`}
         >
           <FileText className="w-4 h-4 text-[#003366] shrink-0" />
-          <span>Documentos Vigentes ({documents.length + ragDocsCount})</span>
+          <span>Documentos Vigentes ({ragDocsCount})</span>
         </button>
       </div>
 

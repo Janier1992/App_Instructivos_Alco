@@ -1,4 +1,4 @@
-import { PROCESSES, DOCUMENTS } from '@/src/data/processesData';
+import { PROCESSES } from '@/src/data/processesData';
 import { ProcessList } from '@/src/components/ProcessList';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { getCustomRagDocuments } from '@/src/lib/customRagStore';
@@ -12,15 +12,14 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   await ensureHydrated();
 
-  // Conteo real de documentos por proceso (estáticos + PDFs cargados al RAG,
-  // incluidos los de alcance "general") — misma cuenta que ya se muestra en
-  // el detalle de cada proceso, para que la lista principal no muestre un
-  // número distinto al que el usuario ve al entrar.
+  // Conteo real de documentos por proceso: solo los PDFs efectivamente
+  // cargados al motor RAG (los únicos administrables y visibles hoy). Los
+  // documentos estáticos de processesData.ts no se suman — esa sección está
+  // oculta de la vista (ver SHOW_NORMATIVE_DOCS_SECTION en ProcessDetail.tsx)
+  // y sumarlos infla el conteo con documentos que el usuario no ve.
   const documentCounts: Record<string, number> = {};
   for (const process of PROCESSES) {
-    const staticCount = DOCUMENTS[process.slug]?.length || 0;
-    const ragCount = getCustomRagDocuments(process.slug).length;
-    documentCounts[process.slug] = staticCount + ragCount;
+    documentCounts[process.slug] = getCustomRagDocuments(process.slug).length;
   }
 
   return <ProcessList processes={PROCESSES} documentCounts={documentCounts} />;
