@@ -77,7 +77,15 @@ export async function loadProcessVideosFromSupabase(): Promise<void> {
   }
 }
 
-export function getProcessVideos(processSlug: string): ProcessVideo[] {
+/**
+ * A diferencia de una simple lectura de la caché en memoria, esto siempre
+ * recarga desde Supabase: dos requests seguidas (crear un video y luego
+ * listar) pueden caer en instancias serverless distintas, cada una
+ * hidratada en un momento diferente, y una instancia "vieja" no vería un
+ * video creado después de su propia hidratación.
+ */
+export async function getProcessVideos(processSlug: string): Promise<ProcessVideo[]> {
+  await loadProcessVideosFromSupabase();
   return videosStore.filter(v => v.processSlug === processSlug);
 }
 
@@ -86,38 +94,50 @@ export async function addProcessVideo(
   title: string,
   videoUrl: string
 ): Promise<{ video: ProcessVideo; persistedToSupabase: boolean }> {
-  const video: ProcessVideo = {
+  const normalizedUrl = normalizeVideoEmbedUrl(videoUrl);
+  const supabase = getSupabaseClient();
+
+  if (supabase) {
+    try {
+      // El id lo genera Postgres (columna UUID con gen_random_uuid() por
+      // defecto) — antes se mandaba un id de texto propio ("video-<ts>-...")
+      // que no es un UUID válido, así que el insert fallaba siempre en
+      // silencio y el video nunca quedaba guardado de verdad.
+      const { data, error } = await supabase
+        .from('process_videos')
+        .insert({ process_slug: processSlug, title: title.trim(), video_url: normalizedUrl })
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        const video: ProcessVideo = {
+          id: data.id,
+          processSlug: data.process_slug,
+          title: data.title,
+          videoUrl: data.video_url,
+          createdAt: data.created_at
+        };
+        videosStore.unshift(video);
+        return { video, persistedToSupabase: true };
+      }
+
+      console.warn('⚠️ No se pudo guardar el video en Supabase:', error?.message);
+    } catch (err: any) {
+      console.warn('⚠️ Error guardando video de proceso:', err?.message || err);
+    }
+  }
+
+  // Sin Supabase configurado, o el insert falló: se guarda solo en memoria
+  // de esta instancia (temporal, se pierde en el próximo cold start).
+  const fallbackVideo: ProcessVideo = {
     id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     processSlug,
     title: title.trim(),
-    videoUrl: normalizeVideoEmbedUrl(videoUrl),
+    videoUrl: normalizedUrl,
     createdAt: new Date().toISOString()
   };
-
-  videosStore.unshift(video);
-
-  const supabase = getSupabaseClient();
-  if (!supabase) return { video, persistedToSupabase: false };
-
-  try {
-    const { error } = await supabase.from('process_videos').insert({
-      id: video.id,
-      process_slug: video.processSlug,
-      title: video.title,
-      video_url: video.videoUrl,
-      created_at: video.createdAt
-    });
-
-    if (error) {
-      console.warn('⚠️ No se pudo guardar el video en Supabase:', error.message);
-      return { video, persistedToSupabase: false };
-    }
-
-    return { video, persistedToSupabase: true };
-  } catch (err: any) {
-    console.warn('⚠️ Error guardando video de proceso:', err?.message || err);
-    return { video, persistedToSupabase: false };
-  }
+  videosStore.unshift(fallbackVideo);
+  return { video: fallbackVideo, persistedToSupabase: false };
 }
 
 export async function deleteProcessVideo(id: string): Promise<boolean> {

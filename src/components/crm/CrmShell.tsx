@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -11,8 +11,6 @@ import {
   Users,
   ShieldCheck,
   LogOut,
-  Menu,
-  X,
   Home
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
@@ -41,7 +39,6 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
 }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || user.role === 'administrador');
 
@@ -65,7 +62,6 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
       </div>
       <Link
         href="/"
-        onClick={() => setMobileNavOpen(false)}
         className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:text-white hover:bg-emerald-600/20 rounded-xl transition"
       >
         <Home className="w-4 h-4" />
@@ -90,7 +86,6 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
           <Link
             key={item.href}
             href={item.href}
-            onClick={() => setMobileNavOpen(false)}
             className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
               isActive
                 ? 'bg-emerald-600 text-white shadow-sm'
@@ -122,32 +117,60 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header móvil */}
+        {/* Header móvil — solo marca y acciones de cuenta; la navegación
+            entre módulos vive en la barra inferior de íconos. */}
         <header className="lg:hidden bg-[#002244] text-white flex items-center justify-between px-4 py-3 sticky top-0 z-40">
           <div className="bg-white px-2 py-1 rounded-lg flex items-center">
             <AlcoLogo className="h-6" />
           </div>
-          <button
-            onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            className="p-2 bg-white/10 rounded-lg"
-          >
-            {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              title="Volver a la App Principal"
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+            >
+              <Home className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </header>
 
-        {mobileNavOpen && (
-          <div className="lg:hidden bg-[#002244] text-white p-4 space-y-4 border-b border-white/10">
-            {NavLinks}
-            <div className="pt-2 border-t border-white/10 space-y-2">
-              {AccountActions}
-            </div>
-          </div>
-        )}
-
-        <main className="flex-1 p-4 sm:p-6">
+        {/* El contenido nunca queda tapado ni compartiendo pantalla con un
+            menú superpuesto: solo se ve la página activa. pb-20 deja
+            espacio para que la barra inferior fija no tape el final del
+            contenido en móvil. */}
+        <main className="flex-1 p-4 pb-20 sm:p-6 lg:pb-6">
           <CrmSessionProvider user={user}>{children}</CrmSessionProvider>
         </main>
       </div>
+
+      {/* Barra de navegación inferior — solo móvil/tablet, patrón estándar
+          de apps móviles (íconos con etiqueta, en vez de un menú lateral
+          desplegable que tapaba el contenido). */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#002244] border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+        {visibleItems.map(item => {
+          const Icon = item.icon;
+          const isActive = pathname?.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition ${
+                isActive ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="truncate max-w-full px-0.5">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };

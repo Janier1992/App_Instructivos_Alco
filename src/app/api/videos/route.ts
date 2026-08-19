@@ -12,6 +12,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Se requiere el parámetro processSlug.' }, { status: 400 });
   }
 
-  const videos = getProcessVideos(processSlug);
+  const videos = await getProcessVideos(processSlug);
   return NextResponse.json({ success: true, videos, total: videos.length });
 }
