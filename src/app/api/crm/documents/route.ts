@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { document, persistedToSupabase } = await processAndSavePdfDocument(
+    const { document, persistedToSupabase, isDuplicate } = await processAndSavePdfDocument(
       buffer,
       file.name,
       file.size,
@@ -35,20 +35,25 @@ export async function POST(request: NextRequest) {
       title
     );
 
-    await recordAuditEvent({
-      adminUserId: auth.session.sub,
-      adminEmail: auth.session.email,
-      action: 'create',
-      entityType: 'document',
-      entityId: document.id,
-      metadata: { processSlug, fileName: file.name, title: document.title }
-    });
+    if (!isDuplicate) {
+      await recordAuditEvent({
+        adminUserId: auth.session.sub,
+        adminEmail: auth.session.email,
+        action: 'create',
+        entityType: 'document',
+        entityId: document.id,
+        metadata: { processSlug, fileName: file.name, title: document.title }
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: `PDF "${file.name}" procesado exitosamente y cargado al motor RAG.`,
+      message: isDuplicate
+        ? `El documento "${file.name}" ya existe en la lista de documentos de este proceso.`
+        : `PDF "${file.name}" procesado exitosamente y cargado al motor RAG.`,
       document,
-      persistedToSupabase
+      persistedToSupabase,
+      isDuplicate
     });
   } catch (err: any) {
     console.error('Error al procesar PDF RAG:', err);

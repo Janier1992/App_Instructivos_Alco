@@ -77,7 +77,9 @@ export const CrmDocumentsManager: React.FC = () => {
         : { error: `Respuesta inesperada del servidor (${res.status}). Intenta con un archivo más pequeño.` };
 
       if (res.ok && data.success) {
-        if (data.persistedToSupabase === false) {
+        if (data.isDuplicate) {
+          setUploadMsg(`⚠️ El documento "${selectedFile.name}" ya existe en la lista de documentos de este proceso. No se cargó una copia duplicada.`);
+        } else if (data.persistedToSupabase === false) {
           setUploadMsg(`⚠️ PDF "${selectedFile.name}" procesado, pero no se pudo guardar en Supabase — se perderá si el servidor se reinicia.`);
         } else {
           setUploadMsg(`✅ ¡Éxito! PDF "${selectedFile.name}" procesado e indexado en el motor RAG.`);

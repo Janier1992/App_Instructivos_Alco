@@ -1,7 +1,7 @@
 import { PROCESSES } from '@/src/data/processesData';
 import { ProcessList } from '@/src/components/ProcessList';
 import { ensureHydrated } from '@/src/lib/hydrate';
-import { getCustomRagDocuments } from '@/src/lib/customRagStore';
+import { getCustomRagDocuments, loadCustomRagDocumentsFromSupabase } from '@/src/lib/customRagStore';
 
 // Sin esto, Next.js pre-renderiza esta página una sola vez en build time y
 // sirve esa foto fija a todos los usuarios — el conteo de documentos se
@@ -11,6 +11,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   await ensureHydrated();
+  // Recarga puntual desde Supabase (no solo lo que esta instancia hidrató en
+  // su cold start) para que el conteo refleje subidas recientes hechas desde
+  // otra instancia serverless.
+  await loadCustomRagDocumentsFromSupabase();
 
   // Conteo real de documentos por proceso: solo los PDFs efectivamente
   // cargados al motor RAG (los únicos administrables y visibles hoy). Los

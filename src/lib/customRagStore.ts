@@ -56,6 +56,21 @@ export function getCustomRagDocuments(processSlug?: string): CustomRagDocument[]
   return customDocumentsStore.filter(doc => doc.processSlug === processSlug);
 }
 
+/**
+ * Igual que getCustomRagDocuments, pero recarga primero desde Supabase en
+ * vez de servir la caché en memoria de esta instancia. Se usa en las vistas
+ * de listado (panel admin, panel público, conteo del listado principal):
+ * subir un PDF y listar pueden caer en instancias serverless distintas, cada
+ * una hidratada en un momento diferente, y sin esto un documento recién
+ * subido podía no aparecer aunque sí quedara guardado. No se usa en el
+ * camino del chat (ragEngine.ts) para no sumarle una consulta a Supabase a
+ * cada mensaje — ahí una caché con unos segundos de rezago es aceptable.
+ */
+export async function getCustomRagDocumentsFresh(processSlug?: string): Promise<CustomRagDocument[]> {
+  await loadCustomRagDocumentsFromSupabase();
+  return getCustomRagDocuments(processSlug);
+}
+
 export function getAllCustomRagDocuments(): CustomRagDocument[] {
   return customDocumentsStore;
 }
@@ -136,6 +151,9 @@ export interface ProcessPdfResult {
   /** false si Supabase está configurado pero el guardado falló — el documento
    * solo vive en memoria y desaparecerá al reiniciar el servidor. */
   persistedToSupabase: boolean;
+  /** true si ya existía un documento con el mismo nombre y tamaño en este
+   * proceso — no se creó una copia nueva, se reutilizó la existente. */
+  isDuplicate: boolean;
 }
 
 export async function processAndSavePdfDocument(
@@ -181,7 +199,7 @@ export async function processAndSavePdfDocument(
       if (!customDocumentsStore.find(d => d.id === existingDoc.id)) {
         customDocumentsStore.unshift(existingDoc);
       }
-      return { document: existingDoc, persistedToSupabase: true };
+      return { document: existingDoc, persistedToSupabase: true, isDuplicate: true };
     }
   }
 
@@ -301,7 +319,7 @@ export async function processAndSavePdfDocument(
     }
   }
 
-  return { document: newDoc, persistedToSupabase: supabase ? persistedToSupabase : true };
+  return { document: newDoc, persistedToSupabase: supabase ? persistedToSupabase : true, isDuplicate: false };
 }
 
 export async function deleteCustomRagDocument(id: string): Promise<boolean> {
