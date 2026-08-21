@@ -113,3 +113,16 @@ export async function reviewComment(
   }
   return { success: true, comment: mapRow(data) };
 }
+
+/** Elimina un comentario definitivamente (incluye ya aprobados) — deja de existir para la moderación y para la vista pública. */
+export async function deleteComment(id: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const { error } = await supabase.from('circular_comments').delete().eq('id', id);
+  if (error) {
+    console.warn('⚠️ Error eliminando comentario:', error.message);
+    return false;
+  }
+  return true;
+}

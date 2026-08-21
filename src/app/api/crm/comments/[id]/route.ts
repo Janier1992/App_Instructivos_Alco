@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
-import { requireSession } from '@/src/lib/adminAuth';
-import { reviewComment } from '@/src/lib/commentsStore';
+import { requireSession, requireRole } from '@/src/lib/adminAuth';
+import { reviewComment, deleteComment } from '@/src/lib/commentsStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,4 +37,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     console.error('Error moderando comentario:', err);
     return NextResponse.json({ error: err?.message || 'Error interno del servidor.' }, { status: 500 });
   }
+}
+
+// Eliminar (incluye comentarios ya aprobados) es solo de Administrador,
+// igual que el resto de acciones de eliminar en el CRM.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await ensureHydrated();
+
+  const auth = await requireRole(request, ['administrador']);
+  if ('error' in auth) return auth.error;
+
+  const { id } = await params;
+  const deleted = await deleteComment(id);
+  if (!deleted) {
+    return NextResponse.json({ error: 'No se pudo eliminar el comentario.' }, { status: 500 });
+  }
+
+  await recordAuditEvent({
+    adminUserId: auth.session.sub,
+    adminEmail: auth.session.email,
+    action: 'delete',
+    entityType: 'comment',
+    entityId: id
+  });
+
+  return NextResponse.json({ success: true, message: 'Comentario eliminado.' });
 }

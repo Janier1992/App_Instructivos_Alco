@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Check, X, Clock, MessageSquare, AlertCircle } from 'lucide-react';
+import { RefreshCw, Check, X, Clock, MessageSquare, AlertCircle, Trash2 } from 'lucide-react';
+import { useCrmSession } from './CrmSessionContext';
 
 interface CommentAdmin {
   id: string;
@@ -15,6 +16,7 @@ interface CommentAdmin {
 
 /** Moderación de comentarios de las publicaciones de Principal: aprobar o rechazar antes de que se vean públicamente. */
 export const CrmCommentsManager: React.FC = () => {
+  const { role } = useCrmSession();
   const [comments, setComments] = useState<CommentAdmin[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -53,6 +55,24 @@ export const CrmCommentsManager: React.FC = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar este comentario definitivamente? Ya no se podrá recuperar.')) return;
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/crm/comments/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        await loadComments();
+      } else {
+        alert(data.error || 'No se pudo eliminar el comentario.');
+      }
+    } catch (err) {
+      console.error('Error eliminando comentario:', err);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const pending = comments.filter((c) => c.status === 'pending');
   const reviewed = comments.filter((c) => c.status !== 'pending');
 
@@ -75,26 +95,38 @@ export const CrmCommentsManager: React.FC = () => {
           </p>
           <p className="text-xs text-slate-700 mt-1.5 whitespace-pre-wrap">{c.commentText}</p>
         </div>
-        {c.status === 'pending' && (
-          <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {c.status === 'pending' && (
+            <>
+              <button
+                onClick={() => handleReview(c.id, 'approved')}
+                disabled={busyId === c.id}
+                title="Aprobar"
+                className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => handleReview(c.id, 'rejected')}
+                disabled={busyId === c.id}
+                title="Rechazar"
+                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition disabled:opacity-50"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          {role === 'administrador' && (
             <button
-              onClick={() => handleReview(c.id, 'approved')}
+              onClick={() => handleDelete(c.id)}
               disabled={busyId === c.id}
-              title="Aprobar"
-              className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition disabled:opacity-50"
+              title="Eliminar definitivamente"
+              className="p-2 bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 rounded-lg transition disabled:opacity-50"
             >
-              <Check className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={() => handleReview(c.id, 'rejected')}
-              disabled={busyId === c.id}
-              title="Rechazar"
-              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition disabled:opacity-50"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
