@@ -16,8 +16,15 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { CustomRagDocument } from '@/src/lib/customRagStore';
+import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 import { ProcessPicker } from './ProcessPicker';
 import { useCrmSession } from './CrmSessionContext';
+
+// Por encima de esto, el PDF se sube directo a Supabase Storage desde el
+// navegador en vez de mandarlo en el body del POST — las funciones
+// serverless de Vercel rechazan requests de más de 4.5 MB antes de que
+// lleguen al código de la ruta (límite de la plataforma, no configurable).
+const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
 export const CrmDocumentsManager: React.FC = () => {
   const { role } = useCrmSession();
@@ -62,19 +69,64 @@ export const CrmDocumentsManager: React.FC = () => {
 
     isUploadingRef.current = true;
     setIsUploading(true);
-    setUploadMsg('⏳ Subiendo y extrayendo texto del PDF para el motor RAG...');
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('processSlug', processSlug);
-      formData.append('title', uploadTitleInput || selectedFile.name.replace(/\.pdf$/i, ''));
+      const title = uploadTitleInput || selectedFile.name.replace(/\.pdf$/i, '');
+      let data: any;
+      let res: Response;
 
-      const res = await fetch('/api/crm/documents', { method: 'POST', body: formData });
-      const contentType = res.headers.get('content-type') || '';
-      const data = contentType.includes('application/json')
+      if (selectedFile.size > DIRECT_UPLOAD_THRESHOLD_BYTES) {
+        // Archivo grande: se sube directo a Supabase Storage desde el
+        // navegador (bypass del límite de 4.5 MB de Vercel) y luego se le
+        // pide al servidor que lo procese (extraer texto + embeddings).
+        setUploadMsg('⏳ Subiendo archivo grande directo a almacenamiento...');
+        const urlRes = await fetch('/api/crm/documents/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: selectedFile.name, processSlug })
+        });
+        const urlData = await urlRes.json();
+        if (!urlRes.ok || !urlData.success) {
+          throw new Error(urlData.error || 'No se pudo iniciar la carga del archivo.');
+        }
+
+        const supabase = getSupabaseBrowserClient();
+        if (!supabase) {
+          throw new Error('La carga de archivos grandes no está disponible: falta configuración del servidor (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY).');
+        }
+        const { error: uploadError } = await supabase.storage
+          .from('rag-pdfs')
+          .uploadToSignedUrl(urlData.storagePath, urlData.token, selectedFile, { contentType: 'application/pdf' });
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        setUploadMsg('⏳ Extrayendo texto e indexando el PDF para el motor RAG...');
+        res = await fetch('/api/crm/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            docId: urlData.docId,
+            storagePath: urlData.storagePath,
+            fileName: selectedFile.name,
+            fileSize: selectedFile.size,
+            processSlug,
+            title
+          })
+        });
+      } else {
+        setUploadMsg('⏳ Subiendo y extrayendo texto del PDF para el motor RAG...');
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('processSlug', processSlug);
+        formData.append('title', title);
+        res = await fetch('/api/crm/documents', { method: 'POST', body: formData });
+      }
+
+      const resContentType = res.headers.get('content-type') || '';
+      data = resContentType.includes('application/json')
         ? await res.json()
-        : { error: `Respuesta inesperada del servidor (${res.status}). Intenta con un archivo más pequeño.` };
+        : { error: `Respuesta inesperada del servidor (${res.status}).` };
 
       if (res.ok && data.success) {
         if (data.isDuplicate) {

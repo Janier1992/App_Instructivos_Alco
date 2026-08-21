@@ -161,7 +161,11 @@ export async function processAndSavePdfDocument(
   fileName: string,
   fileSize: number,
   processSlug: string,
-  customTitle?: string
+  customTitle?: string,
+  /** Cuando el navegador ya subió el archivo directo a Storage (PDFs
+   * grandes, vía signed upload URL) — se reutiliza ese id/ruta en vez de
+   * generar uno nuevo y de volver a subir el archivo. */
+  preUploaded?: { docId: string; storagePath: string }
 ): Promise<ProcessPdfResult> {
   const normalizedProcessSlug = processSlug || 'general';
   const supabase = getSupabaseClient();
@@ -198,6 +202,11 @@ export async function processAndSavePdfDocument(
       };
       if (!customDocumentsStore.find(d => d.id === existingDoc.id)) {
         customDocumentsStore.unshift(existingDoc);
+      }
+      // El archivo ya subido a Storage para este intento duplicado no se usará
+      // — se borra para no dejar copias huérfanas del PDF en el bucket.
+      if (preUploaded && preUploaded.storagePath !== existingDoc.storagePath) {
+        await supabase.storage.from(RAG_PDF_BUCKET).remove([preUploaded.storagePath]);
       }
       return { document: existingDoc, persistedToSupabase: true, isDuplicate: true };
     }
@@ -242,7 +251,7 @@ export async function processAndSavePdfDocument(
   const cleanText = textExtracted.replace(/\s+/g, ' ').trim();
   const chunks = Math.ceil(cleanText.length / 800) || 1;
 
-  const docId = `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+  const docId = preUploaded?.docId || `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const title = customTitle || fileName.replace(/\.pdf$/i, '').replace(/_/g, ' ');
   const code = `PDF-RAG-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -257,7 +266,8 @@ export async function processAndSavePdfDocument(
     extractedText: cleanText || 'Sin texto legible extraído del archivo PDF.',
     pageCount,
     chunkCount: chunks,
-    summary: cleanText.substring(0, 250) + (cleanText.length > 250 ? '...' : '')
+    summary: cleanText.substring(0, 250) + (cleanText.length > 250 ? '...' : ''),
+    storagePath: preUploaded?.storagePath
   };
 
   customDocumentsStore.unshift(newDoc);
@@ -268,16 +278,22 @@ export async function processAndSavePdfDocument(
     try {
       // Subir el PDF original a Storage para poder visualizarlo dentro de la app
       // (el texto extraído es solo para el motor RAG, no es legible por una persona).
-      const storagePath = `${newDoc.processSlug}/${newDoc.id}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from(RAG_PDF_BUCKET)
-        .upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) {
-        console.warn('⚠️ No se pudo guardar el PDF original en Supabase Storage:', uploadError.message);
+      // Si el navegador ya lo subió directo (preUploaded, PDFs grandes vía
+      // signed upload URL) no hay nada que subir de nuevo aquí.
+      if (preUploaded) {
+        console.log(`✅ PDF original ya estaba en Storage (carga directa): ${preUploaded.storagePath}`);
       } else {
-        newDoc.storagePath = storagePath;
-        console.log(`✅ PDF original guardado en Storage: ${storagePath}`);
+        const storagePath = `${newDoc.processSlug}/${newDoc.id}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from(RAG_PDF_BUCKET)
+          .upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
+
+        if (uploadError) {
+          console.warn('⚠️ No se pudo guardar el PDF original en Supabase Storage:', uploadError.message);
+        } else {
+          newDoc.storagePath = storagePath;
+          console.log(`✅ PDF original guardado en Storage: ${storagePath}`);
+        }
       }
 
       const { error: insertError } = await supabase.from('rag_custom_documents').insert({
