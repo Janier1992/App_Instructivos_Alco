@@ -11,7 +11,8 @@ import {
   Users,
   ShieldCheck,
   LogOut,
-  Home
+  Home,
+  MessageSquare
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -26,6 +27,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/crm/principal', label: 'Principal', icon: Newspaper },
+  { href: '/crm/comentarios', label: 'Comentarios', icon: MessageSquare },
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },

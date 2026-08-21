@@ -12,6 +12,8 @@ import {
   LayoutDashboard,
   FileText
 } from 'lucide-react';
+import { NotifyProcessButton } from './NotifyProcessButton';
+import { PublicationComments } from './PublicationComments';
 
 interface PrincipalItem {
   id: string;
@@ -105,9 +107,14 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-2">
-        <Newspaper className="w-8 h-8 text-slate-300 mx-auto" />
-        <p className="text-sm text-slate-500">No hay información publicada para esta sección.</p>
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <NotifyProcessButton processSlug={processSlug} />
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-2">
+          <Newspaper className="w-8 h-8 text-slate-300 mx-auto" />
+          <p className="text-sm text-slate-500">No hay información publicada para esta sección.</p>
+        </div>
       </div>
     );
   }
@@ -222,12 +229,23 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             ))}
           </div>
         )}
+
+        <PublicationComments circularId={current.id} />
       </div>
     </div>
   );
 
-  // Una sola publicación: la card sola es todo el módulo, sin cuadrícula.
-  if (!hasMultiple) return HeroCard;
+  // Una sola publicación: la card sola, con el botón de notificar arriba.
+  if (!hasMultiple) {
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <NotifyProcessButton processSlug={processSlug} />
+        </div>
+        {HeroCard}
+      </div>
+    );
+  }
 
   // Varias publicaciones: portada tipo periódico — destacada arriba,
   // titulares del resto debajo (uno al lado del otro en pantallas anchas,
@@ -236,6 +254,10 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <NotifyProcessButton processSlug={processSlug} />
+      </div>
+
       {HeroCard}
 
       <div>

@@ -177,6 +177,44 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON admin_audit_log(created_a
 ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
+-- NOTIFICACIONES PUSH Y COMENTARIOS EN PRINCIPAL
+-- ============================================================
+
+-- Suscripciones a notificaciones push por proceso, sin cuenta de usuario:
+-- el navegador mantiene una sola suscripción por origen; suscribirse a
+-- varios procesos desde el mismo dispositivo guarda esa misma suscripción
+-- varias veces, una fila por proceso.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (process_slug, endpoint)
+);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_process_slug ON push_subscriptions(process_slug);
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Comentarios de gestión sobre una publicación de Principal. Como la app
+-- pública no tiene cuentas, cualquiera puede comentar dando su nombre, pero
+-- el comentario nace oculto ('pending') hasta que un Administrador lo
+-- aprueba desde el CRM.
+CREATE TABLE IF NOT EXISTS circular_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  circular_id UUID REFERENCES circulares(id) ON DELETE CASCADE,
+  author_name VARCHAR(255) NOT NULL,
+  comment_text TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES admin_users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_circular_comments_circular_id ON circular_comments(circular_id);
+CREATE INDEX IF NOT EXISTS idx_circular_comments_status ON circular_comments(status);
+ALTER TABLE circular_comments ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,
 -- whatsapp_conversations, whatsapp_messages, whatsapp_appointments), ya

@@ -3,6 +3,11 @@ import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession, requireRole } from '@/src/lib/adminAuth';
 import { updateCircular, deleteCircular } from '@/src/lib/circularesStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
+import { sendPushForCircular } from '@/src/lib/pushSubscriptionsStore';
+
+// El envío de notificaciones push a varios suscriptores puede tardar unos
+// segundos (llamadas de red por cada uno).
+export const maxDuration = 30;
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureHydrated();
@@ -44,6 +49,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       entityId: id,
       metadata: { title: result.circular!.title, status: result.circular!.status }
     });
+
+    // Notificación push: solo dispara al pasar a "publicado", no en
+    // cualquier edición (título, orden, etc.) ni al despublicar.
+    if (status === 'published') {
+      await sendPushForCircular(result.circular!);
+    }
 
     return NextResponse.json({ success: true, circular: result.circular });
   } catch (err: any) {
