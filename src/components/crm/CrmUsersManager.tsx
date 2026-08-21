@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Users, UserPlus, ShieldOff, ShieldCheck, Lock } from 'lucide-react';
+import { RefreshCw, Users, UserPlus, ShieldOff, ShieldCheck, Lock, Pencil, Trash2, X } from 'lucide-react';
 import { useCrmSession } from './CrmSessionContext';
 
 interface AdminUserRow {
@@ -24,6 +24,14 @@ export const CrmUsersManager: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState<'administrador' | 'editor'>('editor');
+  const [editPassword, setEditPassword] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editMsg, setEditMsg] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -94,6 +102,70 @@ export const CrmUsersManager: React.FC = () => {
       }
     } catch (err) {
       console.error('Error actualizando usuario:', err);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openEdit = (user: AdminUserRow) => {
+    setEditingUser(user);
+    setEditFullName(user.fullName);
+    setEditEmail(user.email);
+    setEditRole(user.role);
+    setEditPassword('');
+    setEditMsg(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    if (!editFullName.trim() || !editEmail.trim()) {
+      setEditMsg('⚠️ Completa nombre y correo.');
+      return;
+    }
+    if (editPassword && editPassword.length < 8) {
+      setEditMsg('⚠️ La nueva contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    setIsSavingEdit(true);
+    setEditMsg(null);
+    try {
+      const res = await fetch(`/api/crm/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: editFullName,
+          email: editEmail,
+          role: editRole,
+          ...(editPassword ? { password: editPassword } : {})
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEditingUser(null);
+        await loadUsers();
+      } else {
+        setEditMsg(`❌ ${data.error || 'No se pudo guardar los cambios.'}`);
+      }
+    } catch (err: any) {
+      setEditMsg(`❌ Error: ${err.message}`);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async (user: AdminUserRow) => {
+    if (!confirm(`¿Eliminar definitivamente a "${user.fullName}"? Ya no podrá iniciar sesión y esta acción no se puede deshacer.`)) return;
+    setBusyId(user.id);
+    try {
+      const res = await fetch(`/api/crm/users/${user.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        await loadUsers();
+      } else {
+        alert(data.error || 'No se pudo eliminar el usuario.');
+      }
+    } catch (err) {
+      console.error('Error eliminando usuario:', err);
     } finally {
       setBusyId(null);
     }
@@ -174,22 +246,112 @@ export const CrmUsersManager: React.FC = () => {
                     </div>
                     <p className="text-xs text-slate-500 truncate">{u.email}</p>
                   </div>
-                  <button
-                    onClick={() => handleToggleActive(u)}
-                    disabled={busyId === u.id || u.id === myId}
-                    title={u.id === myId ? 'No puedes desactivar tu propia cuenta' : u.isActive ? 'Desactivar' : 'Activar'}
-                    className={`p-2 rounded-lg transition disabled:opacity-40 shrink-0 ${
-                      u.isActive ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
-                    }`}
-                  >
-                    {u.isActive ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => openEdit(u)}
+                      disabled={busyId === u.id}
+                      title="Editar perfil"
+                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition disabled:opacity-40"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(u)}
+                      disabled={busyId === u.id || u.id === myId}
+                      title={u.id === myId ? 'No puedes desactivar tu propia cuenta' : u.isActive ? 'Desactivar' : 'Activar'}
+                      className={`p-2 rounded-lg transition disabled:opacity-40 ${
+                        u.isActive ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {u.isActive ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u)}
+                      disabled={busyId === u.id || u.id === myId}
+                      title={u.id === myId ? 'No puedes eliminar tu propia cuenta' : 'Eliminar definitivamente'}
+                      className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition disabled:opacity-40"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      {editingUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-2xl">
+              <h3 className="font-bold text-slate-900 text-sm">Editar Usuario</h3>
+              <button onClick={() => setEditingUser(null)} className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-lg transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nombre completo:</label>
+                <input value={editFullName} onChange={e => setEditFullName(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Correo:</label>
+                <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Rol:</label>
+                <select
+                  value={editRole}
+                  onChange={e => setEditRole(e.target.value as 'administrador' | 'editor')}
+                  disabled={editingUser.id === myId}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs disabled:opacity-50"
+                >
+                  <option value="editor">Editor (crea/edita/publica, no elimina)</option>
+                  <option value="administrador">Administrador (control total)</option>
+                </select>
+                {editingUser.id === myId && (
+                  <p className="text-[10px] text-slate-400 mt-1">No puedes cambiar tu propio rol.</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nueva contraseña (opcional):</label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={e => setEditPassword(e.target.value)}
+                  placeholder="Dejar en blanco para no cambiarla"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs"
+                />
+              </div>
+
+              {editMsg && (
+                <div className="p-3 rounded-xl text-xs font-medium border bg-amber-50 text-amber-900 border-amber-200">
+                  {editMsg}
+                </div>
+              )}
+            </div>
+
+            <div className="p-3.5 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-end gap-2">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSavingEdit}
+                className="px-4 py-2 bg-[#003366] hover:bg-[#002244] text-white font-bold text-xs rounded-xl shadow transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSavingEdit && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

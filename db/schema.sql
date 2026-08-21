@@ -125,6 +125,12 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
 
+-- Si tu proyecto de Supabase ya existía antes de que las llaves foráneas de
+-- abajo (circulares.created_by, admin_audit_log.admin_user_id,
+-- circular_comments.reviewed_by) tuvieran ON DELETE SET NULL, corre además
+-- db/migrate_admin_users_delete_fk.sql — si no, eliminar un usuario del CRM
+-- con historial (auditoría, publicaciones, comentarios revisados) falla.
+
 -- Circulares informativas: texto y/o adjunto, asociadas a uno o varios
 -- procesos (arreglo vacío = aplica a todas las áreas). La app pública solo
 -- debe mostrar las que tengan status = 'published'.
@@ -136,7 +142,7 @@ CREATE TABLE IF NOT EXISTS circulares (
   attachment_file_name VARCHAR(255),
   process_slugs TEXT[] NOT NULL DEFAULT '{}',
   status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
-  created_by UUID REFERENCES admin_users(id),
+  created_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
   published_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -165,7 +171,7 @@ ON CONFLICT (id) DO NOTHING;
 -- despublicar/eliminar/login) ejecutada desde el CRM.
 CREATE TABLE IF NOT EXISTS admin_audit_log (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  admin_user_id UUID REFERENCES admin_users(id),
+  admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
   admin_email VARCHAR(255) NOT NULL,
   action VARCHAR(50) NOT NULL,
   entity_type VARCHAR(50) NOT NULL,
@@ -208,7 +214,7 @@ CREATE TABLE IF NOT EXISTS circular_comments (
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ,
-  reviewed_by UUID REFERENCES admin_users(id)
+  reviewed_by UUID REFERENCES admin_users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_circular_comments_circular_id ON circular_comments(circular_id);
 CREATE INDEX IF NOT EXISTS idx_circular_comments_status ON circular_comments(status);
