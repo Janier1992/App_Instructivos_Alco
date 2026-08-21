@@ -162,43 +162,25 @@ export const PROCESSES: ProcessItem[] = [
     ]
   },
   {
-    id: 'proc-despachos',
-    slug: 'despachos',
+    id: 'proc-despachos-transporte',
+    slug: 'despachos-transporte',
     code: 'INF-DSP-08',
-    name: 'Despachos',
-    iconName: 'PackageCheck',
-    department: 'Almacén de Producto Terminado',
-    description: 'Cargue, etiquetado QR por ítem/obra y verificación de lista de embarque de módulos listos.',
+    name: 'Despachos-Transporte',
+    iconName: 'Truck',
+    department: 'Almacén de Producto Terminado, Flotas y Transporte Terrestre',
+    description: 'Cargue, etiquetado QR por ítem/obra, verificación de lista de embarque de módulos listos, aparejamiento y amarre seguro de la carga para su traslado.',
     activeVersion: 'v2.0',
     effectiveDate: '2025-12-10',
-    owner: 'Coord. Nelson Parra - Logística y Despachos',
-    approvedBy: 'Dirección Logística Alco',
+    owner: 'Coord. Nelson Parra - Logística y Despachos / Ing. Claudia Vargas - Seguridad y Logística',
+    approvedBy: 'Dirección Logística Alco / Gerencia de Operaciones Alco',
     status: 'vigente',
-    infographicTitle: 'Infografía Protección y Empaque para Despacho',
-    infographicSummary: 'Capa protectora azul de baja adhesión en perfiles visibles, esquineros de cartón en marcos armados, etiqueta de obra legible.',
+    infographicTitle: 'Infografía Protección, Empaque y Aseguramiento de Carga para Despacho y Transporte',
+    infographicSummary: 'Capa protectora azul de baja adhesión en perfiles visibles, esquineros de cartón en marcos armados, etiqueta de obra legible, y amarre seguro con bandas textiles sin contacto metal-metal durante el transporte.',
     keyAspects: [
       'Mínimo 3 vueltas de vinipel termoencogible en atados',
       'Esquineros de cartón prensado en las 4 esquinas de marcos armados',
       'Rótulo de despacho con código de orden, cliente, destino y peso',
-      'Checklist de herrajes y accesorios empaquetados por separado'
-    ]
-  },
-  {
-    id: 'proc-transporte',
-    slug: 'transporte',
-    code: 'INF-TRN-09',
-    name: 'Transporte',
-    iconName: 'Truck',
-    department: 'Flotas y Transporte Terrestre',
-    description: 'Aparejamiento, amarre seguro con carracas de tela, separación de atados mediante tacos de madera y estibado para traslado.',
-    activeVersion: 'v1.1',
-    effectiveDate: '2025-08-14',
-    owner: 'Ing. Claudia Vargas - Seguridad y Logística',
-    approvedBy: 'Gerencia de Operaciones Alco',
-    status: 'vigente',
-    infographicTitle: 'Infografía Aseguramiento de Carga en Vehículo',
-    infographicSummary: 'Cintas de amarre de 2" con protección para no deformar perfiles, tacos de separación de pino seco, inclinación segura de fachadas.',
-    keyAspects: [
+      'Checklist de herrajes y accesorios empaquetados por separado',
       'Prohibido el contacto directo de perfiles pintados con metales del camión',
       'Separadores de goma o madera entre atados cada 1.2 metros',
       'Tensión de trinquete/carraca controlada para evitar doblado de marcos',
@@ -398,10 +380,10 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       tolerance: 'Legibilidad 100%'
     }
   ],
-  despachos: [
+  'despachos-transporte': [
     {
       id: 'qc-dsp-01',
-      processId: 'proc-despachos',
+      processId: 'proc-despachos-transporte',
       code: 'CC-DSP-01',
       title: 'Protección con Película y Esquinas de Cartón',
       description: 'Verificación del empaque exterior con película azul protectora y esquineros rígidos.',
@@ -409,12 +391,10 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       inspectionFrequency: '100% de paquetes y marcos despachados',
       standardValue: 'Cubrimiento completo sin zonas expuestas',
       tolerance: 'Mínimo 3 capas de vinipel en extremos'
-    }
-  ],
-  transporte: [
+    },
     {
       id: 'qc-trn-01',
-      processId: 'proc-transporte',
+      processId: 'proc-despachos-transporte',
       code: 'CC-TRN-01',
       title: 'Aseguramiento y Separación en Camión',
       description: 'Revisión del trincado con bandas textiles y separadores de madera entre estibas.',
@@ -585,21 +565,19 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       requiredAction: 'Imprimir nueva etiqueta oficial QR y sustituir de inmediato.'
     }
   ],
-  despachos: [
+  'despachos-transporte': [
     {
       id: 'ac-dsp-01',
-      processId: 'proc-despachos',
+      processId: 'proc-despachos-transporte',
       controlId: 'qc-dsp-01',
       parameter: 'Identificación y Embalaje',
       acceptance: 'Etiqueta QR visible con número de obra, ítem y cliente. Película protectora azul sin roturas.',
       rejection: 'Falta de etiqueta, número de obra erróneo o perfiles descubiertos en zonas de roce.',
       requiredAction: 'Re-empaquetar zona descubierta y solicitar reimpresión de etiqueta QR a Logística.'
-    }
-  ],
-  transporte: [
+    },
     {
       id: 'ac-trn-01',
-      processId: 'proc-transporte',
+      processId: 'proc-despachos-transporte',
       controlId: 'qc-trn-01',
       parameter: 'Estibado y trincado',
       acceptance: 'Atados colocados sobre tacos de pino con amarres textiles tensionados a mano/carraca.',
@@ -988,7 +966,7 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       contactPerson: 'Gerencia de Operaciones'
     }
   ],
-  despachos: [
+  'despachos-transporte': [
     {
       level: 'Nivel 1',
       title: 'Autonomía de Auxiliar Despachos',
@@ -1040,9 +1018,7 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       ],
       escalationCondition: 'No aplica.',
       contactPerson: 'Gerencia de Operaciones'
-    }
-  ],
-  transporte: [
+    },
     {
       level: 'Nivel 1',
       title: 'Autonomía de Auxiliar Transporte',
@@ -1528,10 +1504,10 @@ Documento versión 2 (30/01/2026).`,
       ]
     }
   ],
-  despachos: [
+  'despachos-transporte': [
     {
       id: 'doc-dsp-20',
-      processId: 'proc-despachos',
+      processId: 'proc-despachos-transporte',
       title: 'Infografía Protección y Empaque para Despacho',
       code: 'INF-DSP-08',
       version: 'v2.0',
@@ -1588,12 +1564,10 @@ Documento versión 2 (30/01/2026).`,
         { title: 'Producto no conforme', content: 'Todo producto no conforme se ubica en su sitio indicado — nunca se despacha ni se deja en un lugar indebido, para asegurar trazabilidad y evitar despachos erróneos.' },
         { title: 'Despachos fuera de Medellín', content: 'Cuando el destino es fuera de Medellín se refuerza la protección: suelo y paredes del camión cubiertos con cartón, esquineros y/o icopor para separar la producción durante trayectos más largos.' }
       ]
-    }
-  ],
-  transporte: [
+    },
     {
       id: 'doc-trn-11',
-      processId: 'proc-transporte',
+      processId: 'proc-despachos-transporte',
       title: 'Infografía Aseguramiento de Carga en Vehículo',
       code: 'INF-TRN-09',
       version: 'v1.1',

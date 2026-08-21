@@ -164,21 +164,19 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     expectedEscalation: false
   },
 
-  // --- DESPACHOS ---
+  // --- DESPACHOS-TRANSPORTE ---
   {
     id: 'gt-dsp-01',
-    processSlug: 'despachos',
+    processSlug: 'despachos-transporte',
     category: 'Correcto',
     question: '¿Qué información debe llevar la etiqueta de despacho pegada en el marco?',
     expectedBehavior: 'Indicar que debe llevar el código QR con Número de Obra, Cliente, Código de Elemento, Cantidad y Peso.',
     expectedSource: 'INF-DSP-08 v2.0',
     expectedEscalation: false
   },
-
-  // --- TRANSPORTE ---
   {
     id: 'gt-trn-01',
-    processSlug: 'transporte',
+    processSlug: 'despachos-transporte',
     category: 'Correcto',
     question: '¿Se pueden amarrar los atados de aluminio directamente con cables de acero?',
     expectedBehavior: 'Indicar que está ESTRICTAMENTE PROHIBIDO el uso de cables de acero o cadenas directas. Solo se permiten bandas textiles de trinquete de 2".',
