@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { NotifyProcessButton } from './NotifyProcessButton';
 import { PublicationComments } from './PublicationComments';
+import { ImageLightbox } from './ImageLightbox';
 
 interface PrincipalItem {
   id: string;
@@ -54,6 +55,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const [activeIndex, setActiveIndex] = useState(0);
   const [brokenImageIds, setBrokenImageIds] = useState<Set<string>>(new Set());
   const [isPaused, setIsPaused] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -143,7 +145,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
               key={current.id}
               src={current.embedUrl!}
               title={current.title}
-              className="w-full h-72 sm:h-[28rem] border-0"
+              className="w-full h-80 sm:h-[32rem] border-0"
               allow="fullscreen"
               allowFullScreen
             />
@@ -166,7 +168,8 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             key={current.id}
             src={`/api/circulares/${current.id}/attachment`}
             alt={current.title}
-            className="w-full h-56 sm:h-72 object-contain bg-slate-100 transition-opacity duration-300"
+            onClick={() => setZoomedImage({ src: `/api/circulares/${current.id}/attachment`, alt: current.title })}
+            className="w-full h-80 sm:h-[32rem] object-contain bg-slate-100 transition-opacity duration-300 cursor-zoom-in"
             onError={() => setBrokenImageIds(prev => new Set(prev).add(current.id))}
           />
         ) : (
@@ -235,6 +238,10 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     </div>
   );
 
+  const Lightbox = zoomedImage && (
+    <ImageLightbox src={zoomedImage.src} alt={zoomedImage.alt} onClose={() => setZoomedImage(null)} />
+  );
+
   // Una sola publicación: la card sola, con el botón de notificar arriba.
   if (!hasMultiple) {
     return (
@@ -243,6 +250,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
           <NotifyProcessButton processSlug={processSlug} />
         </div>
         {HeroCard}
+        {Lightbox}
       </div>
     );
   }
@@ -298,6 +306,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
           })}
         </div>
       </div>
+      {Lightbox}
     </div>
   );
 };
