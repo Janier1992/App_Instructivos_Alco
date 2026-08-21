@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, ListFilter, LayoutDashboard, Settings } from 'lucide-react';
 import { AlcoLogo } from './AlcoLogo';
+import { PwaInstallButton } from './PwaInstallButton';
 
 interface HeaderProps {
   currentProcessName?: string;
@@ -59,6 +60,10 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName }) => {
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Instalar como app — se muestra y se oculta solo, según si el
+              navegador la ofrece o no en este momento. */}
+          <PwaInstallButton />
+
           {/* Portal de Administración — solo visible en celular (en computador: Ctrl+Q) */}
           <Link
             href="/crm"

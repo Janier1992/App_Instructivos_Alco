@@ -1,7 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Newspaper, Paperclip, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Newspaper,
+  Paperclip,
+  RefreshCw,
+  AlertCircle,
+  ExternalLink,
+  LayoutDashboard,
+  FileText
+} from 'lucide-react';
 
 interface PrincipalItem {
   id: string;
@@ -18,13 +28,23 @@ interface ProcessPrincipalPanelProps {
   processSlug: string;
 }
 
-const AUTO_ADVANCE_MS = 7000;
+const AUTO_ADVANCE_MS = 8000;
+
+function formatDate(item: PrincipalItem): string {
+  return new Date(item.publishedAt || item.createdAt).toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
 
 /**
- * Contenido informativo/editorial de la pestaña "Principal" — texto, imagen
- * y adjunto opcional, publicado desde /crm/principal. Con varias
- * publicaciones activas rota tipo carrusel (automático moderado + navegación
- * manual); con una sola se muestra directo, sin chrome de carrusel.
+ * Contenido informativo/editorial de la pestaña "Principal" — texto, imagen,
+ * adjunto o enlace embebible, publicado desde /crm/principal. Con una sola
+ * publicación se muestra como card simple. Con varias, se arma como una
+ * portada de periódico: una destacada arriba (rota sola, navegación manual)
+ * y el resto en una cuadrícula de titulares debajo — tocar un titular lo
+ * promueve a destacado, igual que en un sitio de noticias.
  */
 export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ processSlug }) => {
   const [items, setItems] = useState<PrincipalItem[] | null>(null);
@@ -101,7 +121,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
 
   const goTo = (idx: number) => setActiveIndex(((idx % items.length) + items.length) % items.length);
 
-  return (
+  const HeroCard = (
     <div
       className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
@@ -171,13 +191,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
       <div className="p-5 sm:p-6 space-y-2">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-bold text-slate-900 text-base sm:text-lg">{current.title}</h3>
-          <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0 mt-1">
-            {new Date(current.publishedAt || current.createdAt).toLocaleDateString('es-CO', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric'
-            })}
-          </span>
+          <span className="text-[11px] text-slate-500 whitespace-nowrap shrink-0 mt-1">{formatDate(current)}</span>
         </div>
 
         {current.bodyText && <p className="text-sm text-slate-700 whitespace-pre-line">{current.bodyText}</p>}
@@ -208,6 +222,59 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  // Una sola publicación: la card sola es todo el módulo, sin cuadrícula.
+  if (!hasMultiple) return HeroCard;
+
+  // Varias publicaciones: portada tipo periódico — destacada arriba,
+  // titulares del resto debajo (uno al lado del otro en pantallas anchas,
+  // apilados en móvil). Tocar un titular lo promueve a destacado.
+  const others = items.map((item, idx) => ({ item, idx })).filter(({ idx }) => idx !== activeIndex);
+
+  return (
+    <div className="space-y-4">
+      {HeroCard}
+
+      <div>
+        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-0.5">Más publicaciones</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {others.map(({ item, idx }) => {
+            const itemIsImage = (item.attachmentContentType || '').startsWith('image/');
+            const itemShowImage = item.attachmentFileName && itemIsImage && !brokenImageIds.has(item.id);
+            return (
+              <button
+                key={item.id}
+                onClick={() => goTo(idx)}
+                className="text-left bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition p-3 flex gap-3 items-start"
+              >
+                <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center">
+                  {item.embedUrl ? (
+                    <LayoutDashboard className="w-6 h-6 text-[#003366]/40" />
+                  ) : itemShowImage ? (
+                    <img
+                      src={`/api/circulares/${item.id}/attachment`}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={() => setBrokenImageIds(prev => new Set(prev).add(item.id))}
+                    />
+                  ) : item.attachmentFileName ? (
+                    <FileText className="w-6 h-6 text-[#003366]/40" />
+                  ) : (
+                    <Newspaper className="w-6 h-6 text-[#003366]/25" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h5 className="font-bold text-slate-900 text-xs leading-snug line-clamp-2">{item.title}</h5>
+                  {item.bodyText && <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{item.bodyText}</p>}
+                  <span className="text-[10px] text-slate-400 block mt-1">{formatDate(item)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
