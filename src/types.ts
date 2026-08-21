@@ -25,6 +25,8 @@ export interface ProcessItem {
   infographicSummary: string;
   infographicUrl?: string;
   keyAspects: string[];
+  /** false oculta la pestaña "Matriz de Autonomía" para este proceso (ej. equipos externos como Instalación). Por defecto true. */
+  showAutonomyTab?: boolean;
 }
 
 export interface QualityControl {

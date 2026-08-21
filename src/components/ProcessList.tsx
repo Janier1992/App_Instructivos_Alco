@@ -21,7 +21,8 @@ import {
   ShieldCheck,
   FileText,
   Flame,
-  ClipboardCheck
+  ClipboardCheck,
+  Wrench
 } from 'lucide-react';
 import { QRGeneratorModal } from './QRGeneratorModal';
 
@@ -41,7 +42,8 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
   PackageCheck: <PackageCheck className="w-6 h-6 text-indigo-600" />,
   Truck: <Truck className="w-6 h-6 text-slate-700" />,
   Flame: <Flame className="w-6 h-6 text-orange-600" />,
-  ClipboardCheck: <ClipboardCheck className="w-6 h-6 text-teal-600" />
+  ClipboardCheck: <ClipboardCheck className="w-6 h-6 text-teal-600" />,
+  Wrench: <Wrench className="w-6 h-6 text-yellow-700" />
 };
 
 export const ProcessList: React.FC<ProcessListProps> = ({ processes, documentCounts = {} }) => {

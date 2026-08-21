@@ -89,6 +89,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   }
 
   const { process, documents, controls, criteria, autonomy } = data;
+  // Algunos procesos (ej. Instalación, equipo externo) no llevan Matriz de
+  // Autonomía — por defecto todos la tienen salvo que se indique lo contrario.
+  const showAutonomyTab = process.showAutonomyTab !== false;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
@@ -139,18 +142,20 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           <span>Principal</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('autonomia')}
-          id="tab-autonomia"
-          className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
-            activeTab === 'autonomia'
-              ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <UserCheck className="w-4 h-4 text-[#003366] shrink-0" />
-          <span>Matriz de Autonomía</span>
-        </button>
+        {showAutonomyTab && (
+          <button
+            onClick={() => setActiveTab('autonomia')}
+            id="tab-autonomia"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'autonomia'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Matriz de Autonomía</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('documentos')}
@@ -170,7 +175,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {activeTab === 'principal' && <ProcessPrincipalPanel processSlug={slug} />}
 
       {/* MODULO 1: MATRIZ DE AUTONOMÍA */}
-      {activeTab === 'autonomia' && (
+      {activeTab === 'autonomia' && showAutonomyTab && (
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div>
@@ -277,19 +282,21 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             <p className="text-xs text-slate-700 leading-relaxed font-medium">
               {process.infographicSummary}
             </p>
-            <div className="pt-2">
-              <span className="text-[11px] font-bold text-[#003366] uppercase tracking-wider block mb-1">
-                Controles Críticos de la Infografía:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {process.keyAspects.map((aspect, idx) => (
-                  <div key={idx} className="p-2.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-800 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#003366] shrink-0" />
-                    <span>{aspect}</span>
-                  </div>
-                ))}
+            {process.keyAspects.length > 0 && (
+              <div className="pt-2">
+                <span className="text-[11px] font-bold text-[#003366] uppercase tracking-wider block mb-1">
+                  Controles Críticos de la Infografía:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {process.keyAspects.map((aspect, idx) => (
+                    <div key={idx} className="p-2.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-800 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#003366] shrink-0" />
+                      <span>{aspect}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Criterios de Aceptación y Rechazo Incluidos */}

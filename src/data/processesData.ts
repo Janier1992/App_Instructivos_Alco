@@ -186,6 +186,24 @@ export const PROCESSES: ProcessItem[] = [
       'Tensión de trinquete/carraca controlada para evitar doblado de marcos',
       'Lona impermeabilizada completa para trayectos intermunicipales'
     ]
+  },
+  {
+    id: 'proc-instalacion',
+    slug: 'instalacion',
+    code: 'INF-INS-09',
+    name: 'Instalación',
+    iconName: 'Wrench',
+    department: 'Equipo de Instalación en Obra',
+    description: 'Espacio de consulta para el equipo instalador: publicaciones y documentación vigente compartidos directamente desde el Portal de Administración.',
+    activeVersion: 'v1.0',
+    effectiveDate: '2026-08-21',
+    owner: 'Coordinación de Instalación',
+    approvedBy: 'Dirección de Operaciones Alco',
+    status: 'vigente',
+    infographicTitle: 'Documentación de Referencia para el Equipo de Instalación',
+    infographicSummary: 'Este espacio reúne las publicaciones y la documentación vigente para el equipo de instalación en obra. El contenido se carga y actualiza directamente desde el Portal de Administración a medida que esté disponible.',
+    keyAspects: [],
+    showAutonomyTab: false
   }
 ];
 
