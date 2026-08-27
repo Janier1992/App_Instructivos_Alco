@@ -140,28 +140,6 @@ export const PROCESSES: ProcessItem[] = [
     ]
   },
   {
-    id: 'proc-alistamiento',
-    slug: 'alistamiento',
-    code: 'INF-ALS-07',
-    name: 'Alistamiento',
-    iconName: 'ClipboardCheck',
-    department: 'Alistamiento, Empaque y Embalaje de Producto',
-    description: 'Área encargada del empaque, protección, embalaje de producto terminado y gestión de material suelto (herrajes, tornillería, remates, accesorios) para asegurar la calidad integral y entregas a satisfacción al cliente final.',
-    activeVersion: 'v2.0',
-    effectiveDate: '2026-02-18',
-    owner: 'Coord. Nelson Parra - Alistamiento y Logística',
-    approvedBy: 'Dirección de Operaciones Alco',
-    status: 'vigente',
-    infographicTitle: 'Infografía Estándar de Alistamiento, Empaque y Material Suelto',
-    infographicSummary: 'Verificación del 100% del kit de material suelto según lista de empaque, empaque vinipel en marcos armados con esquineros rígidos, bolsas de accesorios herméticas y rotulado QR de obra.',
-    keyAspects: [
-      'Verificación de kit completo de material suelto (herrajes, accesorios, tornillos)',
-      'Protección de perfiles con película vinipel termoencogible (mínimo 3 vueltas)',
-      'Esquineros de cartón o espuma prensada en los 4 vértices del producto',
-      'Etiqueta QR legible con identificación de cliente, obra y cantidad de sueltos'
-    ]
-  },
-  {
     id: 'proc-despachos-transporte',
     slug: 'despachos-transporte',
     code: 'INF-DSP-08',
@@ -363,41 +341,6 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       tolerance: 'Separación máxima < 0.2 mm'
     }
   ],
-  alistamiento: [
-    {
-      id: 'qc-als-01',
-      processId: 'proc-alistamiento',
-      code: 'CC-ALS-01',
-      title: 'Completitud de Kit de Material Suelto y Herrajes',
-      description: 'Verificación física contra la lista de empaque (picking list) de todos los herrajes, tornillería, remates y accesorios sueltos.',
-      criticalLevel: 'crítico',
-      inspectionFrequency: '100% de paquetes de sueltos alistados',
-      standardValue: '100% de piezas requeridas en empaque hermético',
-      tolerance: 'Cero faltantes o piezas cambiadas'
-    },
-    {
-      id: 'qc-als-02',
-      processId: 'proc-alistamiento',
-      code: 'CC-ALS-02',
-      title: 'Empaque de Protección y Esquineros en Marcos',
-      description: 'Inspección del vinipel termoencogible y montaje de esquineros de cartón prensado en las 4 esquinas.',
-      criticalLevel: 'alto',
-      inspectionFrequency: '100% de marcos alistados',
-      standardValue: 'Marco cubierto con mínimo 3 vueltas de vinipel',
-      tolerance: 'Cero zonas expuestas a fricción'
-    },
-    {
-      id: 'qc-als-03',
-      processId: 'proc-alistamiento',
-      code: 'CC-ALS-03',
-      title: 'Rotulado y Trazabilidad QR de Alistamiento',
-      description: 'Comprobación de legibilidad del rótulo con código QR impreso adjunto al empaque.',
-      criticalLevel: 'crítico',
-      inspectionFrequency: '100% de paquetes etiquetados',
-      standardValue: 'Código QR escaneable con datos de obra',
-      tolerance: 'Legibilidad 100%'
-    }
-  ],
   'despachos-transporte': [
     {
       id: 'qc-dsp-01',
@@ -430,28 +373,37 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-cyp-01',
       processId: 'proc-corte-perfileria',
       controlId: 'qc-cyp-01',
-      parameter: 'Longitud de corte de perfil',
-      acceptance: 'Desviación máxima entre -0.5 mm y +0.5 mm respecto al plano de despiece de orden.',
-      rejection: 'Cualquier pieza con longitud fuera del rango de ±0.5 mm.',
-      requiredAction: 'Si es más larga (+0.8 mm), re-cortar en tronzadora. Si es corta (-0.8 mm), rechazar pieza y cortar nueva barra.'
+      parameter: 'Rayas transversales de manipulación en el perfil',
+      acceptance: 'Máximo 5 rayas con longitud menor a 4 mm, separadas como mínimo 20 cm entre ellas.',
+      rejection: 'Más de 5 rayas o rayas ubicadas a menor distancia entre sí que lo permitido.',
+      requiredAction: 'Separar la pieza y reportar a Calidad; si es atribuible al proveedor, registrar en la hoja de defectos.'
     },
     {
       id: 'ac-cyp-02',
       processId: 'proc-corte-perfileria',
       controlId: 'qc-cyp-02',
-      parameter: 'Ángulo e inglete',
-      acceptance: 'Ángulo entre 44.8° y 45.2° o 89.8° y 90.2°.',
-      rejection: 'Desviación angular > 0.2° (genera luz abierta al ensamblar el marco).',
-      requiredAction: 'Detener tronzadora, limpiar tope micrométrico de disco y recalibrar goniómetro de cabezal.'
+      parameter: 'Defectos del recubrimiento de pintura electrostática en el perfil',
+      acceptance: 'Superficie sin desprendimiento de pintura, piel de naranja, ojo de pescado/cráteres ni pinhole/hervido.',
+      rejection: 'Presencia de cualquiera de estos defectos (desprendimiento, piel de naranja, cráteres, pinhole) — según la hoja de defectos, siempre se rechazan.',
+      requiredAction: 'Separar la pieza y notificar al área de Pintura para determinar si es reprocesable.'
     },
     {
       id: 'ac-cyp-03',
       processId: 'proc-corte-perfileria',
       controlId: 'qc-cyp-03',
-      parameter: 'Espesor y rectitud (flecha)',
-      acceptance: 'Espesor según catálogo (±0.10 mm) y flecha longitudinal ≤ 1.0 mm por metro lineal.',
-      rejection: 'Espesor fuera de norma o flecha > 1.0 mm/m.',
-      requiredAction: 'Inmovilizar barra defectuosa y notificar a Calidad Extrusión.'
+      parameter: 'Fricción y golpes por manipulación',
+      acceptance: 'Marca de fricción o golpe presente en un solo punto del perfil.',
+      rejection: 'Fricción o golpes repetitivos en varios puntos del mismo perfil.',
+      requiredAction: 'Si es repetitivo, separar la pieza y reportar a Calidad; revisar prácticas de arrume del área.'
+    },
+    {
+      id: 'ac-cyp-04',
+      processId: 'proc-corte-perfileria',
+      controlId: 'qc-cyp-04',
+      parameter: 'Protección de perfilería durante la manipulación',
+      acceptance: 'Perfiles arrumados sobre icopor, con puntas protegidas y sin contacto directo entre paquetes.',
+      rejection: 'Perfiles apilados sin icopor/protección, con puntas expuestas en contacto con otros paquetes.',
+      requiredAction: 'Reubicar y proteger la perfilería según el instructivo de cuidado y manipulación antes de continuar.'
     }
   ],
   troquelado: [
@@ -459,10 +411,19 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-trq-01',
       processId: 'proc-troquelado',
       controlId: 'qc-trq-01',
-      parameter: 'Calado desahogo de agua',
-      acceptance: 'Troquel limpio, simétrico, sin deformación en la pared externa visible del marco.',
-      rejection: 'Desahogo taponado por viruta, rasgado de pared o matriz desplazada > 1 mm de la cota.',
-      requiredAction: 'Limpiar matriz con aire comprimido. Si hay rebaba excesiva, afilar punzón inmediatamente.'
+      parameter: 'Diámetro y posición de perforaciones según plano',
+      acceptance: 'Diámetro de la perforación dentro de la tolerancia indicada en el plano técnico vigente (ej. Ø4.5 ±0.1 mm, Ø2.5 ±0.1 mm) y ubicada en la cota señalada.',
+      rejection: 'Diámetro o posición de la perforación fuera de la tolerancia o cota indicada en el plano CAD vigente del sistema.',
+      requiredAction: 'Verificar el plano vigente de la referencia y recalibrar punzón o matriz antes de continuar el lote.'
+    },
+    {
+      id: 'ac-trq-02',
+      processId: 'proc-troquelado',
+      controlId: 'qc-trq-02',
+      parameter: 'Ubicación de avellanes según plantilla de diseño',
+      acceptance: 'Avellán posicionado según la plantilla oficial correspondiente al sistema y al rango de medida de la ventana (jamba, cabezal o sillar).',
+      rejection: 'Avellán fuera de la posición de plantilla, o realizado en zonas marcadas como "no lleva avellán" (p. ej. anchos ≤1200 mm en sillar, zonas engrafadas) sin consultar medidas fuera de rango.',
+      requiredAction: 'Verificar la plantilla del sistema y medida antes de perforar; si la medida está fuera de rango, consultar con Ingeniería.'
     }
   ],
   'vidrio-crudo-templado': [
@@ -470,37 +431,28 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-vdt-01',
       processId: 'proc-vidrio-crudo-templado',
       controlId: 'qc-vdt-01',
-      parameter: 'Dimensiones de vidrio crudo',
-      acceptance: 'Medida cortada dentro de ±1.0 mm y descuadre entre diagonales ≤ 1.5 mm.',
-      rejection: 'Vidrio fuera de tolerancia o con cachos/desportilladuras en bordes cortados.',
-      requiredAction: 'Refilar en mesa automatizada o descartar pieza si falta medida.'
+      parameter: 'Separación y protección de vidrios en arrumes',
+      acceptance: 'Vidrios de distinta medida separados con cartón, apoyados con icopor sobre pared o tablas, y arrumados sin inclinación.',
+      rejection: 'Vidrios de distinta medida en contacto directo sin cartón, apoyados sin icopor, o arrumados de forma inclinada.',
+      requiredAction: 'Reorganizar el arrume con la protección adecuada antes de continuar la manipulación.'
     },
     {
       id: 'ac-vdt-02',
       processId: 'proc-vidrio-crudo-templado',
       controlId: 'qc-vdt-02',
-      parameter: 'Arrisado de cantos pre-templado',
-      acceptance: 'Canto totalmente matado sin bordes vivos ni astillamientos antes de entrar al horno.',
-      rejection: 'Borde filoso o astillado no procesado (provoca explosión del vidrio dentro del horno).',
-      requiredAction: 'Devolver a la lavadora-arrisadora para reprocesar arrisado.'
+      parameter: 'Estado de carros patinadores para transporte de vidrio',
+      acceptance: 'Carro patinador en buen estado y arrume sujeto con caulla alrededor.',
+      rejection: 'Carro deteriorado o arrume sin sujeción.',
+      requiredAction: 'No usar el carro, avisar al supervisor y transportar en uno que esté en condiciones óptimas.'
     },
     {
       id: 'ac-vdt-03',
       processId: 'proc-vidrio-crudo-templado',
       controlId: 'qc-vdt-03',
-      parameter: 'Fragmentación en templado',
-      acceptance: 'Rotura en partículas pequeñas sin bordes cortantes (mín. 40 fragmentos en 50x50 mm).',
-      rejection: 'Fragmentos grandes en forma de lanza o cantidad menor a 40 partículas.',
-      requiredAction: 'Detener el horno de templado, ajustar rampa de calentamiento y flujo de aire de enfriamiento (quench).'
-    },
-    {
-      id: 'ac-vdt-04',
-      processId: 'proc-vidrio-crudo-templado',
-      controlId: 'qc-vdt-04',
-      parameter: 'Flujo de pátina de vidrio crudo simple',
-      acceptance: 'Ruteo directo identificado para vidrio crudo no procesado hacia ensamble o despachos.',
-      rejection: 'Envío erróneo de vidrio crudo simple al horno de templado.',
-      requiredAction: 'Re-etiquetar coche de transporte e instruir al operador de logística de vidrio.'
+      parameter: 'Manipulación de vidrio templado a la salida del horno',
+      acceptance: 'Piezas manipuladas de una en una al salir del horno antes de ubicarlas en los burros.',
+      rejection: 'Manipulación de varias piezas de vidrio templado a la vez (riesgo de sobrepeso y caída).',
+      requiredAction: 'Detener la manipulación en curso y retomar pieza por pieza según el instructivo.'
     }
   ],
   pintura: [
@@ -508,19 +460,28 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-pnt-01',
       processId: 'proc-pintura',
       controlId: 'qc-pnt-01',
-      parameter: 'Espesor de pintura',
-      acceptance: 'Capa continua con espesor seco entre 60 µm y 80 µm en caras vistas.',
-      rejection: 'Espesor < 60 µm (riesgo de decoloración) o > 100 µm (riesgo de descascarado).',
-      requiredAction: 'Si es <60 µm, reprisar en cabina. Si es >100 µm en canal de herraje, lijar o decaparse.'
+      parameter: 'Acidez del baño de fosfatizado (titulación diaria)',
+      acceptance: 'Entre 10 y 12 ml de líquido titulante para alcanzar el color rosado estable, lo que garantiza buena adherencia de la pintura.',
+      rejection: 'Menos de 10 ml o más de 12 ml de titulante.',
+      requiredAction: 'Informar al supervisor de pintura para calcular y aplicar la fórmula de recarga (ácido Gardacid y/o agua).'
     },
     {
       id: 'ac-pnt-02',
       processId: 'proc-pintura',
       controlId: 'qc-pnt-02',
-      parameter: 'Adherencia y polimerización',
-      acceptance: 'Cero desprendimiento de bordes en la cuadrícula 5B tras retirar la cinta 3M 610.',
-      rejection: 'Desprendimiento de cuadros de pintura (Clasificación 3B, 2B, 1B o 0B).',
-      requiredAction: 'Inmovilizar todo el lote de horneado asociado y realizar re-horneado o decapado total.'
+      parameter: 'Puntos activos totales del baño GARDACID AC (ficha técnica del proveedor)',
+      acceptance: '79 a 89 puntos activos totales en la dilución estándar de operación (1:9).',
+      rejection: 'Titulación fuera del rango 79-89 en la dilución estándar.',
+      requiredAction: 'Ajustar el baño por adición de producto o de agua según la ficha técnica; consultar al proveedor si persiste.'
+    },
+    {
+      id: 'ac-pnt-03',
+      processId: 'proc-pintura',
+      controlId: 'qc-pnt-03',
+      parameter: 'Protección del material después de pintado',
+      acceptance: 'Perfilería protegida con cinta stretch inmediatamente después de pintada y ubicada donde no sufra caídas ni fricciones.',
+      rejection: 'Material recién pintado sin proteger, expuesto a caídas o fricción con otros paquetes.',
+      requiredAction: 'Proteger de inmediato con cinta stretch y reubicar en zona segura.'
     }
   ],
   'empaques-felpas': [
@@ -528,10 +489,19 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-emp-01',
       processId: 'proc-empaques-felpas',
       controlId: 'qc-emp-01',
-      parameter: 'Inserción de EPDM y Felpa',
-      acceptance: 'Felpa alineada en su guía con aleta plástica completa. Empaque EPDM encajado en todo el canal.',
-      rejection: 'Felpa aplastada o sin aleta. Empaque estirado (se encogerá después dejando luz en las esquinas).',
-      requiredAction: 'Retirar empaque tensionado y reinsertar manualmente sin halar.'
+      parameter: 'Compatibilidad química y térmica del empaque EPDM',
+      acceptance: 'Empaque EPDM sin contacto con combustibles, solventes de hidrocarburos, lubricantes de diésteres minerales/sintéticos ni sellantes de silicona estructural, y a temperatura de trabajo de hasta 110°C.',
+      rejection: 'Contacto con cualquiera de esas sustancias incompatibles, o exposición a temperatura mayor a 110°C.',
+      requiredAction: 'Retirar y sustituir el tramo de empaque expuesto; verificar la ficha técnica del compuesto antes de aplicar químicos cerca del empaque.'
+    },
+    {
+      id: 'ac-emp-02',
+      processId: 'proc-empaques-felpas',
+      controlId: 'qc-emp-02',
+      parameter: 'Protección de perfilería durante inserción de felpa y empaque',
+      acceptance: 'Perfiles arrumados con icopor/cartón entre medidas distintas y extremos protegidos con plástico al finalizar el pegado de felpa/empaque.',
+      rejection: 'Perfiles arrumados sin protección, con fricción entre puntas o rebaba de mecanizado en contacto directo.',
+      requiredAction: 'Proteger y reorganizar el arrume según el instructivo antes de continuar.'
     }
   ],
   ensamble: [
@@ -539,48 +509,37 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-ens-01',
       processId: 'proc-ensamble',
       controlId: 'qc-ens-01',
-      parameter: 'Escuadreo de diagonales',
-      acceptance: 'Diferencia D1 - D2 ≤ 1.5 mm en marcos de ventana estándar.',
-      rejection: 'Diferencia D1 - D2 > 1.5 mm.',
-      requiredAction: 'Aflojar tornillos de escuadra de alineación, re-escuadrar en mesa neumática y apretar a torque.'
+      parameter: 'Estado superficial de perfiles y vidrio antes de ensamblar',
+      acceptance: 'Perfiles libres de rebabas, rayas, fricción, defectos de pintura y limalla; vidrio libre de manchas y daños de manipulación.',
+      rejection: 'Perfiles con rebabas, rayas o limalla visibles, o vidrio con manchas o daños de manipulación.',
+      requiredAction: 'Limpiar o lijar rebabas antes de ensamblar; separar y reportar a Calidad si el defecto persiste.'
     },
     {
       id: 'ac-ens-02',
       processId: 'proc-ensamble',
       controlId: 'qc-ens-02',
-      parameter: 'Acople de ingletes',
-      acceptance: 'Ingletes alineados al ras, plano con plano, sin escalón perceptible al tacto.',
-      rejection: 'Escalón entre perfiles > 0.3 mm o luz de unión abierta > 0.2 mm.',
-      requiredAction: 'Verificar si la escuadra interna de ensamble está defectuosa o re-revisar corte de 45°.'
-    }
-  ],
-  alistamiento: [
-    {
-      id: 'ac-als-01',
-      processId: 'proc-alistamiento',
-      controlId: 'qc-als-01',
-      parameter: 'Kit de material suelto y accesorios',
-      acceptance: '100% de herrajes, remates, tornillos y empaques sueltos empacados en bolsa sellada y rotulada.',
-      rejection: 'Faltante de cualquier accesorio según lista de empaque o bolsa rota.',
-      requiredAction: 'Completar kit en mesa de alistamiento y colocar sello verde de verificación.'
+      parameter: 'Funcionalidad de accesorios y rodamientos',
+      acceptance: 'Tornillos, chapas, cierres y rodamientos correctamente colocados, con apertura y cierre suaves.',
+      rejection: 'Accesorio faltante o mal ubicado, o rodamiento que traba la apertura/cierre.',
+      requiredAction: 'Reajustar o sustituir el accesorio antes de pasar a empaque.'
     },
     {
-      id: 'ac-als-02',
-      processId: 'proc-alistamiento',
-      controlId: 'qc-als-02',
-      parameter: 'Protección de marcos alistados',
-      acceptance: 'Marcos protegidos con vinipel (mínimo 3 capas) y esquineros de cartón en los 4 vértices.',
-      rejection: 'Esquinas expuestas o vinipel roto.',
-      requiredAction: 'Colocar esquineros adicionales y envolver nuevamente con película vinipel.'
+      id: 'ac-ens-03',
+      processId: 'proc-ensamble',
+      controlId: 'qc-ens-03',
+      parameter: 'Orientación de vidrio especial (serigrafiado, reflectivo, sandblasting)',
+      acceptance: 'Grabado, reflectivo o serigrafiado ubicado hacia el interior según diseño; sin uso de agua siliconada en vidrio sandblasting.',
+      rejection: 'Vidrio especial instalado con la cara tratada hacia el exterior, o limpiado con agua siliconada en sandblasting.',
+      requiredAction: 'Retirar y reinstalar el vidrio en la orientación correcta.'
     },
     {
-      id: 'ac-als-03',
-      processId: 'proc-alistamiento',
-      controlId: 'qc-als-03',
-      parameter: 'Identificación QR de alistamiento',
-      acceptance: 'Etiqueta QR pegada en lugar visible con nombre de cliente, obra y contenido de bulto.',
-      rejection: 'Ausencia de etiqueta o código QR ilegible al escaneo.',
-      requiredAction: 'Imprimir nueva etiqueta oficial QR y sustituir de inmediato.'
+      id: 'ac-ens-04',
+      processId: 'proc-ensamble',
+      controlId: 'qc-ens-04',
+      parameter: 'Aplicación de cinta estructural 3M VHB',
+      acceptance: 'Superficies limpiadas con alcohol e imprimadas (Primer 94 en perfil, Silano AP 115 en vidrio) con 30 segundos de evaporación antes del montaje, y unión prensada con rodillo o prensa neumática a 15 psi.',
+      rejection: 'Montaje de la cinta VHB sin limpieza/imprimación previa, sin tiempo de evaporación del primer, o sin presión de unión aplicada.',
+      requiredAction: 'Retirar la cinta, limpiar y reprocesar aplicando correctamente primer, tiempo de evaporación y presión.'
     }
   ],
   'despachos-transporte': [
@@ -588,19 +547,28 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       id: 'ac-dsp-01',
       processId: 'proc-despachos-transporte',
       controlId: 'qc-dsp-01',
-      parameter: 'Identificación y Embalaje',
-      acceptance: 'Etiqueta QR visible con número de obra, ítem y cliente. Película protectora azul sin roturas.',
-      rejection: 'Falta de etiqueta, número de obra erróneo o perfiles descubiertos en zonas de roce.',
-      requiredAction: 'Re-empaquetar zona descubierta y solicitar reimpresión de etiqueta QR a Logística.'
+      parameter: 'Aplicación de película de protección en ventanería',
+      acceptance: 'Cinta azul cubriendo la totalidad del vidrio y la perfilería indicada en el listado de protección (exterior/interior/ambos lados), sin sobrantes, burbujas ni arrugas, sobre superficie limpia y seca.',
+      rejection: 'Cinta con sobrantes sueltos, burbujas o arrugas, o zonas requeridas del listado sin cubrir.',
+      requiredAction: 'Retirar y reaplicar la cinta en la zona afectada siguiendo el listado de protección del sistema.'
+    },
+    {
+      id: 'ac-dsp-02',
+      processId: 'proc-despachos-transporte',
+      controlId: 'qc-dsp-02',
+      parameter: 'Protección y separación de vidrio y producto en zona de despacho',
+      acceptance: 'Vidrios y perfiles separados con icopor/cartón entre distintas medidas; producción nunca apoyada directamente sobre vidrio; carros de patinado sujetos por ambos lados.',
+      rejection: 'Producto apilado sin separación, apoyado directamente sobre vidrio, o carros sin sujetar antes de mover.',
+      requiredAction: 'Reordenar y proteger el material según el instructivo antes de continuar el despacho.'
     },
     {
       id: 'ac-trn-01',
       processId: 'proc-despachos-transporte',
       controlId: 'qc-trn-01',
-      parameter: 'Estibado y trincado',
-      acceptance: 'Atados colocados sobre tacos de pino con amarres textiles tensionados a mano/carraca.',
-      rejection: 'Cables de acero o cadenas en contacto directo con perfiles, o carga sobresaliente sin señalización.',
-      requiredAction: 'Reordenar estibas y colocar mantas protectoras antes de autorizar salida del camión.'
+      parameter: 'Aseguramiento de carga para transporte',
+      acceptance: 'Materia prima embalada con zunchos, separada con cartón entre puntas de distinta medida, y con cartón sobre el material dentro del camión para amortiguar la vibración del viaje.',
+      rejection: 'Material sin zunchos, sin separación entre puntas, o cargado contra las paredes del camión sin protección.',
+      requiredAction: 'Re-embalar y asegurar con zunchos antes de autorizar la salida del camión.'
     }
   ]
 };
@@ -925,60 +893,6 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
         'Autorizar armado preferencial de unidades comprometidas con obras urgentes.',
         'Aprobar soluciones técnicas especiales o refuerzos estructurales.',
         'Alinear turnos de ensamble para cumplir hitos de entrega de cliente.'
-      ],
-      escalationCondition: 'No aplica.',
-      contactPerson: 'Gerencia de Operaciones'
-    }
-  ],
-  alistamiento: [
-    {
-      level: 'Nivel 1',
-      title: 'Autonomía de Auxiliar Alistamiento',
-      role: 'Auxiliar Alistamiento',
-      scope: 'Empaque de marcos con vinipel, colocación de esquineros y armado de kit de herrajes sueltos.',
-      allowedActions: [
-        'Verificar cantidades de herrajes y accesorios contra el picking list.',
-        'Colocar esquineros de cartón en las 4 esquinas del marco.',
-        'Aplicar mínimo 3 vueltas de película vinipel en marcos y bultos.'
-      ],
-      escalationCondition: 'Faltante de herrajes sueltos en stock o marco con defecto visual.',
-      contactPerson: 'Supervisor'
-    },
-    {
-      level: 'Nivel 2',
-      title: 'Autonomía de Supervisor',
-      role: 'Supervisor',
-      scope: 'Supervisión de alistamiento de kits de material suelto, empaque y etiqueta QR.',
-      allowedActions: [
-        'Autorizar la sustitución de accesorios equivalentes homologados.',
-        'Re-empacar elementos con vinipel roto o rasgado.',
-        'Validar la etiqueta QR adjunta con datos de obra y cliente.'
-      ],
-      escalationCondition: 'Discrepancias entre la orden de producción y los accesorios entregados.',
-      contactPerson: 'Auxiliar y Coordinador de Calidad'
-    },
-    {
-      level: 'Nivel 3',
-      title: 'Autonomía de Auxiliar y Coordinador de Calidad',
-      role: 'Auxiliar y Coordinador de Calidad',
-      scope: 'Auditoría del 100% de kits de herrajes sueltos y empaque antes de pasar a despachos.',
-      allowedActions: [
-        'Detener la salida de bultos incompletos o sin etiqueta QR legible.',
-        'Auditar por muestreo bolsas de herrajes sueltos.',
-        'Exigir esquineros rígidos adicionales en esquinas vulnerables.'
-      ],
-      escalationCondition: 'Cambios de urgencia en el orden de empaque por prioridades de entrega.',
-      contactPerson: 'Jefe de Producción'
-    },
-    {
-      level: 'Nivel 4',
-      title: 'Autonomía de Jefe de Producción',
-      role: 'Jefe de Producción',
-      scope: 'Autorización por prioridades de entregas y despachos urgentes de kits de alistamiento.',
-      allowedActions: [
-        'Autorizar entregas parciales prioritarias de kits sueltos a obra.',
-        'Aprobar embalajes especiales para transporte de larga distancia o exportación.',
-        'Coordinar alistamiento express por solicitud urgente de cliente.'
       ],
       escalationCondition: 'No aplica.',
       contactPerson: 'Gerencia de Operaciones'
@@ -1487,38 +1401,6 @@ Documento versión 2 (30/01/2026).`,
       sections: [
         { title: 'Zunchos de sujeción en ventanas corredizas', content: 'Fijos ≥ 2500 mm de longitud: zuncho horizontal. Fijos ≥ 1200 mm de altura: zuncho vertical. Si cumple ambas medidas, se colocan ambos zunchos cruzados — evita el desprendimiento de perfiles ensamblados durante el transporte.' },
         { title: 'Separación de vidrios y producto', content: 'Nunca recostar producción sobre vidrios (riesgo de quiebre). Producto terminado y producto en proceso se mantienen separados para evitar confusiones.' }
-      ]
-    }
-  ],
-  alistamiento: [
-    {
-      id: 'doc-als-20',
-      processId: 'proc-alistamiento',
-      title: 'Infografía Estándar de Alistamiento, Empaque y Material Suelto',
-      code: 'INF-ALS-07',
-      version: 'v2.0',
-      status: 'vigente',
-      effectiveDate: '2026-02-18',
-      owner: 'Coord. Nelson Parra',
-      approvedBy: 'Dirección de Operaciones',
-      documentType: 'infografia',
-      contentText: `ESTÁNDAR DE ALISTAMIENTO Y EMPAQUE DE MATERIAL SUELTO - ALCO S.A.S.
-1. Alistamiento de Material Suelto:
-   - Todo herraje, tornillería, remate, felpa suelta y accesorio de fijación debe ser empacado en bolsa plástica sellada y rotulada.
-   - Verificación del 100% contra la lista de empaque (picking list) del proyecto.
-2. Empaque y Protección de Marcos Armados:
-   - Cubrimiento con película vinipel termoencogible (mínimo 3 capas completas).
-   - Esquineros rígidos de cartón prensado o espuma en las 4 esquinas del producto.
-3. Identificación y QR:
-   - Etiqueta QR indeleble adherida en lugar visible del bulto con datos de obra, cliente, ítem y contenido.
-4. Niveles de Autonomía:
-   - N1 (Auxiliar): Armar kit de sueltos, aplicar vinipel y esquineros.
-   - N2 (Líder Alistamiento): Consolidar bultos y colocar sello verde de verificación.
-   - N3 (Inspector Calidad): Auditar por muestreo y detener salidas sin etiqueta QR.
-   - N4 (Jefe Logística): Autorizar envíos express por garantía.`,
-      sections: [
-        { title: 'Verificación de Kits', content: 'Se debe realizar conteo doble de accesorios antes del sellado hermético de la bolsa de sueltos.' },
-        { title: 'Protección para Transporte', content: 'Los marcos alistados no deben tener bordes metálicos descubiertos que puedan rayarse durante la estiba.' }
       ]
     }
   ],

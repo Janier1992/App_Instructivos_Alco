@@ -6,18 +6,18 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-pnt-01',
     processSlug: 'pintura',
     category: 'Correcto',
-    question: '¿Cuál es el rango de espesor permitido para la pintura electrostática?',
-    expectedBehavior: 'Indicar que el espesor debe estar entre 60 µm y 80 µm según la infografía vigente INF-PNT-04 v2.1.',
-    expectedSource: 'INF-PNT-04 v2.1',
+    question: '¿Cuál es el rango aceptable en la titulación diaria de acidez del baño de fosfatizado?',
+    expectedBehavior: 'Indicar que debe estar entre 10 y 12 ml de líquido titulante para obtener un color rosado estable.',
+    expectedSource: 'Instructivo Titulación, Micras y Adherencia',
     expectedEscalation: false
   },
   {
     id: 'gt-pnt-02',
     processSlug: 'pintura',
     category: 'Correcto',
-    question: '¿Qué resultado debe dar la prueba de adherencia de pintura con cinta?',
-    expectedBehavior: 'Indicar que debe ser calificación 5B (0% de desprendimiento en la prueba de cuadrícula ASTM D3359).',
-    expectedSource: 'INF-PNT-04 v2.1',
+    question: '¿Qué rango de puntos activos totales debe dar el baño GARDACID AC en su dilución estándar?',
+    expectedBehavior: 'Indicar que debe estar entre 79 y 89 puntos activos totales en la dilución estándar de operación (1:9), según la ficha técnica del proveedor.',
+    expectedSource: 'Ficha Técnica GARDOX GARDACID',
     expectedEscalation: false
   },
   {
@@ -50,35 +50,35 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-cyp-01',
     processSlug: 'corte-perfileria',
     category: 'Correcto',
-    question: '¿Cuál es la tolerancia longitudinal de corte permitida para perfiles de aluminio?',
-    expectedBehavior: 'Responder que la tolerancia es de ±0.5 mm respecto a la medida de la orden según INF-CYP-01 v3.0.',
-    expectedSource: 'INF-CYP-01 v3.0',
+    question: '¿Cuántas rayas transversales de manipulación se aceptan como máximo en un perfil?',
+    expectedBehavior: 'Responder que se aceptan máximo 5 rayas con longitud menor a 4 mm, separadas al menos 20 cm entre ellas, según la hoja de defectos de aceptación del aluminio.',
+    expectedSource: 'Criterios de Aceptación del Aluminio con Hoja de Defectos',
     expectedEscalation: false
   },
   {
     id: 'gt-cyp-02',
     processSlug: 'corte-perfileria',
     category: 'Correcto',
-    question: '¿Cuál es la tolerancia angular para cortes a 45 y 90 grados?',
-    expectedBehavior: 'Responder que la tolerancia angular es de ±0.2°.',
-    expectedSource: 'INF-CYP-01 v3.0',
+    question: '¿Se acepta un perfil con piel de naranja o cráteres en el recubrimiento de pintura?',
+    expectedBehavior: 'Responder que ese defecto siempre se rechaza según la hoja de defectos de aceptación del aluminio.',
+    expectedSource: 'Criterios de Aceptación del Aluminio con Hoja de Defectos',
     expectedEscalation: false
   },
   {
     id: 'gt-cyp-03',
     processSlug: 'corte-perfileria',
     category: 'Correcto',
-    question: '¿Cuál es la flecha o rectitud máxima permitida por metro lineal en perfiles extruidos?',
-    expectedBehavior: 'Indicar que la flecha máxima es de 1.0 mm por metro lineal según la versión vigente INF-CYP-01 v3.0.',
-    expectedSource: 'INF-CYP-01 v3.0',
+    question: '¿Un golpe o fricción en un solo punto del perfil se acepta o se rechaza?',
+    expectedBehavior: 'Indicar que se acepta si se presenta en un solo punto del perfil, pero se rechaza si es repetitivo en varios puntos.',
+    expectedSource: 'Criterios de Aceptación del Aluminio con Hoja de Defectos',
     expectedEscalation: false
   },
   {
     id: 'gt-cyp-04',
     processSlug: 'corte-perfileria',
     category: 'No Documentado',
-    question: 'Tengo un perfil cortado con una tolerancia de +1.2 mm porque el flexómetro estaba descalibrado, ¿puedo usarlo si es para la parte superior de la ventana?',
-    expectedBehavior: 'Rechazar la pieza (+1.2 mm excede ±0.5 mm). Indicar que no se debe aceptar fuera de norma y sugerir re-cortar en tronzadora o escalar.',
+    question: 'Tengo un perfil con una perforación fuera de la tolerancia del plano porque la matriz estaba desalineada, ¿puedo usarlo si es para la parte superior de la ventana?',
+    expectedBehavior: 'Indicar que la perforación fuera de la tolerancia del plano vigente no cumple el criterio de aceptación. No inventar una excepción por ubicación y recomendar escalar o recalibrar antes de continuar.',
     expectedEscalation: false
   },
 
@@ -87,47 +87,27 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-vdt-01',
     processSlug: 'vidrio-crudo-templado',
     category: 'Correcto',
-    question: '¿Cuál es la tolerancia de corte para vidrio crudo en mesa automatizada?',
-    expectedBehavior: 'Responder que la tolerancia dimensional es de ±1.0 mm y descuadre entre diagonales ≤ 1.5 mm según INF-VDT-03 v2.0.',
-    expectedSource: 'INF-VDT-03 v2.0',
+    question: '¿Cómo deben separarse vidrios de distinta medida dentro de un mismo arrume?',
+    expectedBehavior: 'Responder que deben separarse con cartón y apoyarse con icopor sobre pared o tablas, sin arrumar de forma inclinada.',
+    expectedSource: 'Instructivo Cuidado y Manipulación Vidrio Crudo',
     expectedEscalation: false
   },
   {
     id: 'gt-vdt-02',
     processSlug: 'vidrio-crudo-templado',
     category: 'Correcto',
-    question: '¿Qué debe hacerse con el vidrio crudo monolítico si no requiere proceso de templado?',
-    expectedBehavior: 'Explicar que el vidrio crudo que no requiere procesamiento térmico ni laminado patina directamente mediante coche identificado hacia ensamble o despachos.',
-    expectedSource: 'INF-VDT-03 v2.0',
+    question: '¿Qué se debe verificar en los carros patinadores antes de transportar vidrio?',
+    expectedBehavior: 'Indicar que el carro debe estar en buen estado y sujeto con caulla alrededor del arrume; si está deteriorado, avisar al supervisor y no usarlo.',
+    expectedSource: 'Instructivo Cuidado y Manipulación Vidrio Crudo',
     expectedEscalation: false
   },
   {
     id: 'gt-vdt-03',
     processSlug: 'vidrio-crudo-templado',
     category: 'Correcto',
-    question: '¿Cuántos fragmentos mínimos debe dar la prueba de rotura en vidrio templado?',
-    expectedBehavior: 'Indicar que el estándar exige mínimo 40 fragmentos en un área de 50x50 mm en la prueba de control.',
-    expectedSource: 'INF-VDT-03 v2.0',
-    expectedEscalation: false
-  },
-
-  // --- ALISTAMIENTO ---
-  {
-    id: 'gt-als-01',
-    processSlug: 'alistamiento',
-    category: 'Correcto',
-    question: '¿Cómo debe realizarse el empaque de herrajes y material suelto?',
-    expectedBehavior: 'Indicar que todo herraje, remate, tornillería y accesorio suelto debe ser empacado en bolsa plástica sellada con verificación del 100% según la lista de empaque (picking list) y rótulo QR.',
-    expectedSource: 'INF-ALS-07 v2.0',
-    expectedEscalation: false
-  },
-  {
-    id: 'gt-als-02',
-    processSlug: 'alistamiento',
-    category: 'Correcto',
-    question: '¿Qué protección deben llevar las esquinas de los marcos armados en alistamiento?',
-    expectedBehavior: 'Indicar que deben colocarse esquineros rígidos de cartón prensado o espuma en las 4 esquinas más mínimo 3 vueltas de vinipel termoencogible.',
-    expectedSource: 'INF-ALS-07 v2.0',
+    question: '¿Cómo se debe manipular el vidrio templado a la salida del horno?',
+    expectedBehavior: 'Indicar que las piezas deben cogerse de una en una antes de ubicarlas en los burros, para evitar sobrepeso y caídas.',
+    expectedSource: 'Instructivo Cuidado y Manipulación Vidrio Templado',
     expectedEscalation: false
   },
 
@@ -136,9 +116,9 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-ens-01',
     processSlug: 'ensamble',
     category: 'Correcto',
-    question: '¿Cuál es la diferencia máxima permitida entre diagonales en un marco armado?',
-    expectedBehavior: 'Responder que la diferencia máxima entre diagonales (D1 - D2) debe ser menor o igual a 1.5 mm según INF-ENS-06 v3.1.',
-    expectedSource: 'INF-ENS-06 v3.1',
+    question: '¿A qué temperatura debe imprimarse el perfil y el vidrio antes de montar la cinta 3M VHB, y cuánto se debe esperar?',
+    expectedBehavior: 'Indicar que debe dejarse evaporar el solvente del Primer 94 (perfil) y Silano AP 115 (vidrio) durante 30 segundos antes del montaje, y prensar la unión a 15 psi.',
+    expectedSource: '3M Instructivo Aplicación Cinta VHB',
     expectedEscalation: false
   },
 
@@ -147,9 +127,9 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-trq-01',
     processSlug: 'troquelado',
     category: 'Correcto',
-    question: '¿Cuáles son las dimensiones del troquel para desahogo de agua?',
-    expectedBehavior: 'Responder que la perforación de drenaje debe ser de 25x5 mm con calota antiviento según INF-TRQ-02 v2.0.',
-    expectedSource: 'INF-TRQ-02 v2.0',
+    question: '¿Cuál es la tolerancia de diámetro para las perforaciones de troquelado según el plano técnico?',
+    expectedBehavior: 'Responder que la tolerancia es de ±0.1 mm respecto al diámetro indicado en el plano CAD vigente (ej. Ø4.5 o Ø2.5 mm).',
+    expectedSource: 'Fichas Técnicas de Troquelado',
     expectedEscalation: false
   },
 
@@ -158,9 +138,9 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-emp-01',
     processSlug: 'empaques-felpas',
     category: 'Correcto',
-    question: '¿Cuál es el porcentaje máximo de estiramiento o elongación permitido al insertar un empaque EPDM?',
-    expectedBehavior: 'Indicar que la elongación máxima permitida es de 2.0% para evitar que se encoja con el tiempo.',
-    expectedSource: 'INF-EMP-05 v1.2',
+    question: '¿Hasta qué temperatura resiste el empaque EPDM y con qué sustancias no es compatible?',
+    expectedBehavior: 'Indicar que resiste hasta 110°C y que no es compatible con combustibles/solventes de hidrocarburos, lubricantes de diésteres minerales o sintéticos, ni sellantes de silicona estructural.',
+    expectedSource: 'Fichas Técnicas Empaques',
     expectedEscalation: false
   },
 
@@ -169,18 +149,18 @@ export const GOLDEN_DATASET: GoldenTestCase[] = [
     id: 'gt-dsp-01',
     processSlug: 'despachos-transporte',
     category: 'Correcto',
-    question: '¿Qué información debe llevar la etiqueta de despacho pegada en el marco?',
-    expectedBehavior: 'Indicar que debe llevar el código QR con Número de Obra, Cliente, Código de Elemento, Cantidad y Peso.',
-    expectedSource: 'INF-DSP-08 v2.0',
+    question: '¿Cómo se debe aplicar la cinta azul de protección en una ventana antes de despacharla?',
+    expectedBehavior: 'Indicar que debe cubrir la totalidad del vidrio y la perfilería indicada en el listado de protección, sin sobrantes, burbujas ni arrugas, sobre superficie limpia y seca.',
+    expectedSource: 'Instructivo Película de Protección para la Ventanería',
     expectedEscalation: false
   },
   {
     id: 'gt-trn-01',
     processSlug: 'despachos-transporte',
     category: 'Correcto',
-    question: '¿Se pueden amarrar los atados de aluminio directamente con cables de acero?',
-    expectedBehavior: 'Indicar que está ESTRICTAMENTE PROHIBIDO el uso de cables de acero o cadenas directas. Solo se permiten bandas textiles de trinquete de 2".',
-    expectedSource: 'INF-TRN-09 v1.1',
+    question: '¿Cómo se debe asegurar la materia prima para su transporte?',
+    expectedBehavior: 'Indicar que debe embalarse con zunchos, separada con cartón entre puntas de distinta medida, y con cartón sobre el material para amortiguar la vibración del viaje.',
+    expectedSource: 'Instructivo Cuidado y Manipulación Despachos',
     expectedEscalation: false
   },
 
