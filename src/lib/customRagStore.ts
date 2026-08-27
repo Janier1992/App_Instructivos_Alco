@@ -1,24 +1,16 @@
 import { getSupabaseClient } from './supabaseService';
 import { PROCESSES } from '../data/processesData';
 import { embedAndStoreChunks } from './ragRetrieval';
+import { CustomRagDocument, RagDocumentType, normalizeDocumentType } from './ragDocumentTypes';
 
 const RAG_PDF_BUCKET = 'rag-pdfs';
 
-export interface CustomRagDocument {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  processSlug: string;
-  title: string;
-  code: string;
-  uploadedAt: string;
-  extractedText: string;
-  pageCount: number;
-  chunkCount: number;
-  summary?: string;
-  /** Ruta en Supabase Storage del PDF original; sin esto no se puede visualizar el archivo real. */
-  storagePath?: string;
-}
+// Re-exportados para no romper a quienes ya importaban estos símbolos desde
+// customRagStore — la definición real vive en ragDocumentTypes.ts (sin
+// dependencias de Node) para que los componentes cliente puedan importarlos
+// sin arrastrar pdf-parse/@napi-rs/canvas al bundle del navegador.
+export type { CustomRagDocument, RagDocumentType };
+export { RAG_DOCUMENT_TYPE_ORDER, RAG_DOCUMENT_TYPE_LABELS } from './ragDocumentTypes';
 
 // Memory store for loaded RAG PDFs
 let customDocumentsStore: CustomRagDocument[] = [
@@ -41,7 +33,8 @@ let customDocumentsStore: CustomRagDocument[] = [
 Cualquier desviación en la medición del ángulo mayor a 0.5° genera paro de máquina e inspección de calibración de disco de corte.`,
     pageCount: 3,
     chunkCount: 2,
-    summary: 'Manual oficial de tolerancias dimensionales en tronzadoras y extrusión para perfiles Alco.'
+    summary: 'Manual oficial de tolerancias dimensionales en tronzadoras y extrusión para perfiles Alco.',
+    documentType: 'manual'
   }
 ];
 
@@ -137,6 +130,7 @@ export async function loadCustomRagDocumentsFromSupabase(): Promise<void> {
         pageCount: row.page_count || 1,
         chunkCount: row.chunk_count || 1,
         summary: row.summary || undefined,
+        documentType: normalizeDocumentType(row.document_type),
         storagePath: row.storage_path || undefined
       }));
       console.log(`✅ ${data.length} documento(s) RAG cargados desde Supabase.`);
@@ -165,7 +159,8 @@ export async function processAndSavePdfDocument(
   /** Cuando el navegador ya subió el archivo directo a Storage (PDFs
    * grandes, vía signed upload URL) — se reutiliza ese id/ruta en vez de
    * generar uno nuevo y de volver a subir el archivo. */
-  preUploaded?: { docId: string; storagePath: string }
+  preUploaded?: { docId: string; storagePath: string },
+  documentType?: RagDocumentType
 ): Promise<ProcessPdfResult> {
   const normalizedProcessSlug = processSlug || 'general';
   const supabase = getSupabaseClient();
@@ -198,6 +193,7 @@ export async function processAndSavePdfDocument(
         pageCount: existingRow.page_count || 1,
         chunkCount: existingRow.chunk_count || 1,
         summary: existingRow.summary || undefined,
+        documentType: normalizeDocumentType(existingRow.document_type),
         storagePath: existingRow.storage_path || undefined
       };
       if (!customDocumentsStore.find(d => d.id === existingDoc.id)) {
@@ -267,6 +263,7 @@ export async function processAndSavePdfDocument(
     pageCount,
     chunkCount: chunks,
     summary: cleanText.substring(0, 250) + (cleanText.length > 250 ? '...' : ''),
+    documentType: normalizeDocumentType(documentType),
     storagePath: preUploaded?.storagePath
   };
 
@@ -307,6 +304,7 @@ export async function processAndSavePdfDocument(
         page_count: newDoc.pageCount,
         chunk_count: newDoc.chunkCount,
         summary: newDoc.summary,
+        document_type: newDoc.documentType,
         storage_path: newDoc.storagePath,
         created_at: newDoc.uploadedAt
       });

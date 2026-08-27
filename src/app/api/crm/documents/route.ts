@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession } from '@/src/lib/adminAuth';
-import { processAndSavePdfDocument } from '@/src/lib/customRagStore';
+import { processAndSavePdfDocument, RagDocumentType } from '@/src/lib/customRagStore';
 import { getSupabaseClient } from '@/src/lib/supabaseService';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     let fileSize: number;
     let processSlug: string;
     let title: string | undefined;
+    let documentType: RagDocumentType | undefined;
     let preUploaded: { docId: string; storagePath: string } | undefined;
 
     if (contentType.includes('application/json')) {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       // de Vercel. Aquí solo se descarga desde Storage para extraer el texto
       // y generar los embeddings — esa descarga no pasa por ese límite.
       const body = await request.json();
-      const { docId, storagePath, fileName: fn, fileSize: fs, processSlug: ps, title: t } = body;
+      const { docId, storagePath, fileName: fn, fileSize: fs, processSlug: ps, title: t, documentType: dt } = body;
       if (!docId || !storagePath || !fn || !fs) {
         return NextResponse.json({ error: 'Faltan datos del archivo cargado.' }, { status: 400 });
       }
@@ -52,12 +53,14 @@ export async function POST(request: NextRequest) {
       fileSize = fs;
       processSlug = ps || 'general';
       title = t || undefined;
+      documentType = (dt as RagDocumentType) || undefined;
       preUploaded = { docId, storagePath };
     } else {
       const formData = await request.formData();
       const file = formData.get('file');
       processSlug = (formData.get('processSlug') as string) || 'general';
       title = (formData.get('title') as string) || undefined;
+      documentType = (formData.get('documentType') as RagDocumentType) || undefined;
 
       if (!file || !(file instanceof File)) {
         return NextResponse.json({ error: 'Se requiere un archivo PDF (campo "file").' }, { status: 400 });
@@ -75,7 +78,8 @@ export async function POST(request: NextRequest) {
       fileSize,
       processSlug,
       title,
-      preUploaded
+      preUploaded,
+      documentType
     );
 
     if (!isDuplicate) {

@@ -5,13 +5,13 @@ import {
   RefreshCw,
   FileText,
   FileCheck,
-  Eye,
   BookOpen,
   AlertCircle,
   X,
   ExternalLink
 } from 'lucide-react';
-import { CustomRagDocument } from '../lib/customRagStore';
+import { CustomRagDocument } from '../lib/ragDocumentTypes';
+import { RagDocumentFolders } from './RagDocumentFolders';
 
 interface ProcessDocumentsPanelProps {
   processSlug: string;
@@ -99,63 +99,7 @@ export const ProcessDocumentsPanel: React.FC<ProcessDocumentsPanelProps> = ({ pr
             <p className="text-xs font-semibold text-slate-600">No hay archivos PDF cargados todavía para este proceso.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-left text-[10px] uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
-                  <th className="py-2 px-3 font-bold whitespace-nowrap">Fecha</th>
-                  <th className="py-2 px-3 font-bold">Documento</th>
-                  <th className="py-2 px-3 font-bold text-right whitespace-nowrap">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {ragDocs.map((doc) => (
-                  <tr key={doc.id} className="align-top hover:bg-slate-50/60">
-                    <td className="py-3 px-3 whitespace-nowrap text-slate-600 font-medium">
-                      {new Date(doc.uploadedAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      <span className="block text-[10px] text-slate-400">
-                        {new Date(doc.uploadedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-900 truncate">{doc.title}</span>
-                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                          {doc.code}
-                        </span>
-                        {doc.chunkCount > 0 ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap">
-                            🔎 Indexado ({doc.chunkCount})
-                          </span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap" title="Conecta Supabase para indexación semántica; por ahora se usa el texto completo del PDF.">
-                            ⚠️ Solo texto completo
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap mt-1">
-                        <span>📄 {doc.fileName}</span>
-                        <span>• {(doc.fileSize / 1024).toFixed(1)} KB</span>
-                        <span>• {doc.pageCount} pág.</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleViewDoc(doc)}
-                          className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-semibold transition flex items-center gap-1"
-                          title="Ver contenido extraído"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Ver</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RagDocumentFolders documents={ragDocs} onView={handleViewDoc} />
         )}
       </div>
 

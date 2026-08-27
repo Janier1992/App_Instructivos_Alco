@@ -23,8 +23,12 @@ CREATE TABLE IF NOT EXISTS rag_custom_documents (
 ALTER TABLE rag_custom_documents ADD COLUMN IF NOT EXISTS chunk_count INT DEFAULT 1;
 ALTER TABLE rag_custom_documents ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE rag_custom_documents ADD COLUMN IF NOT EXISTS storage_path VARCHAR(255);
+-- Categoría asignada al subir el documento (instructivo, manual, ficha_tecnica,
+-- ficha_troquelado, otro) — agrupa la Documentación del Proceso en carpetas.
+ALTER TABLE rag_custom_documents ADD COLUMN IF NOT EXISTS document_type VARCHAR(30) NOT NULL DEFAULT 'otro';
 
 CREATE INDEX IF NOT EXISTS idx_rag_custom_documents_process_slug ON rag_custom_documents(process_slug);
+CREATE INDEX IF NOT EXISTS idx_rag_custom_documents_document_type ON rag_custom_documents(document_type);
 
 -- RLS: el backend usa SUPABASE_SERVICE_ROLE_KEY, que ignora RLS.
 -- Se habilita sin policies para bloquear acceso directo desde el navegador con la anon key.
