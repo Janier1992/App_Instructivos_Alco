@@ -65,8 +65,8 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       });
 
     // Documentos PDF cargados al motor RAG para este proceso — el conteo del
-    // tab "Documentos Vigentes" debe reflejar el total real (estáticos + PDFs
-    // subidos), no solo la documentación estática.
+    // tab "Documentación del Proceso" debe reflejar el total real (estáticos +
+    // PDFs subidos), no solo la documentación estática.
     fetch(`/api/rag/documents?processSlug=${encodeURIComponent(slug)}`)
       .then(res => res.json())
       .then(resData => {
@@ -142,6 +142,19 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           <span>Principal</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('documentos')}
+          id="tab-documentos"
+          className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-lg transition-colors border-b-2 min-h-[44px] ${
+            activeTab === 'documentos'
+              ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <FileText className="w-4 h-4 text-[#003366] shrink-0" />
+          <span>Documentación del Proceso ({ragDocsCount})</span>
+        </button>
+
         {showAutonomyTab && (
           <button
             onClick={() => setActiveTab('autonomia')}
@@ -156,19 +169,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             <span>Matriz de Autonomía</span>
           </button>
         )}
-
-        <button
-          onClick={() => setActiveTab('documentos')}
-          id="tab-documentos"
-          className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-lg transition-colors border-b-2 min-h-[44px] ${
-            activeTab === 'documentos'
-              ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <FileText className="w-4 h-4 text-[#003366] shrink-0" />
-          <span>Documentos Vigentes ({ragDocsCount})</span>
-        </button>
       </div>
 
       {/* MODULO 0: PRINCIPAL — vista informativa por defecto de la sección */}
@@ -248,7 +248,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
         </div>
       )}
 
-      {/* MODULO 2: DOCUMENTOS VIGENTES */}
+      {/* MODULO 2: DOCUMENTACIÓN DEL PROCESO */}
       {activeTab === 'documentos' && (
         <div className="space-y-6">
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
@@ -256,7 +256,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             <div>
               <h3 className="text-lg font-bold text-[#003366] flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#003366]" />
-                Documentos Vigentes de Procesos
+                Documentación del Proceso
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Infografías oficiales, instructivos, fichas técnicas y criterios de calidad vigentes para {process.name}.
