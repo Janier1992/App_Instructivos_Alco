@@ -1,12 +1,12 @@
 // Los modelos gratuitos de OpenRouter pueden congestionarse en horas pico.
 // Se corta la espera pasado este tiempo para no dejar al usuario esperando
 // y pasar de inmediato al respaldo determinístico.
-// El modelo gratuito openai/gpt-oss-20b:free (usado antes) se saturó y el
-// respaldo elegido (nvidia/nemotron-3-nano-30b-a3b:free) tarda ~20s bajo el
-// contexto RAG completo real de esta app (medido en vivo), más que los 12s
-// originales — se ajusta el límite para darle margen real de completar en
-// vez de caer al respaldo determinístico genérico en la mayoría de consultas.
-const OPENROUTER_TIMEOUT_MS = 20000;
+// Los modelos gratuitos anteriores (openai/gpt-oss-20b:free, luego
+// nvidia/nemotron-3-nano-30b-a3b:free) quedaron descontinuados por OpenRouter.
+// Con el respaldo vigente (nvidia/nemotron-3-super-120b-a12b:free) se midió
+// en vivo 10-16s bajo el contexto RAG completo real de esta app — se deja
+// margen extra para no cortarlo a mitad de generación en horas de más carga.
+const OPENROUTER_TIMEOUT_MS = 22000;
 
 /**
  * Cliente para OpenRouter (https://openrouter.ai) — API compatible con OpenAI,

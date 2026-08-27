@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { processQualityQueryServer } from '@/src/lib/geminiClient';
 
-// El agente puede tardar hasta ~20s (Gemini + respaldo OpenRouter antes de
-// caer al respaldo determinístico) — se amplía el límite por defecto para
-// no cortar respuestas válidas a mitad de camino.
-export const maxDuration = 30;
+// El agente puede tardar hasta ~40s en el peor caso (Gemini agotando su
+// propio timeout + respaldo OpenRouter agotando el suyo, antes de caer al
+// respaldo determinístico) — se amplía el límite por defecto con margen
+// para no cortar respuestas válidas a mitad de camino.
+export const maxDuration = 50;
 
 export async function POST(request: NextRequest) {
   await ensureHydrated();

@@ -12,7 +12,11 @@ let aiClient: GoogleGenAI | null = null;
 // en cada pregunta la latencia de un intento que ya sabemos que va a fallar.
 let geminiCooldownUntilMs = 0;
 const GEMINI_COOLDOWN_MS = 5 * 60 * 1000;
-const GEMINI_TIMEOUT_MS = 12000;
+// Con el contexto RAG completo real de esta app (todos los documentos,
+// controles y matriz de autonomía del proceso), Gemini tarda 10-16s en
+// generar — 12s cortaba respuestas válidas a mitad de camino y las mandaba
+// innecesariamente al respaldo de OpenRouter (medido en vivo).
+const GEMINI_TIMEOUT_MS = 18000;
 
 // Máximo de turnos previos (usuario+asistente) que se reenvían como contexto
 // conversacional — suficiente para resolver preguntas de seguimiento ("¿y si
