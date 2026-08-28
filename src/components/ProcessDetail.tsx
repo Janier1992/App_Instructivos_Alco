@@ -114,10 +114,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
                 {process.name}
               </h2>
               <span className="px-2.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md uppercase">
-                {process.activeVersion} Vigente
-              </span>
-              <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                {process.code}
+                Vigente
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -189,9 +186,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
                 Define las atribuciones y límites de decisión autorizados por rol para el proceso de {process.name}.
               </p>
             </div>
-            <span className="px-3 py-1 bg-blue-50 text-[#003366] text-xs font-bold border border-blue-200 rounded-lg shrink-0">
-              {process.code} — Nivel 1 a 4
-            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -277,9 +271,6 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
                 <Info className="w-4 h-4 text-[#003366]" />
                 {process.infographicTitle}
               </h4>
-              <span className="text-xs font-mono font-bold px-2 py-0.5 bg-white border border-slate-200 text-slate-700 rounded">
-                {process.code} {process.activeVersion}
-              </span>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed font-medium">
               {process.infographicSummary}

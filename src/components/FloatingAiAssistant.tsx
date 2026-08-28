@@ -40,8 +40,6 @@ export const FloatingAiAssistant: React.FC<FloatingAiAssistantProps> = ({ proces
               <AiChatPanel
                 processSlug={selectedProcess.slug}
                 processName={selectedProcess.name}
-                processCode={selectedProcess.code}
-                processVersion={selectedProcess.activeVersion}
                 heightClassName="h-[75vh] max-h-[560px]"
               />
             </div>

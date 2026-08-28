@@ -7,8 +7,6 @@ import { Bot, Send, RefreshCw, ShieldAlert, Camera, X, Mic, MicOff, ThumbsUp, Th
 interface AiChatPanelProps {
   processSlug: string;
   processName: string;
-  processCode?: string;
-  processVersion?: string;
   heightClassName?: string;
 }
 
@@ -57,8 +55,6 @@ function compressImageFile(file: File): Promise<{ base64: string; mimeType: stri
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   processSlug,
   processName,
-  processCode,
-  processVersion,
   heightClassName = 'h-[650px]'
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,7 +74,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const buildGreeting = (): ChatMessage => ({
     id: 'init-msg',
     role: 'assistant',
-    content: `Hola. Soy el **Agente Especializado de Calidad** para el proceso de **${processName}**${processCode ? ` (${processCode}${processVersion ? ` ${processVersion}` : ''})` : ''}.
+    content: `Hola. Soy el **Agente Especializado de Calidad** para el proceso de **${processName}**.
 
 ¿En qué puedo orientarte hoy? Puedes preguntarme sobre:
 - Criterios de aceptación o rechazo.
@@ -248,7 +244,7 @@ También puedes 📷 enviarme una foto de la pieza, o 🎤 dictar tu pregunta.`,
             </h3>
             <p className="text-[11px] text-emerald-300 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              RAG Aislado {processCode ? `| Fuente Oficial ${processCode}${processVersion ? ` ${processVersion}` : ''}` : ''}
+              RAG Aislado | Fuente Oficial Vigente
             </p>
           </div>
         </div>
