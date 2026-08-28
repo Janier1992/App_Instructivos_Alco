@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession } from '@/src/lib/adminAuth';
-import { addProcessVideo } from '@/src/lib/processVideosStore';
+import { addProcessVideo, addUploadedProcessVideo, MAX_UPLOADED_VIDEO_BYTES } from '@/src/lib/processVideosStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
 export async function POST(request: NextRequest) {
@@ -11,10 +11,46 @@ export async function POST(request: NextRequest) {
   if ('error' in auth) return auth.error;
 
   try {
-    const { processSlug, title, videoUrl } = await request.json();
+    const body = await request.json();
+    const { processSlug, title } = body;
 
-    if (!processSlug || !title || !videoUrl) {
-      return NextResponse.json({ error: 'Se requiere processSlug, title y videoUrl.' }, { status: 400 });
+    if (!processSlug || !title) {
+      return NextResponse.json({ error: 'Se requiere processSlug y title.' }, { status: 400 });
+    }
+
+    // Archivo ya subido por el navegador directo a Storage (ver
+    // /api/crm/videos/upload-url) — aquí solo se registra el metadato.
+    if (body.docId && body.storagePath && body.fileName && body.fileSize) {
+      if (body.fileSize > MAX_UPLOADED_VIDEO_BYTES) {
+        return NextResponse.json(
+          { error: `El video supera el máximo permitido de ${Math.round(MAX_UPLOADED_VIDEO_BYTES / (1024 * 1024))} MB.` },
+          { status: 400 }
+        );
+      }
+
+      const { video, persistedToSupabase } = await addUploadedProcessVideo(
+        processSlug,
+        title,
+        body.fileName,
+        body.fileSize,
+        body.storagePath
+      );
+
+      await recordAuditEvent({
+        adminUserId: auth.session.sub,
+        adminEmail: auth.session.email,
+        action: 'create',
+        entityType: 'video',
+        entityId: video.id,
+        metadata: { processSlug, title: video.title, sourceType: 'upload' }
+      });
+
+      return NextResponse.json({ success: true, video, persistedToSupabase });
+    }
+
+    const { videoUrl } = body;
+    if (!videoUrl) {
+      return NextResponse.json({ error: 'Se requiere videoUrl, o los datos del archivo subido.' }, { status: 400 });
     }
 
     let parsedUrl: URL;
@@ -35,7 +71,7 @@ export async function POST(request: NextRequest) {
       action: 'create',
       entityType: 'video',
       entityId: video.id,
-      metadata: { processSlug, title: video.title }
+      metadata: { processSlug, title: video.title, sourceType: 'link' }
     });
 
     return NextResponse.json({ success: true, video, persistedToSupabase });

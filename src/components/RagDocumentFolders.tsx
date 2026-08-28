@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, Eye, Folder, FolderOpen } from 'lucide-react';
 import { CustomRagDocument, RAG_DOCUMENT_TYPE_LABELS, RAG_DOCUMENT_TYPE_ORDER } from '../lib/ragDocumentTypes';
+import { SortDateToggle, SortDirection } from './SortDateToggle';
 
 interface RagDocumentFoldersProps {
   documents: CustomRagDocument[];
@@ -19,9 +20,16 @@ interface RagDocumentFoldersProps {
  * que tienen al menos un documento.
  */
 export const RagDocumentFolders: React.FC<RagDocumentFoldersProps> = ({ documents, onView, renderExtraActions }) => {
+  const [sortDir, setSortDir] = useState<SortDirection>('desc');
+
   const groups = RAG_DOCUMENT_TYPE_ORDER.map(type => ({
     type,
-    docs: documents.filter(d => d.documentType === type)
+    docs: documents
+      .filter(d => d.documentType === type)
+      .sort((a, b) => {
+        const diff = new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+        return sortDir === 'desc' ? -diff : diff;
+      })
   })).filter(g => g.docs.length > 0);
 
   // La primera carpeta con documentos arranca abierta para que la vista no
@@ -41,6 +49,10 @@ export const RagDocumentFolders: React.FC<RagDocumentFoldersProps> = ({ document
 
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <SortDateToggle direction={sortDir} onToggle={() => setSortDir(prev => (prev === 'desc' ? 'asc' : 'desc'))} />
+      </div>
+
       {groups.map(({ type, docs }) => {
         const isOpen = openTypes.has(type);
         return (

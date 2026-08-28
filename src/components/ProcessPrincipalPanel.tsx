@@ -15,6 +15,7 @@ import {
 import { NotifyProcessButton } from './NotifyProcessButton';
 import { PublicationComments } from './PublicationComments';
 import { ImageLightbox } from './ImageLightbox';
+import { SortDateToggle, SortDirection } from './SortDateToggle';
 
 interface PrincipalItem {
   id: string;
@@ -53,6 +54,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const [items, setItems] = useState<PrincipalItem[] | null>(null);
   const [hasError, setHasError] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [sortDir, setSortDir] = useState<SortDirection>('desc');
   const [brokenImageIds, setBrokenImageIds] = useState<Set<string>>(new Set());
   const [isPaused, setIsPaused] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null);
@@ -121,14 +123,24 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     );
   }
 
-  const current = items[activeIndex];
-  const hasMultiple = items.length > 1;
+  const sortedItems = [...items].sort((a, b) => {
+    const diff = new Date(a.publishedAt || a.createdAt).getTime() - new Date(b.publishedAt || b.createdAt).getTime();
+    return sortDir === 'desc' ? -diff : diff;
+  });
+
+  const toggleSortDir = () => {
+    setSortDir(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    setActiveIndex(0);
+  };
+
+  const current = sortedItems[activeIndex];
+  const hasMultiple = sortedItems.length > 1;
   const isImageAttachment = (current.attachmentContentType || '').startsWith('image/');
   const showImage = current.attachmentFileName && isImageAttachment && !brokenImageIds.has(current.id);
   const showAttachmentLink = current.attachmentFileName && !isImageAttachment;
   const showEmbed = !!current.embedUrl;
 
-  const goTo = (idx: number) => setActiveIndex(((idx % items.length) + items.length) % items.length);
+  const goTo = (idx: number) => setActiveIndex(((idx % sortedItems.length) + sortedItems.length) % sortedItems.length);
 
   const HeroCard = (
     <div
@@ -220,7 +232,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
 
         {hasMultiple && (
           <div className="flex items-center justify-center gap-1.5 pt-3">
-            {items.map((item, idx) => (
+            {sortedItems.map((item, idx) => (
               <button
                 key={item.id}
                 onClick={() => goTo(idx)}
@@ -258,11 +270,12 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   // Varias publicaciones: portada tipo periódico — destacada arriba,
   // titulares del resto debajo (uno al lado del otro en pantallas anchas,
   // apilados en móvil). Tocar un titular lo promueve a destacado.
-  const others = items.map((item, idx) => ({ item, idx })).filter(({ idx }) => idx !== activeIndex);
+  const others = sortedItems.map((item, idx) => ({ item, idx })).filter(({ idx }) => idx !== activeIndex);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
+        <SortDateToggle direction={sortDir} onToggle={toggleSortDir} />
         <NotifyProcessButton processSlug={processSlug} />
       </div>
 
