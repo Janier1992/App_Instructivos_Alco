@@ -94,18 +94,32 @@ CREATE TABLE IF NOT EXISTS autonomy_role_assignments (
 );
 ALTER TABLE autonomy_role_assignments ENABLE ROW LEVEL SECURITY;
 
--- Enlaces a videos explicativos por proceso (ej. grabaciones de OneDrive
--- mostrando cómo se ejecuta una operación) — se ven embebidos dentro de la
--- app, en la pestaña "Documentos" de cada proceso, debajo de los PDF.
+-- Videos explicativos por proceso — un video puede ser un enlace externo
+-- (YouTube, OneDrive, etc.) o un archivo subido directo a la app. El archivo
+-- subido se guarda en Supabase Storage (bucket process-videos), nunca en una
+-- columna de la base de datos, para no saturar el almacenamiento de Postgres
+-- — esta tabla solo guarda metadatos (ruta, nombre, tamaño).
 CREATE TABLE IF NOT EXISTS process_videos (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   process_slug VARCHAR(100) NOT NULL,
   title VARCHAR(255) NOT NULL,
-  video_url TEXT NOT NULL,
+  video_url TEXT,
+  source_type VARCHAR(20) NOT NULL DEFAULT 'link',
+  storage_path VARCHAR(255),
+  file_name VARCHAR(255),
+  file_size INT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_process_videos_process_slug ON process_videos(process_slug);
 ALTER TABLE process_videos ENABLE ROW LEVEL SECURITY;
+
+-- Bucket privado para los archivos de video subidos — el acceso siempre pasa
+-- por /api/videos/[id]/file, que genera una URL firmada de corta duración en
+-- vez de exponer el bucket públicamente. Límite de 100 MB por archivo para
+-- mantener el almacenamiento liviano.
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('process-videos', 'process-videos', false, 104857600)
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- PORTAL DE ADMINISTRACIÓN / CRM RESTRINGIDO
@@ -223,6 +237,24 @@ CREATE TABLE IF NOT EXISTS circular_comments (
 CREATE INDEX IF NOT EXISTS idx_circular_comments_circular_id ON circular_comments(circular_id);
 CREATE INDEX IF NOT EXISTS idx_circular_comments_status ON circular_comments(status);
 ALTER TABLE circular_comments ENABLE ROW LEVEL SECURITY;
+
+-- Retroalimentación del colaborador sobre cada respuesta del Agente de IA
+-- de Calidad (👍/👎) — cierra el ciclo entre lo que responde el agente y si
+-- de verdad le sirvió a quien preguntó en planta.
+CREATE TABLE IF NOT EXISTS chat_feedback (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL,
+  question TEXT NOT NULL,
+  reply TEXT NOT NULL,
+  classification VARCHAR(60),
+  escalation_required BOOLEAN DEFAULT FALSE,
+  rating VARCHAR(10) NOT NULL CHECK (rating IN ('up', 'down')),
+  comment TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_process_slug ON chat_feedback(process_slug);
+CREATE INDEX IF NOT EXISTS idx_chat_feedback_rating ON chat_feedback(rating);
+ALTER TABLE chat_feedback ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una

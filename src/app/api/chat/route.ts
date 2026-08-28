@@ -12,12 +12,15 @@ export async function POST(request: NextRequest) {
   await ensureHydrated();
 
   try {
-    const { processSlug, question, history } = await request.json();
-    if (!processSlug || !question) {
-      return NextResponse.json({ error: 'Se requiere processSlug y question' }, { status: 400 });
+    const { processSlug, question, history, imageBase64, imageMimeType } = await request.json();
+    if (!processSlug || (!question && !imageBase64)) {
+      return NextResponse.json({ error: 'Se requiere processSlug y question (o una foto adjunta)' }, { status: 400 });
     }
 
-    const result = await processQualityQueryServer(processSlug, question, history || []);
+    const image = imageBase64 && imageMimeType ? { base64: imageBase64, mimeType: imageMimeType } : undefined;
+    const effectiveQuestion = question?.trim() || 'Evalúa la pieza o condición que se ve en la foto adjunta según los criterios de aceptación/rechazo de este proceso.';
+
+    const result = await processQualityQueryServer(processSlug, effectiveQuestion, history || [], undefined, image);
     return NextResponse.json(result);
   } catch (err: any) {
     console.error('Error en /api/chat:', err);

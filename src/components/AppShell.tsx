@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ProcessItem } from '@/src/types';
 import { Header } from './Header';
 import { FloatingAiAssistant } from './FloatingAiAssistant';
+import { OfflineBanner } from './OfflineBanner';
 
 /**
  * Envoltorio cliente global: header, pie de página y el asistente flotante,
@@ -30,6 +31,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col antialiased selection:bg-blue-600 selection:text-white">
       <Header currentProcessName={currentProcess?.name} />
+      <OfflineBanner />
 
       <main className="flex-1 pb-12">{children}</main>
 

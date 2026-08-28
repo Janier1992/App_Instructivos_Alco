@@ -109,6 +109,8 @@ export interface ChatMessage {
   escalationRequired?: boolean;
   escalationReason?: string;
   isError?: boolean;
+  /** Vista previa local (data URL) de la foto adjunta a este mensaje — nunca se envía al servidor tal cual, solo para mostrarla en el historial del chat. */
+  imageDataUrl?: string;
 }
 
 export interface GoldenTestCase {

@@ -23,6 +23,7 @@ import {
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
+import { SaveOfflineButton } from './SaveOfflineButton';
 
 interface ProcessDetailProps {
   slug: string;
@@ -125,6 +126,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           </div>
         </div>
 
+        <SaveOfflineButton processSlug={slug} />
       </div>
 
       {/* Navegación por Tabs de Proceso Exclusivamente Solicitados */}

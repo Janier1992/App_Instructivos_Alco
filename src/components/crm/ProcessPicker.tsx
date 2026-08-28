@@ -7,10 +7,12 @@ interface ProcessPickerProps {
   value: string;
   onChange: (slug: string) => void;
   className?: string;
+  /** Agrega una opción "Todos los procesos" (value = '') y no autoselecciona el primero. */
+  allowAll?: boolean;
 }
 
 /** Selector de proceso reutilizado por los administradores del CRM (Documentos, Videos, Autonomía). */
-export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className }) => {
+export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className, allowAll }) => {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, c
       .then(data => {
         if (data.processes) {
           setProcesses(data.processes);
-          if (!value && data.processes.length > 0) onChange(data.processes[0].slug);
+          if (!allowAll && !value && data.processes.length > 0) onChange(data.processes[0].slug);
         }
       })
       .catch(err => console.error('Error cargando procesos:', err));
@@ -35,6 +37,7 @@ export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, c
         'bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#003366]'
       }
     >
+      {allowAll && <option value="">Todos los procesos</option>}
       {processes.map(p => (
         <option key={p.slug} value={p.slug}>
           {p.name}

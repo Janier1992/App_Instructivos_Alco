@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   LogOut,
   Home,
-  MessageSquare
+  MessageSquare,
+  ThumbsUp
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
+  { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
   { href: '/crm/auditoria', label: 'Auditoría', icon: ShieldCheck, adminOnly: true }
 ];
