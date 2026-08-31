@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { processQualityQueryServer } from '@/src/lib/geminiClient';
+import { recordChatQuery } from '@/src/lib/chatQueriesStore';
 
 // El agente puede tardar hasta ~40s en el peor caso (Gemini agotando su
 // propio timeout + respaldo OpenRouter agotando el suyo, antes de caer al
@@ -21,6 +22,14 @@ export async function POST(request: NextRequest) {
     const effectiveQuestion = question?.trim() || 'Evalúa la pieza o condición que se ve en la foto adjunta según los criterios de aceptación/rechazo de este proceso.';
 
     const result = await processQualityQueryServer(processSlug, effectiveQuestion, history || [], undefined, image);
+
+    // Solo se registra si la persona de verdad escribió/dictó una pregunta
+    // (no el texto por defecto que se usa cuando solo mandó una foto) — esto
+    // alimenta las sugerencias rápidas de /api/chat/suggestions.
+    if (question?.trim()) {
+      await recordChatQuery(processSlug, question.trim(), result.classification);
+    }
+
     return NextResponse.json(result);
   } catch (err: any) {
     console.error('Error en /api/chat:', err);

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '../types';
-import { Bot, Send, RefreshCw, ShieldAlert, Camera, X, Mic, MicOff, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Bot, Send, RefreshCw, ShieldAlert, Camera, X, Mic, MicOff, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 
 interface AiChatPanelProps {
   processSlug: string;
@@ -52,12 +52,25 @@ function compressImageFile(file: File): Promise<{ base64: string; mimeType: stri
   });
 }
 
+// Sugerencias de respaldo, iguales para los 8 procesos — se muestran hasta
+// que un proceso acumule suficientes preguntas repetidas propias (ver
+// /api/chat/suggestions) y se van reemplazando por esas, más relevantes.
+const DEFAULT_SUGGESTIONS = [
+  '¿Cuál es el criterio de aceptación y rechazo?',
+  '¿Cuál es mi nivel de autonomía para tomar una decisión?',
+  '¿Cuándo debo escalar a Calidad?'
+];
+
+const MAX_SUGGESTION_CHIPS = 3;
+const SUGGESTION_LABEL_MAX_CHARS = 42;
+
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   processSlug,
   processName,
   heightClassName = 'h-[650px]'
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ base64: string; mimeType: string; previewUrl: string } | null>(null);
@@ -89,6 +102,16 @@ También puedes 📷 enviarme una foto de la pieza, o 🎤 dictar tu pregunta.`,
   useEffect(() => {
     setMessages([buildGreeting()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processSlug]);
+
+  useEffect(() => {
+    setDynamicSuggestions([]);
+    fetch(`/api/chat/suggestions?processSlug=${encodeURIComponent(processSlug)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.suggestions)) setDynamicSuggestions(data.suggestions);
+      })
+      .catch(err => console.error('Error cargando sugerencias del chat:', err));
   }, [processSlug]);
 
   useEffect(() => {
@@ -229,6 +252,16 @@ También puedes 📷 enviarme una foto de la pieza, o 🎤 dictar tu pregunta.`,
       console.error('Error enviando retroalimentación:', err);
     }
   };
+
+  // Sugerencias reales de este proceso primero (lo que la gente pregunta de
+  // verdad), completando con las fijas de respaldo hasta llenar los chips —
+  // así un proceso nuevo sin historial nunca se queda sin sugerencias.
+  const suggestionChips: { text: string; isDynamic: boolean }[] = [
+    ...dynamicSuggestions.map(text => ({ text, isDynamic: true })),
+    ...DEFAULT_SUGGESTIONS
+      .filter(text => !dynamicSuggestions.some(d => d.toLowerCase() === text.toLowerCase()))
+      .map(text => ({ text, isDynamic: false }))
+  ].slice(0, MAX_SUGGESTION_CHIPS);
 
   return (
     <div className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col ${heightClassName}`}>
@@ -385,24 +418,17 @@ También puedes 📷 enviarme una foto de la pieza, o 🎤 dictar tu pregunta.`,
       {/* Chips de Preguntas Frecuentes de Planta */}
       <div className="p-2 bg-slate-100 border-t border-slate-200 flex gap-1.5 overflow-x-auto text-[11px] scrollbar-none">
         <span className="font-bold text-slate-500 shrink-0 self-center px-2">Sugerencias:</span>
-        <button
-          onClick={() => handleSendMessage('¿Cuál es el criterio de aceptación y rechazo?')}
-          className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 shrink-0 font-medium"
-        >
-          Criterio Aceptación/Rechazo
-        </button>
-        <button
-          onClick={() => handleSendMessage('¿Cuál es mi nivel de autonomía para tomar una decisión?')}
-          className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 shrink-0 font-medium"
-        >
-          Matriz de Autonomía N1-N4
-        </button>
-        <button
-          onClick={() => handleSendMessage('¿Cuándo debo escalar a Calidad?')}
-          className="px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 shrink-0 font-medium"
-        >
-          ¿Cuándo debo escalar?
-        </button>
+        {suggestionChips.map(({ text, isDynamic }) => (
+          <button
+            key={text}
+            onClick={() => handleSendMessage(text)}
+            title={text}
+            className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded-full border border-slate-300 shrink-0 font-medium whitespace-nowrap"
+          >
+            {isDynamic && <TrendingUp className="w-3 h-3 text-[#003366] shrink-0" />}
+            {text.length > SUGGESTION_LABEL_MAX_CHARS ? `${text.slice(0, SUGGESTION_LABEL_MAX_CHARS)}…` : text}
+          </button>
+        ))}
       </div>
 
       {/* Vista previa de la foto seleccionada */}
