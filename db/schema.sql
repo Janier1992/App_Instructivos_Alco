@@ -285,12 +285,27 @@ CREATE TABLE IF NOT EXISTS process_improvements (
   status VARCHAR(20) NOT NULL DEFAULT 'proposed' CHECK (status IN ('proposed', 'in_review', 'implemented', 'rejected')),
   admin_note TEXT,
   reviewed_at TIMESTAMPTZ,
-  reviewed_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+  -- Sin REFERENCES admin_users aquí a propósito: se agrega abajo solo si esa
+  -- tabla existe, para que este script nunca falle por eso al correrse solo.
+  reviewed_by UUID,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_process_improvements_process_slug ON process_improvements(process_slug);
 CREATE INDEX IF NOT EXISTS idx_process_improvements_status ON process_improvements(status);
 ALTER TABLE process_improvements ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_users')
+     AND NOT EXISTS (
+       SELECT 1 FROM information_schema.table_constraints
+       WHERE constraint_name = 'process_improvements_reviewed_by_fkey'
+     ) THEN
+    ALTER TABLE process_improvements
+      ADD CONSTRAINT process_improvements_reviewed_by_fkey
+      FOREIGN KEY (reviewed_by) REFERENCES admin_users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
