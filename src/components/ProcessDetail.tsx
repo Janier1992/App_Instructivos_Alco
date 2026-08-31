@@ -24,6 +24,7 @@ import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
+import { ProcessImprovementBox } from './ProcessImprovementBox';
 
 interface ProcessDetailProps {
   slug: string;
@@ -373,6 +374,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
             </div>
           )}
         </div>
+
+          {/* Buzón de mejora digital ("Kaizen") de este proceso */}
+          <ProcessImprovementBox processSlug={slug} criteriaParameters={criteria.map(c => c.parameter)} />
 
           {/* Documentos PDF cargados por el usuario para este proceso, con indexación RAG */}
           <ProcessDocumentsPanel processSlug={slug} />
