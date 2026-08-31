@@ -111,9 +111,16 @@ export async function updateImprovementStatus(
   status: ImprovementStatus,
   reviewedBy: string,
   adminNote?: string
-): Promise<{ success: boolean; improvement?: ProcessImprovement; error?: string }> {
+): Promise<{ success: boolean; improvement?: ProcessImprovement; wasNewlyImplemented: boolean; error?: string }> {
   const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+  if (!supabase) return { success: false, wasNewlyImplemented: false, error: 'Supabase no está configurado.' };
+
+  // Se consulta el estado previo para saber si esta es la transición que
+  // acaba de convertir la propuesta en "implementada" — el reconocimiento
+  // público (ver /api/crm/improvements/[id]) solo debe publicarse una vez,
+  // no cada vez que se vuelve a guardar una propuesta ya implementada.
+  const { data: previousRow } = await supabase.from('process_improvements').select('status').eq('id', id).maybeSingle();
+  const wasNewlyImplemented = status === 'implemented' && previousRow?.status !== 'implemented';
 
   const { data, error } = await supabase
     .from('process_improvements')
@@ -128,9 +135,9 @@ export async function updateImprovementStatus(
     .single();
 
   if (error || !data) {
-    return { success: false, error: error?.message || 'No se pudo actualizar la propuesta.' };
+    return { success: false, wasNewlyImplemented: false, error: error?.message || 'No se pudo actualizar la propuesta.' };
   }
-  return { success: true, improvement: mapRow(data) };
+  return { success: true, improvement: mapRow(data), wasNewlyImplemented };
 }
 
 export async function deleteImprovement(id: string): Promise<boolean> {

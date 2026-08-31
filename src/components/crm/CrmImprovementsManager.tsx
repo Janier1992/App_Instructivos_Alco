@@ -39,6 +39,7 @@ export const CrmImprovementsManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [publishDrafts, setPublishDrafts] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,7 +64,7 @@ export const CrmImprovementsManager: React.FC = () => {
       const res = await fetch(`/api/crm/improvements/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, adminNote: noteDrafts[id] })
+        body: JSON.stringify({ status, adminNote: noteDrafts[id], publishRecognition: publishDrafts[id] !== false })
       });
       const data = await res.json();
       if (data.success) {
@@ -184,6 +185,18 @@ export const CrmImprovementsManager: React.FC = () => {
                   placeholder="Nota para el colaborador (opcional) — se guarda al cambiar el estado"
                   className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
+
+                {imp.status !== 'implemented' && (
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={publishDrafts[imp.id] !== false}
+                      onChange={(e) => setPublishDrafts(prev => ({ ...prev, [imp.id]: e.target.checked }))}
+                      className="accent-amber-500"
+                    />
+                    Publicar reconocimiento en Principal al marcar como Implementada
+                  </label>
+                )}
               </div>
             ))}
           </div>
