@@ -25,11 +25,14 @@ import {
   Wrench
 } from 'lucide-react';
 import { QRGeneratorModal } from './QRGeneratorModal';
+import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessListProps {
   processes: ProcessItem[];
   /** Cantidad real de documentos (estáticos + PDFs cargados al RAG) por proceso, indexada por slug. */
   documentCounts?: Record<string, number>;
+  /** Semáforo de salud (% resuelto sin escalar, últimos 30 días) por proceso, indexado por slug. */
+  healthStats?: Record<string, ProcessHealthStats>;
 }
 
 export const ICON_MAP: Record<string, React.ReactNode> = {
@@ -46,7 +49,7 @@ export const ICON_MAP: Record<string, React.ReactNode> = {
   Wrench: <Wrench className="w-6 h-6 text-yellow-700" />
 };
 
-export const ProcessList: React.FC<ProcessListProps> = ({ processes, documentCounts = {} }) => {
+export const ProcessList: React.FC<ProcessListProps> = ({ processes, documentCounts = {}, healthStats = {} }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [qrModalProcess, setQrModalProcess] = useState<ProcessItem | null>(null);
 
@@ -148,9 +151,12 @@ export const ProcessList: React.FC<ProcessListProps> = ({ processes, documentCou
                 </div>
 
                 {/* Documentos Vigentes: cantidad real (estáticos + PDFs cargados) */}
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-fit">
-                  <FileText className="w-3.5 h-3.5 text-[#003366]" />
-                  <span>{documentCounts[process.slug] ?? 0} documento{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'} vigente{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'}</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-fit">
+                    <FileText className="w-3.5 h-3.5 text-[#003366]" />
+                    <span>{documentCounts[process.slug] ?? 0} documento{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'} vigente{(documentCounts[process.slug] ?? 0) === 1 ? '' : 's'}</span>
+                  </div>
+                  <ProcessHealthBadge stats={healthStats[process.slug]} compact />
                 </div>
               </div>
 

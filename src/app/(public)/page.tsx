@@ -2,6 +2,7 @@ import { PROCESSES } from '@/src/data/processesData';
 import { ProcessList } from '@/src/components/ProcessList';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { getCustomRagDocuments, loadCustomRagDocumentsFromSupabase } from '@/src/lib/customRagStore';
+import { getProcessHealthStats } from '@/src/lib/chatQueriesStore';
 
 // Sin esto, Next.js pre-renderiza esta página una sola vez en build time y
 // sirve esa foto fija a todos los usuarios — el conteo de documentos se
@@ -26,5 +27,13 @@ export default async function HomePage() {
     documentCounts[process.slug] = getCustomRagDocuments(process.slug).length;
   }
 
-  return <ProcessList processes={PROCESSES} documentCounts={documentCounts} />;
+  // Semáforo de salud por proceso ("andon" digital) — % resuelto sin
+  // escalar en los últimos 30 días, ver ProcessHealthBadge.
+  const healthList = await getProcessHealthStats();
+  const healthStats: Record<string, (typeof healthList)[number]> = {};
+  for (const stat of healthList) {
+    healthStats[stat.processSlug] = stat;
+  }
+
+  return <ProcessList processes={PROCESSES} documentCounts={documentCounts} healthStats={healthStats} />;
 }

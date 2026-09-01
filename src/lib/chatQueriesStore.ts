@@ -25,7 +25,12 @@ function normalizeQuestion(question: string): string {
     .trim();
 }
 
-export async function recordChatQuery(processSlug: string, question: string, classification?: string): Promise<void> {
+export async function recordChatQuery(
+  processSlug: string,
+  question: string,
+  classification?: string,
+  escalationRequired?: boolean
+): Promise<void> {
   const trimmed = question.trim();
   if (trimmed.length < MIN_QUESTION_LENGTH) return;
   if (classification && EXCLUDED_CLASSIFICATIONS.has(classification)) return;
@@ -38,7 +43,8 @@ export async function recordChatQuery(processSlug: string, question: string, cla
       process_slug: processSlug,
       question: trimmed,
       question_normalized: normalizeQuestion(trimmed).slice(0, 300),
-      classification: classification || null
+      classification: classification || null,
+      escalation_required: !!escalationRequired
     });
     if (error) {
       console.warn('⚠️ No se pudo registrar la pregunta del chat:', error.message);
@@ -88,6 +94,63 @@ export async function getTopQuestions(processSlug: string, limit: number = 4): P
       .map(g => g.question);
   } catch (err: any) {
     console.warn('⚠️ Error obteniendo preguntas frecuentes del chat:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Ventana de tiempo sobre la que se calcula la "salud" de cada proceso —
+ * lo reciente importa más que el histórico completo para reflejar cómo va
+ * el proceso *ahora*, no cómo le fue hace 6 meses.
+ */
+const HEALTH_WINDOW_DAYS = 30;
+// Con menos preguntas que esto en la ventana, el porcentaje no es
+// estadísticamente confiable (una sola pregunta difícil no debe pintar un
+// proceso entero de rojo) — se muestra como "sin datos suficientes".
+export const HEALTH_MIN_SAMPLE = 5;
+
+export interface ProcessHealthStats {
+  processSlug: string;
+  total: number;
+  escalated: number;
+  /** Null si total < HEALTH_MIN_SAMPLE — no hay muestra suficiente para un veredicto. */
+  resolvedPct: number | null;
+}
+
+/**
+ * % de consultas resueltas sin escalar a Calidad en los últimos 30 días,
+ * por proceso — alimenta el semáforo público de salud ("andon" digital).
+ * Sin processSlug, devuelve la ventana completa de todos los procesos (para
+ * el tablero del dashboard); con processSlug, solo la de ese proceso.
+ */
+export async function getProcessHealthStats(processSlug?: string): Promise<ProcessHealthStats[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  try {
+    const since = new Date(Date.now() - HEALTH_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    let query = supabase.from('chat_queries').select('process_slug, escalation_required').gte('created_at', since);
+    if (processSlug) query = query.eq('process_slug', processSlug);
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+
+    const byProcess = new Map<string, { total: number; escalated: number }>();
+    for (const row of data as any[]) {
+      const entry = byProcess.get(row.process_slug) || { total: 0, escalated: 0 };
+      entry.total++;
+      if (row.escalation_required) entry.escalated++;
+      byProcess.set(row.process_slug, entry);
+    }
+
+    return Array.from(byProcess.entries()).map(([slug, { total, escalated }]) => ({
+      processSlug: slug,
+      total,
+      escalated,
+      resolvedPct: total >= HEALTH_MIN_SAMPLE ? Math.round(((total - escalated) / total) * 100) : null
+    }));
+  } catch (err: any) {
+    console.warn('⚠️ Error calculando salud del proceso:', err?.message || err);
     return [];
   }
 }

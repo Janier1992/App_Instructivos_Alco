@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
 
     // Solo se registra si la persona de verdad escribió/dictó una pregunta
     // (no el texto por defecto que se usa cuando solo mandó una foto) — esto
-    // alimenta las sugerencias rápidas de /api/chat/suggestions.
+    // alimenta las sugerencias rápidas de /api/chat/suggestions y el
+    // semáforo público de salud del proceso (/api/process-health).
     if (question?.trim()) {
-      await recordChatQuery(processSlug, question.trim(), result.classification);
+      await recordChatQuery(processSlug, question.trim(), result.classification, result.escalationRequired);
     }
 
     return NextResponse.json(result);

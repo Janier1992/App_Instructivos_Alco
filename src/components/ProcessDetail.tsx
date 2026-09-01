@@ -25,6 +25,7 @@ import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
 import { ProcessImprovementBox } from './ProcessImprovementBox';
+import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessDetailProps {
   slug: string;
@@ -41,6 +42,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
+  const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
   const [data, setData] = useState<{
     process: ProcessItem;
     documents: DocumentItem[];
@@ -77,6 +79,17 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
         }
       })
       .catch(err => console.error('Error cargando conteo de documentos RAG:', err));
+
+    // Semáforo de salud del proceso ("andon" digital) — % resuelto sin
+    // escalar en los últimos 30 días.
+    fetch(`/api/process-health?processSlug=${encodeURIComponent(slug)}`)
+      .then(res => res.json())
+      .then(resData => {
+        if (isMounted && resData.success) {
+          setHealthStats(resData.stats?.[0]);
+        }
+      })
+      .catch(err => console.error('Error cargando salud del proceso:', err));
 
     return () => { isMounted = false; };
   }, [slug]);
@@ -117,6 +130,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
               <span className="px-2.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md uppercase">
                 Vigente
               </span>
+              <ProcessHealthBadge stats={healthStats} />
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               {process.department} • Vigencia: {process.effectiveDate}
