@@ -119,7 +119,7 @@ export const CrmInspectionFormsManager: React.FC = () => {
         <div>
           <h1 className="text-lg font-bold text-slate-900">Formularios de Inspección</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Usa el enlace de <strong>"Insertar código"</strong> de Microsoft Forms (Compartir → Insertar código), no el de compartir normal — solo ese se deja abrir dentro del aplicativo. Lo mismo aplica a la Vista de Registros en Excel Online/SharePoint.
+            Usa el enlace de <strong>"Insertar código"</strong> de Microsoft Forms (Compartir → Insertar código), no el de compartir normal — solo ese se deja abrir dentro del aplicativo. La Vista de Registros (Excel Online/SharePoint) no se puede embeber — Microsoft lo bloquea a nivel de plataforma — así que ese enlace siempre se abre en pestaña nueva; pega ahí el enlace normal de compartir del archivo.
           </p>
           <p className="text-xs text-amber-700 mt-1 font-semibold">
             ⚠️ Los formularios solo aparecen en la pestaña "Formularios" de la tarjeta pública del proceso seleccionado — verifica que diga <strong>Control Calidad</strong> antes de agregar uno.
@@ -153,7 +153,7 @@ export const CrmInspectionFormsManager: React.FC = () => {
             type="url"
             value={recordsEmbedUrl}
             onChange={e => setRecordsEmbedUrl(e.target.value)}
-            placeholder="URL de embed de la Vista de Registros — Excel Online/SharePoint (opcional)"
+            placeholder="URL de la Vista de Registros — Excel Online/SharePoint, se abre en pestaña nueva (opcional)"
             className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
           />
           <div className="flex justify-end">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, ExternalLink, RefreshCw, FileQuestion, ArrowLeft, Table2, FileEdit } from 'lucide-react';
+import { ClipboardList, ExternalLink, RefreshCw, FileQuestion, ArrowLeft, Table2 } from 'lucide-react';
 
 interface InspectionForm {
   id: string;
@@ -23,7 +23,6 @@ interface ProcessInspectionFormsPanelProps {
 export const ProcessInspectionFormsPanel: React.FC<ProcessInspectionFormsPanelProps> = ({ processSlug }) => {
   const [forms, setForms] = useState<InspectionForm[] | null>(null);
   const [activeForm, setActiveForm] = useState<InspectionForm | null>(null);
-  const [viewMode, setViewMode] = useState<'form' | 'records'>('form');
 
   const load = useCallback(async () => {
     try {
@@ -50,15 +49,12 @@ export const ProcessInspectionFormsPanel: React.FC<ProcessInspectionFormsPanelPr
   }
 
   if (activeForm) {
-    const showingRecords = viewMode === 'records' && !!activeForm.recordsEmbedUrl;
-    const currentUrl = showingRecords ? activeForm.recordsEmbedUrl! : activeForm.embedUrl;
-
     return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { setActiveForm(null); setViewMode('form'); }}
+              onClick={() => setActiveForm(null)}
               className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#003366] transition shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -68,49 +64,45 @@ export const ProcessInspectionFormsPanel: React.FC<ProcessInspectionFormsPanelPr
           </div>
 
           <div className="flex items-center gap-2">
+            {/* SharePoint/Excel Online no se puede embeber en un sitio externo — Microsoft
+                lo bloquea a nivel de plataforma (frame-ancestors), sin excepción posible
+                desde nuestro lado — así que la Vista de Registros siempre abre en pestaña
+                nueva en vez de intentar un iframe que fallaría siempre. */}
             {activeForm.recordsEmbedUrl && (
-              <div className="flex items-center gap-1 bg-slate-100 rounded-full p-0.5">
-                <button
-                  onClick={() => setViewMode('form')}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full transition ${
-                    viewMode === 'form' ? 'bg-white text-[#003366] shadow-xs' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <FileEdit className="w-3 h-3" /> Formulario
-                </button>
-                <button
-                  onClick={() => setViewMode('records')}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-full transition ${
-                    viewMode === 'records' ? 'bg-white text-[#003366] shadow-xs' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Table2 className="w-3 h-3" /> Ver Registros
-                </button>
-              </div>
+              <a
+                href={activeForm.recordsEmbedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-[#003366] bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition shrink-0"
+              >
+                <Table2 className="w-3.5 h-3.5" />
+                Ver Registros (pestaña nueva)
+              </a>
             )}
             <a
-              href={currentUrl}
+              href={activeForm.embedUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-[11px] font-semibold text-[#003366] hover:underline shrink-0"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Abrir en pestaña nueva
+              Abrir formulario en pestaña nueva
             </a>
           </div>
         </div>
         <iframe
-          key={`${activeForm.id}-${showingRecords ? 'records' : 'form'}`}
-          src={currentUrl}
-          title={showingRecords ? `Registros de ${activeForm.title}` : activeForm.title}
+          key={activeForm.id}
+          src={activeForm.embedUrl}
+          title={activeForm.title}
           className="w-full h-[70vh] border-0"
           allowFullScreen
         />
         {/* Algunas plataformas bloquean el embebido a nivel de administrador
             y el iframe queda en blanco sin ningún error detectable — el
             enlace de arriba es el respaldo confiable en cualquier caso. Los
-            registros nunca se guardan en esta app: solo se embebe la vista
-            que ya vive en Excel Online/SharePoint. */}
+            registros nunca se guardan en esta app: el enlace de "Ver
+            Registros" solo referencia la vista que ya vive en Excel
+            Online/SharePoint. */}
       </div>
     );
   }
@@ -132,7 +124,7 @@ export const ProcessInspectionFormsPanel: React.FC<ProcessInspectionFormsPanelPr
           {forms.map(form => (
             <button
               key={form.id}
-              onClick={() => { setActiveForm(form); setViewMode('form'); }}
+              onClick={() => setActiveForm(form)}
               className="text-left p-4 bg-slate-50 hover:bg-blue-50 rounded-xl border border-slate-200 hover:border-blue-300 transition flex items-center gap-3"
             >
               <div className="p-2 bg-white rounded-lg border border-slate-200 shrink-0">
