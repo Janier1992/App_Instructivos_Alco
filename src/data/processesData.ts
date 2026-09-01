@@ -182,6 +182,26 @@ export const PROCESSES: ProcessItem[] = [
     infographicSummary: 'Este espacio reúne las publicaciones y la documentación vigente para el equipo de instalación en obra. El contenido se carga y actualiza directamente desde el Portal de Administración a medida que esté disponible.',
     keyAspects: [],
     showAutonomyTab: false
+  },
+  {
+    id: 'proc-control-calidad',
+    slug: 'control-calidad',
+    code: 'INF-CAL-10',
+    name: 'Control Calidad',
+    iconName: 'ClipboardCheck',
+    department: 'Aseguramiento y Control de Calidad',
+    description: 'Espacio del equipo de Calidad: instructivos, diseños, formularios de inspección y gestión de tareas del área.',
+    activeVersion: 'v1.0',
+    effectiveDate: '2026-09-01',
+    owner: 'Coordinación de Calidad Alco',
+    approvedBy: 'Dirección de Operaciones Alco',
+    status: 'vigente',
+    infographicTitle: 'Espacio de Trabajo de Calidad',
+    infographicSummary: 'Instructivos y diseños de referencia, formularios de inspección (Microsoft Forms) abiertos directamente dentro del aplicativo, y un tablero de tareas para el seguimiento diario del equipo de Calidad.',
+    keyAspects: [],
+    showAutonomyTab: false,
+    showFormsTab: true,
+    showTasksTab: true
   }
 ];
 

@@ -27,6 +27,10 @@ export interface ProcessItem {
   keyAspects: string[];
   /** false oculta la pestaña "Matriz de Autonomía" para este proceso (ej. equipos externos como Instalación). Por defecto true. */
   showAutonomyTab?: boolean;
+  /** true muestra la pestaña "Formularios de Inspección" (enlaces embebidos, ej. Microsoft Forms). Por defecto false. */
+  showFormsTab?: boolean;
+  /** true muestra la pestaña "Tareas" (tablero Kanban). Por defecto false. */
+  showTasksTab?: boolean;
 }
 
 export interface QualityControl {

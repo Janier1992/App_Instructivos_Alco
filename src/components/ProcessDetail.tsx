@@ -20,7 +20,9 @@ import {
   User,
   Newspaper,
   GraduationCap,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  LayoutGrid
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
@@ -28,6 +30,8 @@ import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
 import { ProcessImprovementBox } from './ProcessImprovementBox';
 import { ProcessShiftCheckBox } from './ProcessShiftCheckBox';
+import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
+import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessDetailProps {
@@ -42,7 +46,7 @@ const SHOW_PROCESS_VIDEOS_SECTION = true;
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
-  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos'>('principal');
+  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
@@ -123,6 +127,8 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   // Algunos procesos (ej. Instalación, equipo externo) no llevan Matriz de
   // Autonomía — por defecto todos la tienen salvo que se indique lo contrario.
   const showAutonomyTab = process.showAutonomyTab !== false;
+  const showFormsTab = process.showFormsTab === true;
+  const showTasksTab = process.showTasksTab === true;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
@@ -197,6 +203,36 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           >
             <UserCheck className="w-4 h-4 text-[#003366] shrink-0" />
             <span>Matriz de Autonomía</span>
+          </button>
+        )}
+
+        {showFormsTab && (
+          <button
+            onClick={() => setActiveTab('formularios')}
+            id="tab-formularios"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'formularios'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Formularios</span>
+          </button>
+        )}
+
+        {showTasksTab && (
+          <button
+            onClick={() => setActiveTab('tareas')}
+            id="tab-tareas"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'tareas'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Tareas</span>
           </button>
         )}
       </div>
@@ -299,6 +335,12 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODULO: FORMULARIOS DE INSPECCIÓN (Microsoft Forms embebidos) */}
+      {activeTab === 'formularios' && showFormsTab && <ProcessInspectionFormsPanel processSlug={slug} />}
+
+      {/* MODULO: TAREAS (tablero Kanban del equipo de Calidad) */}
+      {activeTab === 'tareas' && showTasksTab && <ProcessTasksBoard processSlug={slug} />}
 
       {/* MODULO 2: DOCUMENTACIÓN DEL PROCESO */}
       {activeTab === 'documentos' && (

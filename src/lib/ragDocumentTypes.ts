@@ -14,13 +14,14 @@
  * en carpetas en vez de una tabla plana. 'otro' es el valor por defecto para
  * documentos subidos antes de que existiera esta categorización.
  */
-export type RagDocumentType = 'instructivo' | 'manual' | 'ficha_tecnica' | 'ficha_troquelado' | 'otro';
+export type RagDocumentType = 'instructivo' | 'manual' | 'ficha_tecnica' | 'ficha_troquelado' | 'diseno' | 'otro';
 
 export const RAG_DOCUMENT_TYPE_ORDER: RagDocumentType[] = [
   'instructivo',
   'manual',
   'ficha_tecnica',
   'ficha_troquelado',
+  'diseno',
   'otro'
 ];
 
@@ -29,6 +30,7 @@ export const RAG_DOCUMENT_TYPE_LABELS: Record<RagDocumentType, string> = {
   manual: 'Manuales',
   ficha_tecnica: 'Fichas Técnicas',
   ficha_troquelado: 'Fichas de Troquelado',
+  diseno: 'Diseños',
   otro: 'Otros Documentos'
 };
 
