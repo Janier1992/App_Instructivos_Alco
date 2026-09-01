@@ -29,7 +29,6 @@ import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
 import { ProcessImprovementBox } from './ProcessImprovementBox';
-import { ProcessShiftCheckBox } from './ProcessShiftCheckBox';
 import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
 import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
@@ -238,12 +237,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       </div>
 
       {/* MODULO 0: PRINCIPAL — vista informativa por defecto de la sección */}
-      {activeTab === 'principal' && (
-        <div className="space-y-4">
-          <ProcessShiftCheckBox processSlug={slug} />
-          <ProcessPrincipalPanel processSlug={slug} />
-        </div>
-      )}
+      {activeTab === 'principal' && <ProcessPrincipalPanel processSlug={slug} />}
 
       {/* MODULO 1: MATRIZ DE AUTONOMÍA */}
       {activeTab === 'autonomia' && showAutonomyTab && (

@@ -4,10 +4,9 @@ import { recordTaskAssignee } from './qualityTaskAssigneesStore';
 /**
  * Tablero de tareas (Kanban) del equipo de Calidad — se gestiona
  * directamente desde la tarjeta pública de Control Calidad, sin cuenta de
- * usuario, igual que el Buzón de Mejora y el Autocontrol por Turno: es la
- * herramienta operativa de uso diario del área, no una configuración
- * administrativa. Sin caché en memoria — se lee cada vez que se abre la
- * pestaña "Tareas".
+ * usuario, igual que el Buzón de Mejora: es la herramienta operativa de uso
+ * diario del área, no una configuración administrativa. Sin caché en
+ * memoria — se lee cada vez que se abre la pestaña "Tareas".
  */
 
 export type QualityTaskStatus = 'pendiente' | 'en_progreso' | 'hecha';

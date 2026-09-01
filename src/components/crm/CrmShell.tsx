@@ -15,7 +15,6 @@ import {
   MessageSquare,
   ThumbsUp,
   Lightbulb,
-  ClipboardCheck,
   ClipboardList
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
@@ -31,7 +30,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/crm/principal', label: 'Principal', icon: Newspaper },
-  { href: '/crm/autocontrol', label: 'Autocontrol por Turno', icon: ClipboardCheck },
   { href: '/crm/comentarios', label: 'Comentarios', icon: MessageSquare },
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },

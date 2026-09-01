@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQualityTasks, createQualityTask } from '@/src/lib/qualityTasksStore';
 
-// Pública, sin cuenta de usuario — igual que el Buzón de Mejora y el
-// Autocontrol por Turno: el tablero de tareas de Calidad es una
-// herramienta operativa de uso diario, no una configuración administrativa.
+// Pública, sin cuenta de usuario — igual que el Buzón de Mejora: el
+// tablero de tareas de Calidad es una herramienta operativa de uso diario,
+// no una configuración administrativa.
 export async function GET(request: NextRequest) {
   const processSlug = request.nextUrl.searchParams.get('processSlug');
   if (!processSlug) {
