@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, X, Trash2, User, CalendarDays, RefreshCw, LayoutGrid } from 'lucide-react';
+import { TaskDetailModal } from './TaskDetailModal';
 
 type QualityTaskStatus = 'pendiente' | 'en_progreso' | 'hecha';
 
@@ -33,15 +34,19 @@ const EMPTY_DRAFT = { title: '', description: '', assignee: '', dueDate: '' };
 
 /**
  * Tablero Kanban de tareas del equipo de Calidad — arrastrar una tarjeta
- * entre columnas cambia su estado. Sin cuenta de usuario, igual que el
- * resto de la tarjeta pública de Control Calidad.
+ * entre columnas cambia su estado, y hacer clic en ella abre el detalle
+ * completo (estilo Trello: comentarios, imágenes adjuntas, responsable con
+ * autocompletado). Sin cuenta de usuario, igual que el resto de la tarjeta
+ * pública de Control Calidad.
  */
 export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlug }) => {
   const [tasks, setTasks] = useState<QualityTask[] | null>(null);
+  const [assigneeOptions, setAssigneeOptions] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragOverStatus, setDragOverStatus] = useState<QualityTaskStatus | null>(null);
+  const [selectedTask, setSelectedTask] = useState<QualityTask | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -54,9 +59,20 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
     }
   }, [processSlug]);
 
+  const loadAssignees = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/quality-tasks/assignees?processSlug=${encodeURIComponent(processSlug)}`);
+      const data = await res.json();
+      if (data.success) setAssigneeOptions(data.assignees || []);
+    } catch (err) {
+      console.error('Error cargando historial de responsables:', err);
+    }
+  }, [processSlug]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadAssignees();
+  }, [load, loadAssignees]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +96,7 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
         setDraft(EMPTY_DRAFT);
         setShowForm(false);
         await load();
+        if (draft.assignee.trim()) loadAssignees();
       } else {
         alert(data.error || 'No se pudo crear la tarea.');
       }
@@ -90,7 +107,8 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     if (!confirm('¿Eliminar esta tarea?')) return;
     setTasks(prev => (prev ? prev.filter(t => t.id !== id) : prev));
     try {
@@ -164,11 +182,17 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
+              list="new-task-assignee-options"
               value={draft.assignee}
               onChange={e => setDraft(prev => ({ ...prev, assignee: e.target.value }))}
               placeholder="Responsable (opcional)"
               className="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
             />
+            <datalist id="new-task-assignee-options">
+              {assigneeOptions.map(name => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
             <input
               type="date"
               value={draft.dueDate}
@@ -220,19 +244,20 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
                   key={task.id}
                   draggable
                   onDragStart={e => e.dataTransfer.setData('text/plain', task.id)}
-                  className="bg-white rounded-lg border border-slate-200 p-3 space-y-1.5 shadow-sm cursor-grab active:cursor-grabbing"
+                  onClick={() => setSelectedTask(task)}
+                  className="bg-white rounded-lg border border-slate-200 p-3 space-y-1.5 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition active:cursor-grabbing"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-xs font-bold text-slate-900 flex-1">{task.title}</p>
                     <button
-                      onClick={() => handleDelete(task.id)}
+                      onClick={e => handleDelete(e, task.id)}
                       className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition shrink-0"
                       title="Eliminar"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  {task.description && <p className="text-[11px] text-slate-600 whitespace-pre-line">{task.description}</p>}
+                  {task.description && <p className="text-[11px] text-slate-600 whitespace-pre-line line-clamp-2">{task.description}</p>}
                   <div className="flex items-center gap-2 flex-wrap pt-0.5">
                     {task.assignee && (
                       <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
@@ -256,6 +281,23 @@ export const ProcessTasksBoard: React.FC<ProcessTasksBoardProps> = ({ processSlu
           );
         })}
       </div>
+
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          assigneeOptions={assigneeOptions}
+          onClose={() => setSelectedTask(null)}
+          onUpdated={updated => {
+            setTasks(prev => (prev ? prev.map(t => (t.id === updated.id ? { ...t, ...updated } : t)) : prev));
+            setSelectedTask(updated);
+            loadAssignees();
+          }}
+          onDeleted={id => {
+            setTasks(prev => (prev ? prev.filter(t => t.id !== id) : prev));
+            setSelectedTask(null);
+          }}
+        />
+      )}
     </div>
   );
 };

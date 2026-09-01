@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabaseService';
+import { recordTaskAssignee } from './qualityTaskAssigneesStore';
 
 /**
  * Tablero de tareas (Kanban) del equipo de Calidad — se gestiona
@@ -87,6 +88,9 @@ export async function createQualityTask(params: {
       console.warn('⚠️ No se pudo crear la tarea de Calidad:', error?.message);
       return { success: false, error: error?.message || 'Error desconocido.' };
     }
+    if (params.assignee?.trim()) {
+      recordTaskAssignee(params.processSlug, params.assignee);
+    }
     return { success: true, task: mapRow(data) };
   } catch (err: any) {
     console.warn('⚠️ Error creando tarea de Calidad:', err?.message || err);
@@ -114,6 +118,9 @@ export async function updateQualityTask(
     if (error || !data) {
       console.warn('⚠️ No se pudo actualizar la tarea de Calidad:', error?.message);
       return { success: false, error: error?.message || 'Error desconocido.' };
+    }
+    if (updates.assignee?.trim()) {
+      recordTaskAssignee(data.process_slug, updates.assignee);
     }
     return { success: true, task: mapRow(data) };
   } catch (err: any) {

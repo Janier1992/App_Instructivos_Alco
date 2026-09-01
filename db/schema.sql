@@ -495,6 +495,48 @@ CREATE INDEX IF NOT EXISTS idx_quality_tasks_status ON quality_tasks(status);
 ALTER TABLE quality_tasks ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
+-- TARJETAS DE TAREA ESTILO TRELLO: comentarios, adjuntos (imágenes, máx.
+-- 3 MB) e historial de responsables por proceso.
+-- Ver db/migrate_add_quality_task_details.sql
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS quality_task_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  task_id UUID NOT NULL REFERENCES quality_tasks(id) ON DELETE CASCADE,
+  author_name VARCHAR(255) NOT NULL,
+  comment_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_quality_task_comments_task_id ON quality_task_comments(task_id);
+ALTER TABLE quality_task_comments ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS quality_task_attachments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  task_id UUID NOT NULL REFERENCES quality_tasks(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_size INT,
+  content_type VARCHAR(100),
+  storage_path VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_quality_task_attachments_task_id ON quality_task_attachments(task_id);
+ALTER TABLE quality_task_attachments ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('quality-task-attachments', 'quality-task-attachments', false, 3145728)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS quality_task_assignees (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (process_slug, name)
+);
+CREATE INDEX IF NOT EXISTS idx_quality_task_assignees_process_slug ON quality_task_assignees(process_slug);
+ALTER TABLE quality_task_assignees ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,
 -- whatsapp_conversations, whatsapp_messages, whatsapp_appointments), ya
