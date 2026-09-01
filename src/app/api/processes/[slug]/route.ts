@@ -8,6 +8,7 @@ import {
 } from '@/src/data/processesData';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { getAutonomyAssignments } from '@/src/lib/autonomyAssignmentsStore';
+import { getDynamicCriteria } from '@/src/lib/dynamicCriteriaStore';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   await ensureHydrated();
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const docs = DOCUMENTS[slug] || [];
   const controls = QUALITY_CONTROLS[slug] || [];
-  const criteria = ACCEPTANCE_CRITERIA[slug] || [];
+  const criteria = [...(ACCEPTANCE_CRITERIA[slug] || []), ...getDynamicCriteria(slug)];
   const assignments = getAutonomyAssignments(slug);
   const autonomy = (AUTONOMY_MATRIX[slug] || []).map(item => ({
     ...item,

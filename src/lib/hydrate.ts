@@ -2,6 +2,7 @@ import { loadCustomRagDocumentsFromSupabase } from './customRagStore';
 import { loadAutonomyAssignmentsFromSupabase } from './autonomyAssignmentsStore';
 import { loadProcessVideosFromSupabase } from './processVideosStore';
 import { loadCircularesFromSupabase } from './circularesStore';
+import { loadDynamicCriteriaFromSupabase } from './dynamicCriteriaStore';
 
 /**
  * Hidrata los stores en memoria (documentos RAG, asignaciones de autonomía,
@@ -19,7 +20,8 @@ export function ensureHydrated(): Promise<void> {
       loadCustomRagDocumentsFromSupabase(),
       loadAutonomyAssignmentsFromSupabase(),
       loadProcessVideosFromSupabase(),
-      loadCircularesFromSupabase()
+      loadCircularesFromSupabase(),
+      loadDynamicCriteriaFromSupabase()
     ]).then(() => undefined);
   }
   return hydrationPromise;

@@ -14,6 +14,7 @@ import {
 import { getCustomRagDocuments } from './customRagStore';
 import { searchRelevantChunks } from './ragRetrieval';
 import { getAutonomyAssignments } from './autonomyAssignmentsStore';
+import { getDynamicCriteria } from './dynamicCriteriaStore';
 
 export interface RAGContextResult {
   process: ProcessItem;
@@ -133,7 +134,11 @@ export async function getRAGContext(processSlug: string, question: string): Prom
   const activeDocs = allDocsForProc.filter(doc => doc.status === 'vigente');
   
   const controls = QUALITY_CONTROLS[processSlug] || [];
-  const criteria = ACCEPTANCE_CRITERIA[processSlug] || [];
+  // Incluye los criterios que Calidad agregó al "cerrar el ciclo" de una
+  // escalación resuelta (dynamicCriteriaStore) junto a los del documento
+  // oficial estático — así el agente los cita de inmediato, sin esperar
+  // una nueva subida de PDF.
+  const criteria = [...(ACCEPTANCE_CRITERIA[processSlug] || []), ...getDynamicCriteria(processSlug)];
   const autonomyAssignments = getAutonomyAssignments(processSlug);
   const autonomy = (AUTONOMY_MATRIX[processSlug] || []).map(item => ({
     ...item,
@@ -163,7 +168,8 @@ export async function getRAGContext(processSlug: string, question: string): Prom
 
   contextText += `\n--- CRITERIOS DE ACEPTACIÓN Y RECHAZO ---\n`;
   for (const cr of criteria) {
-    contextText += `- Parámetro: ${cr.parameter}\n  Aceptación: ${cr.acceptance}\n  Rechazo: ${cr.rejection}\n  Acción Requerida: ${cr.requiredAction}\n`;
+    const dynamicTag = cr.isDynamic ? ' [Agregado por Calidad tras resolver una escalación anterior — úsalo con la misma autoridad que el resto]' : '';
+    contextText += `- Parámetro: ${cr.parameter}${dynamicTag}\n  Aceptación: ${cr.acceptance}\n  Rechazo: ${cr.rejection}\n  Acción Requerida: ${cr.requiredAction}\n`;
   }
 
   contextText += `\n--- MATRIZ DE AUTONOMÍA ALCO (Nivel 1 a Nivel 4) ---\n`;

@@ -1,9 +1,29 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, UserCheck, Pencil, Check, X, User } from 'lucide-react';
+import { RefreshCw, UserCheck, Pencil, Check, X, User, GraduationCap, Trash2, Plus } from 'lucide-react';
 import { AutonomyLevelItem } from '@/src/types';
 import { ProcessPicker } from './ProcessPicker';
+
+type IluoLevel = 'I' | 'L' | 'U' | 'O';
+
+interface Competency {
+  id: string;
+  processSlug: string;
+  collaboratorName: string;
+  iluoLevel: IluoLevel;
+  notes?: string;
+  updatedAt: string;
+}
+
+const ILUO_LEVELS: { value: IluoLevel; short: string; label: string; className: string }[] = [
+  { value: 'I', short: 'I', label: 'En inducción (no autorizado a ejecutar solo)', className: 'bg-slate-200 text-slate-700' },
+  { value: 'L', short: 'L', label: 'En aprendizaje (supervisado)', className: 'bg-amber-100 text-amber-800' },
+  { value: 'U', short: 'U', label: 'Capacitado (trabaja sin supervisión)', className: 'bg-blue-100 text-blue-800' },
+  { value: 'O', short: 'O', label: 'Experto (puede entrenar a otros)', className: 'bg-emerald-100 text-emerald-800' }
+];
+
+const iluoMeta = (level: string) => ILUO_LEVELS.find(l => l.value === level) || ILUO_LEVELS[0];
 
 export const CrmAutonomyManager: React.FC = () => {
   const [processSlug, setProcessSlug] = useState('');
@@ -13,6 +33,12 @@ export const CrmAutonomyManager: React.FC = () => {
   const [editingLevel, setEditingLevel] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [savingLevel, setSavingLevel] = useState<string | null>(null);
+
+  const [competencies, setCompetencies] = useState<Competency[]>([]);
+  const [loadingCompetencies, setLoadingCompetencies] = useState(false);
+  const [newCollaborator, setNewCollaborator] = useState('');
+  const [newLevel, setNewLevel] = useState<IluoLevel>('I');
+  const [savingCompetency, setSavingCompetency] = useState(false);
 
   const loadAutonomy = useCallback(async () => {
     if (!processSlug) return;
@@ -31,9 +57,81 @@ export const CrmAutonomyManager: React.FC = () => {
     }
   }, [processSlug]);
 
+  const loadCompetencies = useCallback(async () => {
+    if (!processSlug) return;
+    setLoadingCompetencies(true);
+    try {
+      const res = await fetch(`/api/crm/competencies?processSlug=${encodeURIComponent(processSlug)}`);
+      const data = await res.json();
+      if (data.success) setCompetencies(data.competencies || []);
+    } catch (err) {
+      console.error('Error cargando competencia del equipo:', err);
+    } finally {
+      setLoadingCompetencies(false);
+    }
+  }, [processSlug]);
+
   useEffect(() => {
     loadAutonomy();
-  }, [loadAutonomy]);
+    loadCompetencies();
+  }, [loadAutonomy, loadCompetencies]);
+
+  const handleAddCompetency = async () => {
+    if (!newCollaborator.trim()) return;
+    setSavingCompetency(true);
+    try {
+      const res = await fetch('/api/crm/competencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processSlug, collaboratorName: newCollaborator, iluoLevel: newLevel })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewCollaborator('');
+        setNewLevel('I');
+        loadCompetencies();
+      } else {
+        alert(data.error || 'No se pudo guardar.');
+      }
+    } catch (err) {
+      console.error('Error guardando competencia:', err);
+    } finally {
+      setSavingCompetency(false);
+    }
+  };
+
+  const handleChangeLevel = async (competency: Competency, level: IluoLevel) => {
+    try {
+      const res = await fetch('/api/crm/competencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processSlug, collaboratorName: competency.collaboratorName, iluoLevel: level })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCompetencies(prev => prev.map(c => (c.id === competency.id ? { ...c, iluoLevel: level } : c)));
+      } else {
+        alert(data.error || 'No se pudo actualizar el nivel.');
+      }
+    } catch (err) {
+      console.error('Error actualizando nivel ILUO:', err);
+    }
+  };
+
+  const handleDeleteCompetency = async (id: string) => {
+    if (!confirm('¿Quitar a este colaborador del roster de competencia?')) return;
+    try {
+      const res = await fetch(`/api/crm/competencies/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCompetencies(prev => prev.filter(c => c.id !== id));
+      } else {
+        alert(data.error || 'No se pudo eliminar.');
+      }
+    } catch (err) {
+      console.error('Error eliminando competencia:', err);
+    }
+  };
 
   const handleSaveCollaborator = async (level: string) => {
     setSavingLevel(level);
@@ -138,6 +236,86 @@ export const CrmAutonomyManager: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <h3 className="flex items-center gap-2 font-bold text-sm text-slate-800">
+              <GraduationCap className="w-5 h-5 text-[#003366]" />
+              Competencia del Equipo (ILUO) — {processName || '...'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Roster de competencia verificada por persona: I = en inducción, L = en aprendizaje supervisado, U = capacitado sin supervisión, O = puede entrenar a otros. Solo los niveles U y O se muestran públicamente como "Equipo Certificado".
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={newCollaborator}
+            onChange={e => setNewCollaborator(e.target.value)}
+            placeholder="Nombre del colaborador"
+            className="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+          />
+          <select
+            value={newLevel}
+            onChange={e => setNewLevel(e.target.value as IluoLevel)}
+            className="px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+          >
+            {ILUO_LEVELS.map(l => (
+              <option key={l.value} value={l.value}>{l.short} — {l.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleAddCompetency}
+            disabled={savingCompetency || !newCollaborator.trim()}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-[#003366] hover:bg-blue-700 rounded-lg transition disabled:opacity-50 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Agregar
+          </button>
+        </div>
+
+        {loadingCompetencies ? (
+          <div className="p-6 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            Cargando...
+          </div>
+        ) : competencies.length === 0 ? (
+          <p className="text-xs text-slate-400 italic text-center py-4">Todavía no hay colaboradores registrados en el roster de este proceso.</p>
+        ) : (
+          <div className="space-y-2">
+            {competencies.map(c => {
+              const meta = iluoMeta(c.iluoLevel);
+              return (
+                <div key={c.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/60">
+                  <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-extrabold ${meta.className}`}>
+                    {meta.short}
+                  </span>
+                  <span className="flex-1 text-sm font-semibold text-slate-800 truncate">{c.collaboratorName}</span>
+                  <select
+                    value={c.iluoLevel}
+                    onChange={e => handleChangeLevel(c, e.target.value as IluoLevel)}
+                    className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  >
+                    {ILUO_LEVELS.map(l => (
+                      <option key={l.value} value={l.value}>{l.short} — {l.label}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleDeleteCompetency(c.id)}
+                    className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition shrink-0"
+                    title="Quitar del roster"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

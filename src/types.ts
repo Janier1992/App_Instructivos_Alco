@@ -50,6 +50,8 @@ export interface AcceptanceCriterion {
   rejection: string;
   requiredAction: string;
   visualRef?: string;
+  /** true si Calidad lo agregó al cerrar el ciclo de una escalación resuelta (no viene del documento oficial estático). */
+  isDynamic?: boolean;
 }
 
 export interface AutonomyLevelItem {

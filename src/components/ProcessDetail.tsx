@@ -18,7 +18,9 @@ import {
   Info,
   RefreshCw,
   User,
-  Newspaper
+  Newspaper,
+  GraduationCap,
+  Sparkles
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
@@ -43,6 +45,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
+  const [certifiedTeam, setCertifiedTeam] = useState<{ name: string; level: 'U' | 'O' }[]>([]);
   const [data, setData] = useState<{
     process: ProcessItem;
     documents: DocumentItem[];
@@ -90,6 +93,18 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
         }
       })
       .catch(err => console.error('Error cargando salud del proceso:', err));
+
+    // Equipo certificado (nivel U/O del marco ILUO) — reconocimiento
+    // público de quiénes ya están capacitados para trabajar sin supervisión
+    // en este proceso.
+    fetch(`/api/competencies?processSlug=${encodeURIComponent(slug)}`)
+      .then(res => res.json())
+      .then(resData => {
+        if (isMounted && resData.success) {
+          setCertifiedTeam(resData.certified || []);
+        }
+      })
+      .catch(err => console.error('Error cargando equipo certificado:', err));
 
     return () => { isMounted = false; };
   }, [slug]);
@@ -202,6 +217,26 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
               </p>
             </div>
           </div>
+
+          {certifiedTeam.length > 0 && (
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                <GraduationCap className="w-4 h-4" />
+                Equipo Certificado en este Proceso
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {certifiedTeam.map((member, idx) => (
+                  <span
+                    key={idx}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900 bg-white border border-emerald-300 px-2.5 py-1 rounded-full"
+                    title={member.level === 'O' ? 'Experto — puede entrenar a otros' : 'Capacitado — trabaja sin supervisión'}
+                  >
+                    {member.level === 'O' ? '⭐' : '✓'} {member.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {autonomy.map((item, idx) => (
@@ -318,7 +353,13 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
                   <div key={c.id || idx} className="rounded-xl border border-slate-200 overflow-hidden text-xs shadow-2xs">
                     <div className="bg-[#003366] text-white px-4 py-2 font-bold flex items-center justify-between">
                       <span>Parámetro: {c.parameter}</span>
-                      <span className="text-[10px] text-slate-300 font-mono">Ref: {c.controlId}</span>
+                      {c.isDynamic ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-200 bg-emerald-900/40 px-2 py-0.5 rounded-full">
+                          <Sparkles className="w-3 h-3" /> Agregado por Calidad
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-300 font-mono">Ref: {c.controlId}</span>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200 bg-white">
                       <div className="p-3 bg-emerald-50/30">

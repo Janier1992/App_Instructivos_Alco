@@ -16,6 +16,8 @@ export interface ChatFeedbackEntry {
   escalationRequired: boolean;
   rating: 'up' | 'down';
   comment?: string;
+  /** Causa raíz que Calidad clasificó al revisar esta respuesta (ver ROOT_CAUSE_OPTIONS en CrmChatFeedbackManager). */
+  rootCause?: string;
   createdAt: string;
 }
 
@@ -29,6 +31,7 @@ function mapRow(row: any): ChatFeedbackEntry {
     escalationRequired: !!row.escalation_required,
     rating: row.rating,
     comment: row.comment || undefined,
+    rootCause: row.root_cause || undefined,
     createdAt: row.created_at
   };
 }
@@ -93,6 +96,31 @@ export async function getChatFeedback(processSlug?: string): Promise<ChatFeedbac
   } catch (err: any) {
     console.warn('⚠️ Error cargando retroalimentación del chat:', err?.message || err);
     return [];
+  }
+}
+
+/**
+ * Clasificación de causa raíz que Calidad asigna al revisar una respuesta
+ * escalada o calificada como no útil — cierra el ciclo entre "qué pasó" y
+ * "por qué de fondo pasó" (falta de criterio, falta de capacitación, etc.).
+ */
+export async function updateChatFeedbackRootCause(id: string, rootCause: string): Promise<{ success: boolean }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false };
+
+  try {
+    const { error } = await supabase
+      .from('chat_feedback')
+      .update({ root_cause: rootCause || null })
+      .eq('id', id);
+    if (error) {
+      console.warn('⚠️ No se pudo guardar la causa raíz:', error.message);
+      return { success: false };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('⚠️ Error guardando causa raíz:', err?.message || err);
+    return { success: false };
   }
 }
 
