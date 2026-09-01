@@ -99,49 +99,6 @@ export async function getTopQuestions(processSlug: string, limit: number = 4): P
 }
 
 /**
- * Top N preguntas más repetidas ENTRE LAS QUE ESCALARON a Calidad (mismo
- * agrupamiento que getTopQuestions, pero filtrado a escalation_required)
- * — es la señal más directa de qué criterio documentar primero: si la
- * misma pregunta sin criterio se repite, el costo de no documentarla ya no
- * es hipotético.
- */
-export async function getTopEscalatedQuestions(processSlug: string, limit: number = 5): Promise<{ question: string; count: number }[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return [];
-
-  try {
-    const { data, error } = await supabase
-      .from('chat_queries')
-      .select('question, question_normalized, created_at')
-      .eq('process_slug', processSlug)
-      .eq('escalation_required', true)
-      .order('created_at', { ascending: false })
-      .limit(500);
-
-    if (error || !data) return [];
-
-    const groups = new Map<string, { question: string; count: number; lastSeen: string }>();
-    for (const row of data as any[]) {
-      const key = row.question_normalized;
-      const existing = groups.get(key);
-      if (existing) {
-        existing.count++;
-      } else {
-        groups.set(key, { question: row.question, count: 1, lastSeen: row.created_at });
-      }
-    }
-
-    return Array.from(groups.values())
-      .sort((a, b) => (b.count - a.count) || (new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()))
-      .slice(0, limit)
-      .map(g => ({ question: g.question, count: g.count }));
-  } catch (err: any) {
-    console.warn('⚠️ Error obteniendo preguntas escaladas frecuentes:', err?.message || err);
-    return [];
-  }
-}
-
-/**
  * Ventana de tiempo sobre la que se calcula la "salud" de cada proceso —
  * lo reciente importa más que el histórico completo para reflejar cómo va
  * el proceso *ahora*, no cómo le fue hace 6 meses.

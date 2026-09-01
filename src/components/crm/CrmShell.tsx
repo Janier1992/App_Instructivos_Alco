@@ -15,7 +15,7 @@ import {
   MessageSquare,
   ThumbsUp,
   Lightbulb,
-  TrendingDown
+  ClipboardCheck
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -30,11 +30,11 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/crm/principal', label: 'Principal', icon: Newspaper },
+  { href: '/crm/autocontrol', label: 'Autocontrol por Turno', icon: ClipboardCheck },
   { href: '/crm/comentarios', label: 'Comentarios', icon: MessageSquare },
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
-  { href: '/crm/cuellos-de-botella', label: 'Cuellos de Botella', icon: TrendingDown },
   { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },
   { href: '/crm/mejoras', label: 'Buzón de Mejoras', icon: Lightbulb },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
