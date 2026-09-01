@@ -14,7 +14,8 @@ import {
   Home,
   MessageSquare,
   ThumbsUp,
-  Lightbulb
+  Lightbulb,
+  TrendingDown
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
+  { href: '/crm/cuellos-de-botella', label: 'Cuellos de Botella', icon: TrendingDown },
   { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },
   { href: '/crm/mejoras', label: 'Buzón de Mejoras', icon: Lightbulb },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
