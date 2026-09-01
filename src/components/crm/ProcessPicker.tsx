@@ -9,10 +9,12 @@ interface ProcessPickerProps {
   className?: string;
   /** Agrega una opción "Todos los procesos" (value = '') y no autoselecciona el primero. */
   allowAll?: boolean;
+  /** Slug a autoseleccionar en vez del primer proceso de la lista (ej. "control-calidad" en la página de Formularios de Inspección, para que no queden guardados bajo el proceso equivocado por defecto). */
+  defaultSlug?: string;
 }
 
 /** Selector de proceso reutilizado por los administradores del CRM (Documentos, Videos, Autonomía). */
-export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className, allowAll }) => {
+export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className, allowAll, defaultSlug }) => {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
 
   useEffect(() => {
@@ -21,7 +23,12 @@ export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, c
       .then(data => {
         if (data.processes) {
           setProcesses(data.processes);
-          if (!allowAll && !value && data.processes.length > 0) onChange(data.processes[0].slug);
+          if (!allowAll && !value && data.processes.length > 0) {
+            const preferred = defaultSlug && data.processes.some((p: ProcessItem) => p.slug === defaultSlug)
+              ? defaultSlug
+              : data.processes[0].slug;
+            onChange(preferred);
+          }
         }
       })
       .catch(err => console.error('Error cargando procesos:', err));

@@ -121,8 +121,11 @@ export const CrmInspectionFormsManager: React.FC = () => {
           <p className="text-xs text-slate-500 mt-0.5">
             Usa el enlace de <strong>"Insertar código"</strong> de Microsoft Forms (Compartir → Insertar código), no el de compartir normal — solo ese se deja abrir dentro del aplicativo. Lo mismo aplica a la Vista de Registros en Excel Online/SharePoint.
           </p>
+          <p className="text-xs text-amber-700 mt-1 font-semibold">
+            ⚠️ Los formularios solo aparecen en la pestaña "Formularios" de la tarjeta pública del proceso seleccionado — verifica que diga <strong>Control Calidad</strong> antes de agregar uno.
+          </p>
         </div>
-        <ProcessPicker value={processSlug} onChange={setProcessSlug} />
+        <ProcessPicker value={processSlug} onChange={setProcessSlug} defaultSlug="control-calidad" />
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-sm">
