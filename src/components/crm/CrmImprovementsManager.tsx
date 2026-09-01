@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Lightbulb, Clock, Eye, CheckCircle2, XCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { RefreshCw, Lightbulb, Clock, Eye, CheckCircle2, XCircle, AlertCircle, Trash2, AlarmClock } from 'lucide-react';
 import { ProcessPicker } from './ProcessPicker';
 import { useCrmSession } from './CrmSessionContext';
 
@@ -17,6 +17,14 @@ interface Improvement {
   status: ImprovementStatus;
   adminNote: string | null;
   createdAt: string;
+  reviewedAt: string | null;
+}
+
+/** Mismo umbral que la vista pública (ProcessImprovementBox.tsx) — la evidencia de sistemas de sugerencias muestra que la participación cae fuerte cuando una idea queda sin respuesta visible por más de una semana. */
+const STALE_DAYS_THRESHOLD = 7;
+
+function daysSince(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 
 const STATUS_OPTIONS: { value: ImprovementStatus; label: string; icon: React.ElementType; className: string }[] = [
@@ -98,6 +106,7 @@ export const CrmImprovementsManager: React.FC = () => {
   };
 
   const pendingCount = improvements.filter(i => i.status === 'proposed' || i.status === 'in_review').length;
+  const staleCount = improvements.filter(i => i.status === 'proposed' && !i.reviewedAt && daysSince(i.createdAt) >= STALE_DAYS_THRESHOLD).length;
 
   return (
     <div className="space-y-4">
@@ -110,6 +119,13 @@ export const CrmImprovementsManager: React.FC = () => {
         </div>
         <ProcessPicker value={processSlug} onChange={setProcessSlug} allowAll />
       </div>
+
+      {staleCount > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs font-semibold text-amber-900">
+          <AlarmClock className="w-4 h-4 text-amber-600 shrink-0" />
+          {staleCount} propuesta{staleCount === 1 ? '' : 's'} lleva{staleCount === 1 ? '' : 'n'} más de {STALE_DAYS_THRESHOLD} días sin respuesta — quien la envió ya lo puede ver en la app.
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -132,13 +148,22 @@ export const CrmImprovementsManager: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {improvements.map((imp) => (
-              <div key={imp.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 space-y-2.5">
+            {improvements.map((imp) => {
+              const pendingDays = imp.status === 'proposed' && !imp.reviewedAt ? daysSince(imp.createdAt) : null;
+              const isStale = pendingDays !== null && pendingDays >= STALE_DAYS_THRESHOLD;
+              return (
+              <div key={imp.id} className={`p-4 rounded-xl border space-y-2.5 ${isStale ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200 bg-slate-50/40'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-slate-900">{imp.title}</p>
                       <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{imp.processSlug}</span>
+                      {pendingDays !== null && (
+                        <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${isStale ? 'text-amber-800 bg-amber-100 border-amber-300' : 'text-slate-500 bg-white border-slate-200'}`}>
+                          <AlarmClock className="w-3 h-3" />
+                          {pendingDays === 0 ? 'Hoy' : `${pendingDays} día${pendingDays === 1 ? '' : 's'} sin respuesta`}
+                        </span>
+                      )}
                     </div>
                     {imp.relatedCriterion && (
                       <p className="text-[11px] text-slate-500 mt-0.5">Sobre: {imp.relatedCriterion}</p>
@@ -198,7 +223,8 @@ export const CrmImprovementsManager: React.FC = () => {
                   </label>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

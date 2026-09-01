@@ -13,6 +13,14 @@ interface Improvement {
   authorName: string | null;
   status: ImprovementStatus;
   createdAt: string;
+  reviewedAt: string | null;
+}
+
+/** A partir de este número de días sin que Calidad la toque, se resalta como pendiente hace rato — la evidencia de sistemas de sugerencias muestra que la participación cae fuerte cuando una idea queda sin respuesta visible. */
+const STALE_DAYS_THRESHOLD = 7;
+
+function daysSince(iso: string): number {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 
 interface ProcessImprovementBoxProps {
@@ -127,6 +135,8 @@ export const ProcessImprovementBox: React.FC<ProcessImprovementBoxProps> = ({ pr
               {improvements.map((imp) => {
                 const meta = STATUS_META[imp.status];
                 const StatusIcon = meta.icon;
+                const pendingDays = imp.status === 'proposed' && !imp.reviewedAt ? daysSince(imp.createdAt) : null;
+                const isStale = pendingDays !== null && pendingDays >= STALE_DAYS_THRESHOLD;
                 return (
                   <div key={imp.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-start justify-between gap-2">
@@ -142,10 +152,15 @@ export const ProcessImprovementBox: React.FC<ProcessImprovementBoxProps> = ({ pr
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap">{imp.description}</p>
-                    <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
                       <span className="text-[10px] text-slate-400">
                         {imp.authorName || 'Anónimo'} · {new Date(imp.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
+                      {pendingDays !== null && (
+                        <span className={`text-[10px] font-semibold ${isStale ? 'text-amber-700' : 'text-slate-400'}`}>
+                          {pendingDays === 0 ? 'Enviada hoy' : `Hace ${pendingDays} día${pendingDays === 1 ? '' : 's'}, esperando revisión`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
