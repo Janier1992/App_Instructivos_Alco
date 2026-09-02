@@ -31,6 +31,8 @@ export interface ProcessItem {
   showFormsTab?: boolean;
   /** true muestra la pestaña "Tareas" (tablero Kanban). Por defecto false. */
   showTasksTab?: boolean;
+  /** true muestra la caja de Autocertificación por unidad en Principal. Por defecto false. */
+  showSelfCertificationBox?: boolean;
 }
 
 export interface QualityControl {

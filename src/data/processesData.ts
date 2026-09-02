@@ -137,7 +137,8 @@ export const PROCESSES: ProcessItem[] = [
       'Encuentro de ingletes cerrado sin luz visible (> 0.2 mm es rechazo)',
       'Suavidad de rodamiento y alineación de pestillos de seguridad',
       'Cordón de silicona continuo y repasado con espátula'
-    ]
+    ],
+    showSelfCertificationBox: true
   },
   {
     id: 'proc-despachos-transporte',

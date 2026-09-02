@@ -29,6 +29,7 @@ import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
 import { ProcessImprovementBox } from './ProcessImprovementBox';
+import { ProcessSelfCertificationBox } from './ProcessSelfCertificationBox';
 import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
 import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
@@ -128,6 +129,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const showAutonomyTab = process.showAutonomyTab !== false;
   const showFormsTab = process.showFormsTab === true;
   const showTasksTab = process.showTasksTab === true;
+  const showSelfCertificationBox = process.showSelfCertificationBox === true;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
@@ -237,7 +239,12 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       </div>
 
       {/* MODULO 0: PRINCIPAL — vista informativa por defecto de la sección */}
-      {activeTab === 'principal' && <ProcessPrincipalPanel processSlug={slug} />}
+      {activeTab === 'principal' && (
+        <div className="space-y-4">
+          {showSelfCertificationBox && <ProcessSelfCertificationBox processSlug={slug} />}
+          <ProcessPrincipalPanel processSlug={slug} />
+        </div>
+      )}
 
       {/* MODULO 1: MATRIZ DE AUTONOMÍA */}
       {activeTab === 'autonomia' && showAutonomyTab && (
