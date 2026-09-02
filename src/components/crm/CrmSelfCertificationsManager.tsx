@@ -32,11 +32,13 @@ const LEVEL_META: Record<string, { label: string; className: string }> = {
 };
 
 /**
- * Auditoría de las autocertificaciones que el equipo de planta envía por
- * unidad — las que quedaron marcadas para revisión (por criterio no
- * conforme o por no estar verificado en nivel U/O) aparecen primero y sin
- * revisar. Revisar aquí NUNCA modifica lo que el colaborador certificó,
- * solo deja constancia de que Calidad la auditó.
+ * Auditoría de las verificaciones que el Supervisor registra por unidad
+ * (el ensamblador no puede tener el teléfono en turno, así que es el
+ * Supervisor quien recorre el puesto y confirma) — las que quedaron
+ * marcadas para revisión (por criterio no conforme o por no estar
+ * verificado en nivel U/O) aparecen primero y sin revisar. Revisar aquí
+ * NUNCA modifica lo que el Supervisor certificó, solo deja constancia de
+ * que Calidad la auditó.
  */
 export const CrmSelfCertificationsManager: React.FC = () => {
   const [processSlug, setProcessSlug] = useState('');
@@ -89,9 +91,9 @@ export const CrmSelfCertificationsManager: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Autocertificaciones</h1>
+          <h1 className="text-lg font-bold text-slate-900">Verificaciones de Supervisor</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Lo que el equipo certifica con su propio nombre por unidad — {pendingCount} pendiente{pendingCount === 1 ? '' : 's'} de auditar.
+            Lo que el Supervisor confirma por unidad antes de reportarla a Calidad — {pendingCount} pendiente{pendingCount === 1 ? '' : 's'} de auditar.
           </p>
         </div>
         <ProcessPicker value={processSlug} onChange={setProcessSlug} allowAll />
@@ -111,7 +113,7 @@ export const CrmSelfCertificationsManager: React.FC = () => {
 
         {certifications.length === 0 ? (
           <p className="text-xs text-slate-400 italic text-center py-8">
-            {loading ? 'Cargando...' : 'Todavía no hay autocertificaciones para este filtro.'}
+            {loading ? 'Cargando...' : 'Todavía no hay verificaciones registradas para este filtro.'}
           </p>
         ) : (
           <div className="space-y-3">

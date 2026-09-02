@@ -15,13 +15,15 @@ interface ProcessSelfCertificationBoxProps {
 }
 
 /**
- * Autocertificación por unidad: el colaborador certifica, con su nombre y
- * contra los criterios reales del proceso, que la pieza que acaba de
- * producir cumple — antes de que Calidad la revise. Solo queda exenta de
- * revisión obligatoria si está verificado en nivel U u O del roster ILUO
- * (ver Autonomía); si no, o si algún criterio no cumple, queda marcada
- * para que Calidad la audite. El servidor decide la autorización, nunca
- * este componente.
+ * Verificación por unidad: el ensamblador no puede tener el teléfono
+ * durante el turno operativo, así que quien registra la verificación es el
+ * Supervisor — recorriendo el puesto de trabajo, con su nombre y contra
+ * los criterios reales del proceso, confirma que la pieza cumple antes de
+ * reportarla a Calidad. Solo queda exenta de revisión obligatoria si el
+ * nombre registrado está verificado en nivel U u O del roster ILUO (ver
+ * Autonomía); si no, o si algún criterio no cumple, queda marcada para que
+ * Calidad la audite. El servidor decide la autorización, nunca este
+ * componente.
  */
 export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxProps> = ({ processSlug }) => {
   const [expanded, setExpanded] = useState(false);
@@ -106,8 +108,8 @@ export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxPr
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">✅ Autocertificación por Unidad</h3>
-            <p className="text-xs text-slate-500">Certifica tú mismo, con tu nombre, que la unidad cumple antes de avisarle a Calidad.</p>
+            <h3 className="font-bold text-slate-900 text-sm">✅ Verificación de Supervisor por Unidad</h3>
+            <p className="text-xs text-slate-500">El supervisor confirma, con su nombre, que la unidad cumple antes de reportarla a Calidad.</p>
           </div>
         </div>
         {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
@@ -122,8 +124,8 @@ export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxPr
               {result.requiresQualityReview ? <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> : <BadgeCheck className="w-4 h-4 shrink-0 mt-0.5" />}
               <span>
                 {result.requiresQualityReview
-                  ? 'Autocertificación registrada — queda marcada para revisión de Calidad (por un criterio no conforme, o porque tu nombre aún no está verificado en nivel U/O para este proceso).'
-                  : '✅ Autocertificación aceptada — quedas registrado como responsable. Calidad puede auditarla, pero no bloquea el avance de la pieza.'}
+                  ? 'Verificación registrada — queda marcada para revisión de Calidad (por un criterio no conforme, o porque este nombre aún no está verificado en nivel U/O para este proceso).'
+                  : '✅ Verificación aceptada — el supervisor queda registrado como responsable. Calidad puede auditarla, pero no bloquea el avance de la pieza.'}
               </span>
             </div>
           )}
@@ -142,7 +144,7 @@ export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxPr
                 list="self-cert-names"
                 value={collaboratorName}
                 onChange={e => setCollaboratorName(e.target.value)}
-                placeholder="Tu nombre"
+                placeholder="Nombre del supervisor"
                 className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
               />
               <datalist id="self-cert-names">
@@ -186,7 +188,7 @@ export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxPr
             {Object.values(answers).some(v => v === false) && (
               <div className="flex items-start gap-1.5 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>Marcaste un criterio como "No cumple" — corrígelo si puedes antes de certificar, o descríbelo en las notas. Esto va a quedar marcado para revisión de Calidad.</span>
+                <span>Marcaste un criterio como "No cumple" — pide que se corrija antes de reportarla, o descríbelo en las notas. Esto va a quedar marcado para revisión de Calidad.</span>
               </div>
             )}
 
@@ -206,7 +208,7 @@ export const ProcessSelfCertificationBox: React.FC<ProcessSelfCertificationBoxPr
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] rounded-lg transition disabled:opacity-50 shrink-0"
               >
                 {isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                Certificar con mi nombre
+                Verificar con mi nombre
               </button>
             </div>
           </form>

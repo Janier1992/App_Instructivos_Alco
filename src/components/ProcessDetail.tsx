@@ -30,6 +30,7 @@ import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
 import { ProcessImprovementBox } from './ProcessImprovementBox';
 import { ProcessSelfCertificationBox } from './ProcessSelfCertificationBox';
+import { ProcessFaqPanel } from './ProcessFaqPanel';
 import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
 import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
@@ -390,6 +391,8 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
               </div>
             )}
           </div>
+
+          <ProcessFaqPanel processSlug={slug} />
 
           {/* Criterios de Aceptación y Rechazo Incluidos */}
           {criteria.length > 0 && (

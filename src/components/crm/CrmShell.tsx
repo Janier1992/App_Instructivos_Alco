@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/formularios', label: 'Formularios de Inspección', icon: ClipboardList },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
-  { href: '/crm/autocertificaciones', label: 'Autocertificaciones', icon: BadgeCheck },
+  { href: '/crm/autocertificaciones', label: 'Verificaciones Supervisor', icon: BadgeCheck },
   { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },
   { href: '/crm/mejoras', label: 'Buzón de Mejoras', icon: Lightbulb },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
