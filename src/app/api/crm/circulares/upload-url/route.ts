@@ -28,7 +28,12 @@ export async function POST(request: NextRequest) {
     }
 
     const tempId = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const storagePath = `${tempId}/${fileName}`;
+    // La clave de Storage no admite tildes ni caracteres especiales del
+    // nombre original del archivo (Supabase la rechaza con "Invalid key") —
+    // se usa un id generado + la extensión, y el nombre original se guarda
+    // aparte (attachment_file_name) solo para mostrarlo en la UI.
+    const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
+    const storagePath = `${tempId}${extension}`;
 
     const { data, error } = await supabase.storage.from(CIRCULAR_ATTACHMENTS_BUCKET).createSignedUploadUrl(storagePath);
     if (error || !data) {
