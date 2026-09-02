@@ -162,25 +162,34 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
 
       {/* Barra de navegación inferior — solo móvil/tablet, patrón estándar
           de apps móviles (íconos con etiqueta, en vez de un menú lateral
-          desplegable que tapaba el contenido). */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#002244] border-t border-white/10 flex items-stretch pb-[env(safe-area-inset-bottom)]">
-        {visibleItems.map(item => {
-          const Icon = item.icon;
-          const isActive = pathname?.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition ${
-                isActive ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="truncate max-w-full px-0.5">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+          desplegable que tapaba el contenido). Con 9-11 módulos no caben
+          todos comprimidos en el ancho de la pantalla — en vez de
+          achicarlos hasta que se recorten, la barra se desplaza
+          horizontalmente y cada ítem mantiene un ancho mínimo legible. */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40">
+        <nav className="bg-[#002244] border-t border-white/10 flex items-stretch overflow-x-auto scrollbar-none snap-x snap-mandatory pb-[env(safe-area-inset-bottom)]">
+          {visibleItems.map(item => {
+            const Icon = item.icon;
+            const isActive = pathname?.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`shrink-0 snap-start w-[72px] flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition ${
+                  isActive ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="text-center leading-tight px-0.5 line-clamp-2 break-words">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        {/* Insinúa que hay más íconos a la derecha — sin esto, con 9-11
+            módulos parece que la barra "termina" ahí y el resto queda
+            inalcanzable en vez de a un swipe de distancia. */}
+        <div className="pointer-events-none absolute top-0 right-0 bottom-[env(safe-area-inset-bottom)] w-8 bg-gradient-to-l from-[#002244] to-transparent" />
+      </div>
     </div>
   );
 };
