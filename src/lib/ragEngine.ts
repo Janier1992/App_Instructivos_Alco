@@ -12,7 +12,7 @@ import {
   SourceReference 
 } from '../types';
 import { getCustomRagDocuments } from './customRagStore';
-import { searchRelevantChunks } from './ragRetrieval';
+import { searchRelevantChunks, searchKnowledgeChunks } from './ragRetrieval';
 import { getAutonomyAssignments } from './autonomyAssignmentsStore';
 import { getDynamicCriteria } from './dynamicCriteriaStore';
 
@@ -225,6 +225,21 @@ export async function getRAGContext(processSlug: string, question: string): Prom
         contextText += `--------------------------------------------------\n`;
         addPdfSourceRef(pdfDoc.title, pdfDoc.code, pdfDoc.uploadedAt);
       }
+    }
+  }
+
+  // BASE DE CONOCIMIENTO: documentos convertidos a Markdown (texto + visión
+  // en páginas con diagramas/tablas que la extracción de PDF plana pierde),
+  // revisados y publicados por Calidad. Módulo separado del sistema de
+  // Documentos de arriba, con su propia búsqueda semántica.
+  const knowledgeChunks = await searchKnowledgeChunks(processSlug, question);
+  if (knowledgeChunks && knowledgeChunks.length > 0) {
+    contextText += `\n--- FRAGMENTOS RELEVANTES DE LA BASE DE CONOCIMIENTO (Markdown revisado por Calidad) ---\n`;
+    for (const chunk of knowledgeChunks) {
+      contextText += `DOCUMENTO: "${chunk.documentTitle}"\n`;
+      contextText += `Fragmento relevante:\n${chunk.content}\n`;
+      contextText += `--------------------------------------------------\n`;
+      addPdfSourceRef(chunk.documentTitle, null);
     }
   }
 

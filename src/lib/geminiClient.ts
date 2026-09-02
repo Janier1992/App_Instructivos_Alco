@@ -35,7 +35,7 @@ function isQuotaExhaustedError(error: any): boolean {
   return error?.status === 429 || /RESOURCE_EXHAUSTED|quota/i.test(message);
 }
 
-function getGeminiClient(): GoogleGenAI {
+export function getGeminiClient(): GoogleGenAI {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {

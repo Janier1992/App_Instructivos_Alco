@@ -154,6 +154,89 @@ export async function embedAndStoreChunks(
   }
 }
 
+/**
+ * Fragmenta y embebe el Markdown de un documento de la Base de
+ * Conocimiento (knowledgeBaseStore.ts) — misma mecánica que
+ * embedAndStoreChunks, pero en su propia tabla (knowledge_document_chunks)
+ * para mantener ese módulo separado del sistema de Documentos actual.
+ * Borra primero los fragmentos previos del documento, así que es seguro
+ * llamarla de nuevo al republicar una edición.
+ */
+export async function embedAndStoreKnowledgeChunks(
+  documentId: string,
+  processSlug: string,
+  documentTitle: string,
+  markdown: string
+): Promise<number> {
+  const supabase = getSupabaseClient();
+  if (!supabase || !markdown.trim()) return 0;
+
+  await supabase.from('knowledge_document_chunks').delete().eq('document_id', documentId);
+
+  const chunks = chunkText(markdown);
+  const embeddings = await embedTexts(chunks, 'RETRIEVAL_DOCUMENT');
+
+  const rows = chunks
+    .map((content, idx) => ({
+      document_id: documentId,
+      process_slug: processSlug,
+      document_title: documentTitle,
+      chunk_index: idx,
+      content,
+      embedding: embeddings[idx]
+    }))
+    .filter(row => row.embedding !== null);
+
+  if (rows.length === 0) return 0;
+
+  try {
+    const { error } = await supabase.from('knowledge_document_chunks').insert(rows);
+    if (error) {
+      console.warn('⚠️ Error guardando fragmentos de la Base de Conocimiento:', error.message);
+      return 0;
+    }
+    return rows.length;
+  } catch (err: any) {
+    console.warn('⚠️ Error guardando fragmentos de la Base de Conocimiento:', err?.message || err);
+    return 0;
+  }
+}
+
+/** Igual que searchRelevantChunks, pero contra la Base de Conocimiento. */
+export async function searchKnowledgeChunks(
+  processSlug: string,
+  question: string,
+  matchCount: number = 5
+): Promise<{ documentTitle: string; content: string; similarity: number }[] | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  try {
+    const [queryEmbedding] = await embedTexts([question], 'RETRIEVAL_QUERY');
+    if (!queryEmbedding) return null;
+
+    const { data, error } = await supabase.rpc('match_knowledge_chunks', {
+      query_embedding: queryEmbedding,
+      target_process_slug: processSlug,
+      match_count: matchCount
+    });
+
+    if (error) {
+      console.warn('⚠️ Error buscando fragmentos de la Base de Conocimiento:', error.message);
+      return null;
+    }
+
+    return (data || []).map((row: any) => ({
+      documentTitle: row.document_title,
+      content: row.content,
+      similarity: row.similarity
+    }));
+  } catch (err: any) {
+    console.warn('⚠️ Error en búsqueda semántica de la Base de Conocimiento:', err?.message || err);
+    return null;
+  }
+}
+
 export interface RetrievedChunk {
   documentTitle: string;
   documentCode: string | null;
