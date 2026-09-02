@@ -240,6 +240,17 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       inspectionFrequency: '1 barra por paquete de materia prima',
       standardValue: 'Según catálogo / 0.0 mm flecha',
       tolerance: 'Espesor ±0.10 mm / Flecha máx 1.0 mm/m'
+    },
+    {
+      id: 'qc-cyp-04',
+      processId: 'proc-corte-perfileria',
+      code: 'CC-CYP-04',
+      title: 'Calibración de Equipos de Medición',
+      description: 'Verificación diaria del estado y calibración de flexómetros, escuadras digitales y sistema de medición de la tronzadora antes de iniciar turno.',
+      criticalLevel: 'crítico',
+      inspectionFrequency: 'Al inicio de cada turno',
+      standardValue: 'Equipo calibrado, sin desgaste ni holgura',
+      tolerance: 'Cero desviación respecto al patrón de referencia'
     }
   ],
   troquelado: [
@@ -253,6 +264,17 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       inspectionFrequency: '100% de los perfiles inferiores troquelados',
       standardValue: 'Perforación limpia de 25x5 mm según matriz',
       tolerance: 'Sin viruta adherida, rebaba < 0.1mm'
+    },
+    {
+      id: 'qc-trq-02',
+      processId: 'proc-troquelado',
+      code: 'CC-TRQ-02',
+      title: 'Estado Físico de Troqueles y Matrices',
+      description: 'Inspección visual del filo, desgaste y desajuste de troqueles y matrices antes de iniciar el lote.',
+      criticalLevel: 'crítico',
+      inspectionFrequency: 'Antes de iniciar cada lote o cambio de referencia',
+      standardValue: 'Troquel sin mella, filo y alineación correctos',
+      tolerance: 'Cero desgaste visible que afecte el corte'
     }
   ],
   'vidrio-crudo-templado': [
@@ -360,6 +382,28 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       inspectionFrequency: '100% de las 4 esquinas',
       standardValue: 'Cierre total hermético sin luz',
       tolerance: 'Separación máxima < 0.2 mm'
+    },
+    {
+      id: 'qc-ens-03',
+      processId: 'proc-ensamble',
+      code: 'CC-ENS-03',
+      title: 'Protección de Mesas en Acabados Premium',
+      description: 'Verificación de protección (cartón/icopor) en mesas de trabajo antes de manipular acabados delicados como Pintura Negra P3N.',
+      criticalLevel: 'alto',
+      inspectionFrequency: 'Antes de iniciar cada unidad con acabado premium',
+      standardValue: 'Mesa cubierta al 100% antes de manipular',
+      tolerance: 'Cero rayones nuevos atribuibles a manipulación'
+    },
+    {
+      id: 'qc-ens-04',
+      processId: 'proc-ensamble',
+      code: 'CC-ENS-04',
+      title: 'Naves Instaladas en Ventanas Corredizas',
+      description: 'Confirmación de que toda ventana corrediza sale de Ensamble con sus naves (hojas) instaladas en el marco, sin importar la medida.',
+      criticalLevel: 'crítico',
+      inspectionFrequency: '100% de las ventanas corredizas',
+      standardValue: 'Naves instaladas en el marco',
+      tolerance: 'Sin excepción por tamaño, incluidas medidas > 1510 mm'
     }
   ],
   'despachos-transporte': [
@@ -384,6 +428,17 @@ export const QUALITY_CONTROLS: Record<string, QualityControl[]> = {
       inspectionFrequency: '100% de camiones cargados antes de salir',
       standardValue: 'Carga inmóvil, cero metal-metal',
       tolerance: 'Amarre firme sin deformar perfiles'
+    },
+    {
+      id: 'qc-dsp-03',
+      processId: 'proc-despachos-transporte',
+      code: 'CC-DSP-03',
+      title: 'Retiro de Naves en Ventanas Corredizas > 1510 mm',
+      description: 'Verificación de que, al recibir el producto aprobado, se retiran físicamente las naves (hojas) de las ventanas corredizas que superen 1510 mm antes de cargarlas, para transportarlas por separado y evitar daños por tamaño.',
+      criticalLevel: 'crítico',
+      inspectionFrequency: '100% de ventanas corredizas > 1510 mm recibidas',
+      standardValue: 'Naves retiradas y aseguradas por separado',
+      tolerance: 'Responsabilidad exclusiva de Despachos — sin excepción'
     }
   ]
 };
@@ -425,6 +480,15 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       acceptance: 'Perfiles arrumados sobre icopor, con puntas protegidas y sin contacto directo entre paquetes.',
       rejection: 'Perfiles apilados sin icopor/protección, con puntas expuestas en contacto con otros paquetes.',
       requiredAction: 'Reubicar y proteger la perfilería según el instructivo de cuidado y manipulación antes de continuar.'
+    },
+    {
+      id: 'ac-cyp-05',
+      processId: 'proc-corte-perfileria',
+      controlId: 'qc-cyp-04',
+      parameter: 'Identificación de piezas cortadas antes de almacenar',
+      acceptance: 'Cada pieza o paquete cortado marcado con referencia/orden legible antes de ubicarlo en el soporte de almacenamiento asignado.',
+      rejection: 'Piezas sin marcar o almacenadas en soporte distinto al asignado a su referencia.',
+      requiredAction: 'Marcar la pieza y reubicarla en el soporte correcto antes de continuar — evita confusiones de destino en procesos posteriores.'
     }
   ],
   troquelado: [
@@ -445,6 +509,15 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       acceptance: 'Avellán posicionado según la plantilla oficial correspondiente al sistema y al rango de medida de la ventana (jamba, cabezal o sillar).',
       rejection: 'Avellán fuera de la posición de plantilla, o realizado en zonas marcadas como "no lleva avellán" (p. ej. anchos ≤1200 mm en sillar, zonas engrafadas) sin consultar medidas fuera de rango.',
       requiredAction: 'Verificar la plantilla del sistema y medida antes de perforar; si la medida está fuera de rango, consultar con Ingeniería.'
+    },
+    {
+      id: 'ac-trq-03',
+      processId: 'proc-troquelado',
+      controlId: 'qc-trq-02',
+      parameter: 'Verificación de cotas con herramienta de precisión',
+      acceptance: 'Cota verificada con galga o pie de rey (no a simple vista) al menos cada 5 perfiles troquelados de la misma referencia.',
+      rejection: 'Verificación únicamente visual, sin usar galga/pie de rey, o sin muestreo cada 5 perfiles.',
+      requiredAction: 'Detener el lote, medir con la herramienta de precisión correspondiente y corregir el ajuste antes de continuar.'
     }
   ],
   'vidrio-crudo-templado': [
@@ -474,6 +547,15 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       acceptance: 'Piezas manipuladas de una en una al salir del horno antes de ubicarlas en los burros.',
       rejection: 'Manipulación de varias piezas de vidrio templado a la vez (riesgo de sobrepeso y caída).',
       requiredAction: 'Detener la manipulación en curso y retomar pieza por pieza según el instructivo.'
+    },
+    {
+      id: 'ac-vdt-04',
+      processId: 'proc-vidrio-crudo-templado',
+      controlId: 'qc-vdt-04',
+      parameter: 'Marcado de trazabilidad de lote en el vidrio',
+      acceptance: 'Cada lote de vidrio lleva el sticker de marcado con referencia de obra y destino, legible y en la posición estándar antes de moverlo del área.',
+      rejection: 'Vidrio sin sticker de marcado, con sticker ilegible, o con datos de obra/destino incorrectos.',
+      requiredAction: 'Marcar o corregir el sticker antes de trasladar el lote — evita que se confunda el destino entre ensamble y obra.'
     }
   ],
   pintura: [
@@ -561,6 +643,24 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       acceptance: 'Superficies limpiadas con alcohol e imprimadas (Primer 94 en perfil, Silano AP 115 en vidrio) con 30 segundos de evaporación antes del montaje, y unión prensada con rodillo o prensa neumática a 15 psi.',
       rejection: 'Montaje de la cinta VHB sin limpieza/imprimación previa, sin tiempo de evaporación del primer, o sin presión de unión aplicada.',
       requiredAction: 'Retirar la cinta, limpiar y reprocesar aplicando correctamente primer, tiempo de evaporación y presión.'
+    },
+    {
+      id: 'ac-ens-05',
+      processId: 'proc-ensamble',
+      controlId: 'qc-ens-03',
+      parameter: 'Protección de acabados premium susceptibles a rayones',
+      acceptance: 'Mesas de trabajo cubiertas con cartón/icopor antes de procesar acabados delicados (ej. Pintura Negra P3N); pieza manipulada sin arrastre sobre superficies duras.',
+      rejection: 'Acabado premium procesado sobre mesa sin protección, o con arrastre/fricción directa sobre superficie dura.',
+      requiredAction: 'Detener el ensamble, cubrir la mesa y verificar que la pieza no quedó rayada antes de continuar.'
+    },
+    {
+      id: 'ac-ens-06',
+      processId: 'proc-ensamble',
+      controlId: 'qc-ens-04',
+      parameter: 'Instalación de naves en ventanas corredizas',
+      acceptance: 'Todas las ventanas corredizas quedan con las naves (hojas) instaladas en el marco para su aprobación y entrega, sin importar si la medida supera el límite de 1510 mm.',
+      rejection: 'Ventana corrediza entregada a inspección o despacho sin sus naves instaladas, cualquiera sea su medida.',
+      requiredAction: 'Instalar las naves antes de dar la unidad por terminada — esta regla no tiene excepción por tamaño.'
     }
   ],
   'despachos-transporte': [
@@ -590,6 +690,15 @@ export const ACCEPTANCE_CRITERIA: Record<string, AcceptanceCriterion[]> = {
       acceptance: 'Materia prima embalada con zunchos, separada con cartón entre puntas de distinta medida, y con cartón sobre el material dentro del camión para amortiguar la vibración del viaje.',
       rejection: 'Material sin zunchos, sin separación entre puntas, o cargado contra las paredes del camión sin protección.',
       requiredAction: 'Re-embalar y asegurar con zunchos antes de autorizar la salida del camión.'
+    },
+    {
+      id: 'ac-dsp-03',
+      processId: 'proc-despachos-transporte',
+      controlId: 'qc-dsp-03',
+      parameter: 'Retiro de naves de ventanas corredizas > 1510 mm',
+      acceptance: 'Al recibir de Ensamble una ventana corrediza mayor a 1510 mm, Despachos retira físicamente las naves del marco y las asegura por separado antes de cargar.',
+      rejection: 'Ventana corrediza > 1510 mm cargada al camión con las naves instaladas en el marco.',
+      requiredAction: 'Retirar las naves antes de continuar el cargue — es responsabilidad exclusiva de Despachos, independiente de que Ensamble ya las haya instalado.'
     }
   ]
 };
@@ -602,6 +711,7 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       role: 'Cortador',
       scope: 'Ejecución del corte e inspección dimensional y angular básica de perfiles de aluminio.',
       allowedActions: [
+        'Verificar al inicio del turno que flexómetro y escuadra digital estén calibrados y sin holgura antes de cortar.',
         'Realizar cortes de aluminio según la orden de producción.',
         'Ajustar tope micrométrico para tolerancias dentro de ±0.5 mm y ±0.2°.',
         'Separar barras con defectos superficiales o rayaduras de extrusión.'
@@ -710,7 +820,9 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       role: 'Auxiliar Troquelado',
       scope: 'Ejecución de perforaciones, desahogos de agua y calados estructurales en prensa.',
       allowedActions: [
+        'Confirmar la lectura del plano de la orden y el estado del troquel antes de iniciar el lote.',
         'Verificar alineación de pisadores y matrices antes de punzonar.',
+        'Medir con galga o pie de rey cada 5 perfiles troquelados, no solo a simple vista.',
         'Limpiar rebabas suaves con desbarbador o lima.',
         'Detener la prensa si el punzón se traba en el perfil.'
       ],
@@ -872,9 +984,11 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       role: 'Auxiliar u Oficial de Ensamble',
       scope: 'Atornillado de marcos, montaje de escuadras, accesorios y sellado con silicona.',
       allowedActions: [
+        'Interpretar planos de ensamble complejos solo si cuenta con nivel de competencia U u O verificado en este proceso (ver Autocertificación).',
         'Ajustar torque de atornillador neumático (4.5 Nm).',
         'Aplicar cordón de silicona estructural y repasar con espátula.',
-        'Verificar el ajuste de herrajes y rodamientos de la ventana.'
+        'Verificar el ajuste de herrajes y rodamientos de la ventana.',
+        'Instalar naves en toda ventana corrediza antes de darla por terminada, sin excepción por tamaño.'
       ],
       escalationCondition: 'Diferencia entre diagonales > 1.5 mm o desajuste de ingletes.',
       contactPerson: 'Supervisor'
@@ -900,7 +1014,7 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       allowedActions: [
         'Rechazar ventanas armadas con holgura en ingletes o fallas de cierre.',
         'Detener la línea de ensamble ante defectos no conformes.',
-        'Colocar sello de "Calidad Aprobado" para paso a Alistamiento.'
+        'Colocar sello de "Calidad Aprobado" para paso a Despachos.'
       ],
       escalationCondition: 'Priorización de entrega urgente para cumplimiento de despachos.',
       contactPerson: 'Jefe de Producción'
@@ -926,6 +1040,7 @@ export const AUTONOMY_MATRIX: Record<string, AutonomyLevelItem[]> = {
       role: 'Auxiliar Despachos',
       scope: 'Ubicación de bultos en zona de cargue, verificación de empaques y etiquetas QR.',
       allowedActions: [
+        'Retirar las naves de toda ventana corrediza mayor a 1510 mm antes de cargarla, y asegurarlas por separado.',
         'Aplicar vueltas adicionales de vinipel en zonas expuestas.',
         'Verificar la coincidencia del código QR con la planilla de cargue.',
         'Organizar bultos por obra y cliente en el muelle de despacho.'
