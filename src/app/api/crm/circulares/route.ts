@@ -23,13 +23,53 @@ export async function POST(request: NextRequest) {
   if ('error' in auth) return auth.error;
 
   try {
-    const formData = await request.formData();
-    const title = (formData.get('title') as string) || '';
-    const bodyText = (formData.get('bodyText') as string) || '';
-    const processSlugsRaw = (formData.get('processSlugs') as string) || '[]';
-    const displayOrderRaw = formData.get('displayOrder') as string | null;
-    const embedUrlRaw = ((formData.get('embedUrl') as string) || '').trim();
-    const file = formData.get('attachment');
+    const contentType = request.headers.get('content-type') || '';
+
+    let title: string;
+    let bodyText: string;
+    let processSlugsRaw: string;
+    let displayOrderRaw: string | null;
+    let embedUrlRaw: string;
+    let attachment: { fileBuffer: Buffer; fileName: string; contentType: string } | undefined;
+    let preUploadedAttachment: { storagePath: string; fileName: string; contentType: string } | undefined;
+
+    if (contentType.includes('application/json')) {
+      // Adjunto grande: el navegador ya lo subió directo a Supabase Storage
+      // con una signed upload URL (ver /api/crm/circulares/upload-url) para
+      // esquivar el límite de 4.5 MB por request de las funciones serverless
+      // de Vercel.
+      const body = await request.json();
+      title = body.title || '';
+      bodyText = body.bodyText || '';
+      processSlugsRaw = body.processSlugs ? JSON.stringify(body.processSlugs) : '[]';
+      displayOrderRaw = body.displayOrder !== undefined && body.displayOrder !== null ? String(body.displayOrder) : null;
+      embedUrlRaw = (body.embedUrl || '').trim();
+
+      if (body.attachmentStoragePath && body.attachmentFileName) {
+        preUploadedAttachment = {
+          storagePath: body.attachmentStoragePath,
+          fileName: body.attachmentFileName,
+          contentType: body.attachmentContentType || 'application/octet-stream'
+        };
+      }
+    } else {
+      const formData = await request.formData();
+      title = (formData.get('title') as string) || '';
+      bodyText = (formData.get('bodyText') as string) || '';
+      processSlugsRaw = (formData.get('processSlugs') as string) || '[]';
+      displayOrderRaw = formData.get('displayOrder') as string | null;
+      embedUrlRaw = ((formData.get('embedUrl') as string) || '').trim();
+      const file = formData.get('attachment');
+
+      if (file && file instanceof File && file.size > 0) {
+        const arrayBuffer = await file.arrayBuffer();
+        attachment = {
+          fileBuffer: Buffer.from(arrayBuffer),
+          fileName: file.name,
+          contentType: file.type || 'application/octet-stream'
+        };
+      }
+    }
 
     if (!title.trim()) {
       return NextResponse.json({ error: 'Se requiere un título.' }, { status: 400 });
@@ -52,16 +92,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'processSlugs debe ser un arreglo JSON de slugs.' }, { status: 400 });
     }
 
-    let attachment: { fileBuffer: Buffer; fileName: string; contentType: string } | undefined;
-    if (file && file instanceof File && file.size > 0) {
-      const arrayBuffer = await file.arrayBuffer();
-      attachment = {
-        fileBuffer: Buffer.from(arrayBuffer),
-        fileName: file.name,
-        contentType: file.type || 'application/octet-stream'
-      };
-    }
-
     const displayOrder = displayOrderRaw !== null && displayOrderRaw !== '' ? Number(displayOrderRaw) : 0;
 
     const result = await createCircular({
@@ -71,7 +101,8 @@ export async function POST(request: NextRequest) {
       createdBy: auth.session.sub,
       displayOrder: Number.isFinite(displayOrder) ? displayOrder : 0,
       embedUrl: embedUrlRaw || undefined,
-      attachment
+      attachment,
+      preUploadedAttachment
     });
 
     if (!result.success) {

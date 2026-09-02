@@ -17,6 +17,24 @@ import {
 } from 'lucide-react';
 import { ProcessItem } from '@/src/types';
 import { useCrmSession } from './CrmSessionContext';
+import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
+
+const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Ante un error de infraestructura (ej. Vercel rechazando un request de más
+ * de 4.5 MB) la respuesta no es JSON sino texto plano ("Request Entity Too
+ * Large..."), y un res.json() directo revienta con un error de parseo
+ * confuso ("Unexpected token 'R'..."). Se valida el content-type antes de
+ * parsear para mostrar siempre un mensaje entendible.
+ */
+async function parseJsonResponse(res: Response): Promise<any> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return { error: `Respuesta inesperada del servidor (${res.status}).` };
+  }
+  return res.json();
+}
 
 interface CircularAdmin {
   id: string;
@@ -121,7 +139,7 @@ export const CrmCircularesManager: React.FC = () => {
             embedUrl: embedUrl.trim() || null
           })
         });
-        const data = await res.json();
+        const data = await parseJsonResponse(res);
         if (res.ok && data.success) {
           setSaveMsg('✅ Cambios guardados.');
           resetForm();
@@ -130,16 +148,61 @@ export const CrmCircularesManager: React.FC = () => {
           setSaveMsg(`❌ Error: ${data.error || 'No se pudo guardar.'}`);
         }
       } else {
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('bodyText', bodyText);
-        formData.append('processSlugs', JSON.stringify(applyToAll ? [] : selectedSlugs));
-        formData.append('displayOrder', String(displayOrder));
-        if (embedUrl.trim()) formData.append('embedUrl', embedUrl.trim());
-        if (attachment) formData.append('attachment', attachment);
+        let res: Response;
 
-        const res = await fetch('/api/crm/circulares', { method: 'POST', body: formData });
-        const data = await res.json();
+        if (attachment && attachment.size > DIRECT_UPLOAD_THRESHOLD_BYTES) {
+          // Adjunto grande: se sube directo a Supabase Storage desde el
+          // navegador (bypass del límite de 4.5 MB de Vercel) y luego se le
+          // pide al servidor que solo registre la referencia.
+          setSaveMsg('⏳ Subiendo adjunto grande directo a almacenamiento...');
+          const urlRes = await fetch('/api/crm/circulares/upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: attachment.name })
+          });
+          const urlData = await parseJsonResponse(urlRes);
+          if (!urlRes.ok || !urlData.success) {
+            throw new Error(urlData.error || 'No se pudo iniciar la carga del adjunto.');
+          }
+
+          const supabase = getSupabaseBrowserClient();
+          if (!supabase) {
+            throw new Error('La carga de adjuntos grandes no está disponible: falta configuración del servidor (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY).');
+          }
+          const { error: uploadError } = await supabase.storage
+            .from('circular-attachments')
+            .uploadToSignedUrl(urlData.storagePath, urlData.token, attachment, { contentType: attachment.type || 'application/octet-stream' });
+          if (uploadError) {
+            throw new Error(uploadError.message);
+          }
+
+          res = await fetch('/api/crm/circulares', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title,
+              bodyText,
+              processSlugs: applyToAll ? [] : selectedSlugs,
+              displayOrder,
+              embedUrl: embedUrl.trim() || undefined,
+              attachmentStoragePath: urlData.storagePath,
+              attachmentFileName: attachment.name,
+              attachmentContentType: attachment.type || 'application/octet-stream'
+            })
+          });
+        } else {
+          const formData = new FormData();
+          formData.append('title', title);
+          formData.append('bodyText', bodyText);
+          formData.append('processSlugs', JSON.stringify(applyToAll ? [] : selectedSlugs));
+          formData.append('displayOrder', String(displayOrder));
+          if (embedUrl.trim()) formData.append('embedUrl', embedUrl.trim());
+          if (attachment) formData.append('attachment', attachment);
+
+          res = await fetch('/api/crm/circulares', { method: 'POST', body: formData });
+        }
+
+        const data = await parseJsonResponse(res);
 
         if (res.ok && data.success) {
           setSaveMsg('✅ Publicación creada como borrador. Publícala cuando esté lista.');

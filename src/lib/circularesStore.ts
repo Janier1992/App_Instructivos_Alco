@@ -148,6 +148,7 @@ export async function createCircular(params: {
   displayOrder?: number;
   embedUrl?: string;
   attachment?: { fileBuffer: Buffer; fileName: string; contentType: string };
+  preUploadedAttachment?: { storagePath: string; fileName: string; contentType: string };
 }): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
@@ -172,7 +173,26 @@ export async function createCircular(params: {
 
   let circular = mapRow(data);
 
-  if (params.attachment) {
+  if (params.preUploadedAttachment) {
+    // Adjunto grande: el navegador ya lo subió directo a Supabase Storage
+    // con una signed upload URL (ver /api/crm/circulares/upload-url), así
+    // que aquí solo se registra la referencia — no hay que volver a subirlo.
+    const { storagePath, fileName, contentType } = params.preUploadedAttachment;
+    await supabase
+      .from('circulares')
+      .update({
+        attachment_storage_path: storagePath,
+        attachment_file_name: fileName,
+        attachment_content_type: contentType
+      })
+      .eq('id', circular.id);
+    circular = {
+      ...circular,
+      attachmentStoragePath: storagePath,
+      attachmentFileName: fileName,
+      attachmentContentType: contentType
+    };
+  } else if (params.attachment) {
     const storagePath = await uploadCircularAttachment(
       circular.id,
       params.attachment.fileBuffer,
