@@ -23,52 +23,26 @@ export async function POST(request: NextRequest) {
   if ('error' in auth) return auth.error;
 
   try {
-    const contentType = request.headers.get('content-type') || '';
+    // El adjunto (si lo hay) ya se subió directo a Supabase Storage desde el
+    // navegador con una signed upload URL (ver
+    // /api/crm/circulares/upload-url) — esto esquiva por completo el límite
+    // de tamaño por request de las funciones serverless de Vercel. Aquí solo
+    // se recibe JSON con la referencia al archivo, nunca el archivo en sí.
+    const body = await request.json();
+    const title: string = body.title || '';
+    const bodyText: string = body.bodyText || '';
+    const processSlugsRaw: string = body.processSlugs ? JSON.stringify(body.processSlugs) : '[]';
+    const displayOrderRaw: string | null =
+      body.displayOrder !== undefined && body.displayOrder !== null ? String(body.displayOrder) : null;
+    const embedUrlRaw: string = (body.embedUrl || '').trim();
 
-    let title: string;
-    let bodyText: string;
-    let processSlugsRaw: string;
-    let displayOrderRaw: string | null;
-    let embedUrlRaw: string;
-    let attachment: { fileBuffer: Buffer; fileName: string; contentType: string } | undefined;
     let preUploadedAttachment: { storagePath: string; fileName: string; contentType: string } | undefined;
-
-    if (contentType.includes('application/json')) {
-      // Adjunto grande: el navegador ya lo subió directo a Supabase Storage
-      // con una signed upload URL (ver /api/crm/circulares/upload-url) para
-      // esquivar el límite de 4.5 MB por request de las funciones serverless
-      // de Vercel.
-      const body = await request.json();
-      title = body.title || '';
-      bodyText = body.bodyText || '';
-      processSlugsRaw = body.processSlugs ? JSON.stringify(body.processSlugs) : '[]';
-      displayOrderRaw = body.displayOrder !== undefined && body.displayOrder !== null ? String(body.displayOrder) : null;
-      embedUrlRaw = (body.embedUrl || '').trim();
-
-      if (body.attachmentStoragePath && body.attachmentFileName) {
-        preUploadedAttachment = {
-          storagePath: body.attachmentStoragePath,
-          fileName: body.attachmentFileName,
-          contentType: body.attachmentContentType || 'application/octet-stream'
-        };
-      }
-    } else {
-      const formData = await request.formData();
-      title = (formData.get('title') as string) || '';
-      bodyText = (formData.get('bodyText') as string) || '';
-      processSlugsRaw = (formData.get('processSlugs') as string) || '[]';
-      displayOrderRaw = formData.get('displayOrder') as string | null;
-      embedUrlRaw = ((formData.get('embedUrl') as string) || '').trim();
-      const file = formData.get('attachment');
-
-      if (file && file instanceof File && file.size > 0) {
-        const arrayBuffer = await file.arrayBuffer();
-        attachment = {
-          fileBuffer: Buffer.from(arrayBuffer),
-          fileName: file.name,
-          contentType: file.type || 'application/octet-stream'
-        };
-      }
+    if (body.attachmentStoragePath && body.attachmentFileName) {
+      preUploadedAttachment = {
+        storagePath: body.attachmentStoragePath,
+        fileName: body.attachmentFileName,
+        contentType: body.attachmentContentType || 'application/octet-stream'
+      };
     }
 
     if (!title.trim()) {
@@ -101,7 +75,6 @@ export async function POST(request: NextRequest) {
       createdBy: auth.session.sub,
       displayOrder: Number.isFinite(displayOrder) ? displayOrder : 0,
       embedUrl: embedUrlRaw || undefined,
-      attachment,
       preUploadedAttachment
     });
 

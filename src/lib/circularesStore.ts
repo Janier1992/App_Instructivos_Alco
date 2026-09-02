@@ -101,27 +101,6 @@ export function getCircularById(id: string): Circular | undefined {
   return circularesStore.find(c => c.id === id);
 }
 
-export async function uploadCircularAttachment(
-  circularId: string,
-  fileBuffer: Buffer,
-  fileName: string,
-  contentType: string
-): Promise<string | null> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
-
-  const storagePath = `${circularId}/${fileName}`;
-  const { error } = await supabase.storage
-    .from(CIRCULAR_ATTACHMENTS_BUCKET)
-    .upload(storagePath, fileBuffer, { contentType, upsert: true });
-
-  if (error) {
-    console.warn('⚠️ No se pudo guardar el adjunto de la circular en Supabase Storage:', error.message);
-    return null;
-  }
-  return storagePath;
-}
-
 export async function getCircularAttachmentBuffer(circular: Circular): Promise<Buffer | null> {
   if (!circular.attachmentStoragePath) return null;
 
@@ -147,7 +126,6 @@ export async function createCircular(params: {
   createdBy: string;
   displayOrder?: number;
   embedUrl?: string;
-  attachment?: { fileBuffer: Buffer; fileName: string; contentType: string };
   preUploadedAttachment?: { storagePath: string; fileName: string; contentType: string };
 }): Promise<{ success: boolean; circular?: Circular; error?: string }> {
   const supabase = getSupabaseClient();
@@ -192,29 +170,6 @@ export async function createCircular(params: {
       attachmentFileName: fileName,
       attachmentContentType: contentType
     };
-  } else if (params.attachment) {
-    const storagePath = await uploadCircularAttachment(
-      circular.id,
-      params.attachment.fileBuffer,
-      params.attachment.fileName,
-      params.attachment.contentType
-    );
-    if (storagePath) {
-      await supabase
-        .from('circulares')
-        .update({
-          attachment_storage_path: storagePath,
-          attachment_file_name: params.attachment.fileName,
-          attachment_content_type: params.attachment.contentType
-        })
-        .eq('id', circular.id);
-      circular = {
-        ...circular,
-        attachmentStoragePath: storagePath,
-        attachmentFileName: params.attachment.fileName,
-        attachmentContentType: params.attachment.contentType
-      };
-    }
   }
 
   circularesStore.unshift(circular);

@@ -19,8 +19,6 @@ import { ProcessItem } from '@/src/types';
 import { useCrmSession } from './CrmSessionContext';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 
-const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
-
 /**
  * Ante un error de infraestructura (ej. Vercel rechazando un request de más
  * de 4.5 MB) la respuesta no es JSON sino texto plano ("Request Entity Too
@@ -150,11 +148,13 @@ export const CrmCircularesManager: React.FC = () => {
       } else {
         let res: Response;
 
-        if (attachment && attachment.size > DIRECT_UPLOAD_THRESHOLD_BYTES) {
-          // Adjunto grande: se sube directo a Supabase Storage desde el
-          // navegador (bypass del límite de 4.5 MB de Vercel) y luego se le
-          // pide al servidor que solo registre la referencia.
-          setSaveMsg('⏳ Subiendo adjunto grande directo a almacenamiento...');
+        if (attachment) {
+          // Todo adjunto se sube directo a Supabase Storage desde el
+          // navegador (bypass total del límite de tamaño de request de
+          // Vercel) y luego se le pide al servidor que solo registre la
+          // referencia — sin importar qué tan chico sea el archivo, así no
+          // depende de adivinar el límite exacto de la plataforma.
+          setSaveMsg('⏳ Subiendo adjunto a almacenamiento...');
           const urlRes = await fetch('/api/crm/circulares/upload-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -167,7 +167,7 @@ export const CrmCircularesManager: React.FC = () => {
 
           const supabase = getSupabaseBrowserClient();
           if (!supabase) {
-            throw new Error('La carga de adjuntos grandes no está disponible: falta configuración del servidor (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY).');
+            throw new Error('La carga de adjuntos no está disponible: falta configuración del servidor (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY).');
           }
           const { error: uploadError } = await supabase.storage
             .from('circular-attachments')
@@ -191,15 +191,18 @@ export const CrmCircularesManager: React.FC = () => {
             })
           });
         } else {
-          const formData = new FormData();
-          formData.append('title', title);
-          formData.append('bodyText', bodyText);
-          formData.append('processSlugs', JSON.stringify(applyToAll ? [] : selectedSlugs));
-          formData.append('displayOrder', String(displayOrder));
-          if (embedUrl.trim()) formData.append('embedUrl', embedUrl.trim());
-          if (attachment) formData.append('attachment', attachment);
-
-          res = await fetch('/api/crm/circulares', { method: 'POST', body: formData });
+          // Sin adjunto: no hay riesgo de tamaño de request, JSON simple.
+          res = await fetch('/api/crm/circulares', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title,
+              bodyText,
+              processSlugs: applyToAll ? [] : selectedSlugs,
+              displayOrder,
+              embedUrl: embedUrl.trim() || undefined
+            })
+          });
         }
 
         const data = await parseJsonResponse(res);
