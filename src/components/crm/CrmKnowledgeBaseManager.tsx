@@ -15,6 +15,21 @@ import {
   Sparkles
 } from 'lucide-react';
 import { ProcessPicker } from './ProcessPicker';
+import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
+
+/**
+ * Ante un error de infraestructura (ej. Vercel rechazando un request de más
+ * de 4.5 MB) la respuesta no es JSON sino texto plano, y un res.json()
+ * directo revienta con un error de parseo confuso. Se valida el
+ * content-type antes de parsear para mostrar siempre un mensaje entendible.
+ */
+async function parseJsonResponse(res: Response): Promise<any> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return { error: `Respuesta inesperada del servidor (${res.status}).` };
+  }
+  return res.json();
+}
 
 interface KnowledgeDocument {
   id: string;
@@ -79,14 +94,44 @@ export const CrmKnowledgeBaseManager: React.FC = () => {
     setUploading(true);
     setUploadError(null);
     try {
-      const formData = new FormData();
-      formData.append('processSlug', processSlug);
-      formData.append('title', uploadTitle);
-      formData.append('file', file);
+      // El PDF se sube siempre directo a Supabase Storage desde el
+      // navegador (bypass total del límite de tamaño de request de Vercel)
+      // y luego se le pide al servidor que lo convierta — sin importar qué
+      // tan grande sea el manual/instructivo.
+      const urlRes = await fetch('/api/crm/knowledge-base/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processSlug })
+      });
+      const urlData = await parseJsonResponse(urlRes);
+      if (!urlRes.ok || !urlData.success) {
+        throw new Error(urlData.error || 'No se pudo iniciar la carga del PDF.');
+      }
 
-      const res = await fetch('/api/crm/knowledge-base', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        throw new Error('La carga de PDF no está disponible: falta configuración del servidor (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY).');
+      }
+      const { error: uploadErr } = await supabase.storage
+        .from('knowledge-base-source')
+        .uploadToSignedUrl(urlData.storagePath, urlData.token, file, { contentType: 'application/pdf' });
+      if (uploadErr) {
+        throw new Error(uploadErr.message);
+      }
+
+      const res = await fetch('/api/crm/knowledge-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          processSlug,
+          title: uploadTitle,
+          fileName: file.name,
+          fileSize: file.size,
+          storagePath: urlData.storagePath
+        })
+      });
+      const data = await parseJsonResponse(res);
+      if (res.ok && data.success) {
         setUploadTitle('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         setShowUploadForm(false);
@@ -96,9 +141,9 @@ export const CrmKnowledgeBaseManager: React.FC = () => {
       } else {
         setUploadError(data.error || 'No se pudo procesar el PDF.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error subiendo documento:', err);
-      setUploadError('Error de conexión. Si el PDF es muy grande, la conversión pudo exceder el tiempo máximo permitido.');
+      setUploadError(err?.message || 'Error de conexión. Si el PDF es muy grande, la conversión pudo exceder el tiempo máximo permitido.');
     } finally {
       setUploading(false);
     }

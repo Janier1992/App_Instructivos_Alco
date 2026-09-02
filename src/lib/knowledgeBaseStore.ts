@@ -41,33 +41,35 @@ function mapRow(row: any): KnowledgeDocument {
 }
 
 /**
- * Sube el PDF, lo convierte a Markdown (texto + visión en páginas con poco
+ * Convierte el PDF ya subido a Markdown (texto + visión en páginas con poco
  * texto) y lo guarda como borrador — todavía no lo usa el Agente de IA.
  * Calidad debe revisarlo y publicarlo explícitamente (ver
  * publishKnowledgeDocument).
+ *
+ * El PDF llega siempre ya subido a Storage (ver
+ * /api/crm/knowledge-base/upload-url) — el navegador lo sube ahí directo
+ * con una signed upload URL, sin importar su tamaño, para esquivar el
+ * límite de tamaño de request de las funciones serverless de Vercel.
  */
 export async function createDraftKnowledgeDocument(params: {
   processSlug: string;
   title: string;
   fileName: string;
-  fileBuffer: Buffer;
+  fileSize: number;
+  storagePath: string;
   createdBy?: string;
 }): Promise<{ success: boolean; document?: KnowledgeDocument; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
 
-  const storagePath = `${params.processSlug}/${Date.now()}-${params.fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-
   try {
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, params.fileBuffer, {
-      contentType: 'application/pdf',
-      upsert: false
-    });
-    if (uploadError) {
-      return { success: false, error: `No se pudo guardar el PDF original: ${uploadError.message}` };
+    const { data: downloaded, error: downloadError } = await supabase.storage.from(BUCKET).download(params.storagePath);
+    if (downloadError || !downloaded) {
+      return { success: false, error: 'No se pudo leer el PDF cargado desde Storage.' };
     }
+    const fileBuffer = Buffer.from(await downloaded.arrayBuffer());
 
-    const extraction = await extractMarkdownFromPdf(params.fileBuffer);
+    const extraction = await extractMarkdownFromPdf(fileBuffer);
 
     const { data, error } = await supabase
       .from('knowledge_documents')
@@ -75,8 +77,8 @@ export async function createDraftKnowledgeDocument(params: {
         process_slug: params.processSlug,
         title: params.title.trim(),
         file_name: params.fileName,
-        file_size: params.fileBuffer.byteLength,
-        storage_path: storagePath,
+        file_size: params.fileSize,
+        storage_path: params.storagePath,
         markdown_content: extraction.markdown,
         status: 'draft',
         page_count: extraction.pageCount,
@@ -87,7 +89,7 @@ export async function createDraftKnowledgeDocument(params: {
       .single();
 
     if (error || !data) {
-      await supabase.storage.from(BUCKET).remove([storagePath]);
+      await supabase.storage.from(BUCKET).remove([params.storagePath]);
       return { success: false, error: error?.message || 'No se pudo guardar el documento.' };
     }
 

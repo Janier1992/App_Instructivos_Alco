@@ -25,27 +25,26 @@ export async function POST(request: NextRequest) {
   if ('error' in auth) return auth.error;
 
   try {
-    const formData = await request.formData();
-    const processSlug = formData.get('processSlug') as string | null;
-    const title = formData.get('title') as string | null;
-    const file = formData.get('file');
+    // El PDF ya se subió directo a Supabase Storage desde el navegador con
+    // una signed upload URL (ver /api/crm/knowledge-base/upload-url) — esto
+    // esquiva por completo el límite de tamaño por request de Vercel. Aquí
+    // solo se recibe JSON con la referencia al archivo.
+    const body = await request.json();
+    const { processSlug, title, fileName, fileSize, storagePath } = body;
 
     if (!processSlug || !title?.trim()) {
       return NextResponse.json({ error: 'Se requiere processSlug y título.' }, { status: 400 });
     }
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'Se requiere un archivo PDF.' }, { status: 400 });
-    }
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Solo se aceptan archivos PDF.' }, { status: 400 });
+    if (!fileName || !storagePath || !fileSize) {
+      return NextResponse.json({ error: 'Faltan datos del archivo cargado.' }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
     const result = await createDraftKnowledgeDocument({
       processSlug,
       title,
-      fileName: file.name,
-      fileBuffer: Buffer.from(arrayBuffer),
+      fileName,
+      fileSize,
+      storagePath,
       createdBy: auth.session.sub
     });
 
