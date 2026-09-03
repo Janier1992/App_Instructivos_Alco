@@ -58,6 +58,7 @@ export async function createDraftKnowledgeDocument(params: {
   fileSize: number;
   storagePath: string;
   createdBy?: string;
+  forceVision?: boolean;
 }): Promise<{ success: boolean; document?: KnowledgeDocument; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
@@ -69,7 +70,7 @@ export async function createDraftKnowledgeDocument(params: {
     }
     const fileBuffer = Buffer.from(await downloaded.arrayBuffer());
 
-    const extraction = await extractMarkdownFromPdf(fileBuffer);
+    const extraction = await extractMarkdownFromPdf(fileBuffer, params.forceVision || false);
 
     const { data, error } = await supabase
       .from('knowledge_documents')

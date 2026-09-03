@@ -81,7 +81,7 @@ async function transcribeInBatches(pageNumbers: number[], render: (pageNum: numb
   return results;
 }
 
-export async function extractMarkdownFromPdf(fileBuffer: Buffer): Promise<KnowledgeExtractionResult> {
+export async function extractMarkdownFromPdf(fileBuffer: Buffer, forceVisionAllPages = false): Promise<KnowledgeExtractionResult> {
   const { CanvasFactory } = await import('pdf-parse/worker');
   const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: fileBuffer, CanvasFactory });
@@ -90,12 +90,17 @@ export async function extractMarkdownFromPdf(fileBuffer: Buffer): Promise<Knowle
     const textResult = await parser.getText();
     const pageCount = textResult.total || textResult.pages.length;
 
-    const lowTextPages = textResult.pages
-      .filter(p => p.text.trim().length < LOW_TEXT_THRESHOLD)
-      .map(p => p.num);
+    // El umbral de caracteres detecta páginas casi en blanco (diagramas
+    // puros), pero no una tabla densa cuyo texto extraído queda en el orden
+    // equivocado (columnas mezcladas) — ahí la cantidad de texto es alta
+    // pero el contenido queda inservible. Calidad puede forzar visión en
+    // todas las páginas para ese caso, sin depender del umbral automático.
+    const candidatePages = forceVisionAllPages
+      ? textResult.pages.map(p => p.num)
+      : textResult.pages.filter(p => p.text.trim().length < LOW_TEXT_THRESHOLD).map(p => p.num);
 
-    const pagesToProcess = lowTextPages.slice(0, MAX_VISION_PAGES);
-    const visionPagesSkipped = Math.max(0, lowTextPages.length - pagesToProcess.length);
+    const pagesToProcess = candidatePages.slice(0, MAX_VISION_PAGES);
+    const visionPagesSkipped = Math.max(0, candidatePages.length - pagesToProcess.length);
 
     const visionResults = pagesToProcess.length > 0
       ? await transcribeInBatches(pagesToProcess, async pageNum => {

@@ -60,6 +60,7 @@ export const CrmKnowledgeBaseManager: React.FC = () => {
 
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [forceVision, setForceVision] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,12 +128,14 @@ export const CrmKnowledgeBaseManager: React.FC = () => {
           title: uploadTitle,
           fileName: file.name,
           fileSize: file.size,
-          storagePath: urlData.storagePath
+          storagePath: urlData.storagePath,
+          forceVision
         })
       });
       const data = await parseJsonResponse(res);
       if (res.ok && data.success) {
         setUploadTitle('');
+        setForceVision(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         setShowUploadForm(false);
         await load();
@@ -252,6 +255,17 @@ export const CrmKnowledgeBaseManager: React.FC = () => {
               accept="application/pdf"
               className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[#003366] file:text-white file:text-xs file:font-bold"
             />
+            <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={forceVision}
+                onChange={e => setForceVision(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Forzar visión de Gemini en todas las páginas — actívalo si el PDF tiene tablas complejas (ej. hojas de defectos). La extracción normal a veces mezcla el orden de las columnas de una tabla aunque tenga texto suficiente; la visión sí respeta la estructura visual.
+              </span>
+            </label>
             {uploading && (
               <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
                 <RefreshCw className="w-4 h-4 animate-spin shrink-0" />

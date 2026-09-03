@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // esquiva por completo el límite de tamaño por request de Vercel. Aquí
     // solo se recibe JSON con la referencia al archivo.
     const body = await request.json();
-    const { processSlug, title, fileName, fileSize, storagePath } = body;
+    const { processSlug, title, fileName, fileSize, storagePath, forceVision } = body;
 
     if (!processSlug || !title?.trim()) {
       return NextResponse.json({ error: 'Se requiere processSlug y título.' }, { status: 400 });
@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
       fileName,
       fileSize,
       storagePath,
-      createdBy: auth.session.sub
+      createdBy: auth.session.sub,
+      forceVision: forceVision === true
     });
 
     if (!result.success) {
