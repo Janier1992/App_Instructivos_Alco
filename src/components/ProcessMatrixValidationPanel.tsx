@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Ruler, Camera, FileImage, RefreshCw, CheckCircle2, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Ruler, Camera, FileImage, ImagePlus, RefreshCw, CheckCircle2, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 
 async function parseJsonResponse(res: Response): Promise<any> {
@@ -11,6 +11,62 @@ async function parseJsonResponse(res: Response): Promise<any> {
   }
   return res.json();
 }
+
+/**
+ * Dos botones en vez de un solo <input type="file">: en móviles, un input
+ * con capture="environment" a veces abre la cámara directo y salta la
+ * opción de elegir de la galería (varía por navegador/Android vs iOS) —
+ * separarlos garantiza ambas rutas sin depender de ese comportamiento.
+ */
+const PhotoPicker: React.FC<{
+  label: string;
+  icon: React.ReactNode;
+  file: File | null;
+  onSelect: (file: File | null) => void;
+}> = ({ label, icon, file, onSelect }) => {
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div>
+      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+        {icon} {label}
+      </label>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={e => onSelect(e.target.files?.[0] || null)}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => onSelect(e.target.files?.[0] || null)}
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#003366] hover:bg-blue-900 rounded-lg transition"
+        >
+          <Camera className="w-3.5 h-3.5" /> Tomar foto
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#003366] bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+        >
+          <ImagePlus className="w-3.5 h-3.5" /> Elegir archivo
+        </button>
+        {file && <span className="text-[11px] text-emerald-700 font-semibold truncate max-w-[160px]">{file.name}</span>}
+      </div>
+    </div>
+  );
+};
 
 interface AnalysisCota {
   label: string;
@@ -57,8 +113,10 @@ export const ProcessMatrixValidationPanel: React.FC<{ processSlug: string }> = (
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const sheetInputRef = useRef<HTMLInputElement>(null);
-  const profileInputRef = useRef<HTMLInputElement>(null);
+  // Cambiar esta clave fuerza a React a remontar los PhotoPicker en
+  // "Analizar otra ficha" — así el input nativo también olvida el
+  // archivo anterior y se puede volver a elegir el mismo archivo si hace falta.
+  const [resetCount, setResetCount] = useState(0);
 
   const uploadTemp = async (file: File): Promise<{ storagePath: string; contentType: string }> => {
     const urlRes = await fetch('/api/matrix-analysis/upload-url', {
@@ -113,8 +171,7 @@ export const ProcessMatrixValidationPanel: React.FC<{ processSlug: string }> = (
     setProfileFile(null);
     setResult(null);
     setError(null);
-    if (sheetInputRef.current) sheetInputRef.current.value = '';
-    if (profileInputRef.current) profileInputRef.current.value = '';
+    setResetCount(n => n + 1);
   };
 
   return (
@@ -204,32 +261,21 @@ export const ProcessMatrixValidationPanel: React.FC<{ processSlug: string }> = (
         </div>
       ) : (
         <div className="space-y-3">
-          <div>
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
-              <FileImage className="w-3.5 h-3.5" /> Foto de la ficha de matriz (plano con cotas)
-            </label>
-            <input
-              ref={sheetInputRef}
-              type="file"
-              accept="image/*"
-              onChange={e => setSheetFile(e.target.files?.[0] || null)}
-              className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[#003366] file:text-white file:text-xs file:font-bold"
-            />
-          </div>
+          <PhotoPicker
+            key={`sheet-${resetCount}`}
+            label="Foto de la ficha de matriz (plano con cotas)"
+            icon={<FileImage className="w-3.5 h-3.5" />}
+            file={sheetFile}
+            onSelect={setSheetFile}
+          />
 
-          <div>
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
-              <Camera className="w-3.5 h-3.5" /> Foto del corte transversal del perfil
-            </label>
-            <input
-              ref={profileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={e => setProfileFile(e.target.files?.[0] || null)}
-              className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[#003366] file:text-white file:text-xs file:font-bold"
-            />
-          </div>
+          <PhotoPicker
+            key={`profile-${resetCount}`}
+            label="Foto del corte transversal del perfil"
+            icon={<Camera className="w-3.5 h-3.5" />}
+            file={profileFile}
+            onSelect={setProfileFile}
+          />
 
           {error && (
             <p className="flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
