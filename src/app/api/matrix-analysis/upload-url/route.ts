@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireSession } from '@/src/lib/adminAuth';
 import { getSupabaseClient } from '@/src/lib/supabaseService';
 
-const BUCKET = 'matrix-sheets-source';
+const BUCKET = 'matrix-analysis-temp';
 
 /**
- * Signed upload URL para que el navegador suba la foto de la ficha de
- * matriz directo a Storage, sin pasar por esta función serverless — mismo
- * patrón usado en Documentos/Videos/Base de Conocimiento para esquivar el
- * límite de tamaño por request de Vercel.
+ * Signed upload URL pública (sin cuenta de usuario) para subir la foto de
+ * la ficha o del perfil directo a Storage — el archivo es solo un
+ * intermediario temporal para que el servidor pueda leerlo y analizarlo;
+ * /api/matrix-analysis lo borra apenas termina, no queda ningún registro.
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireSession(request);
-  if ('error' in auth) return auth.error;
-
   const supabase = getSupabaseClient();
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase no está configurado en el servidor.' }, { status: 500 });
@@ -25,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Se requiere el nombre del archivo.' }, { status: 400 });
     }
 
-    const id = `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '.jpg';
     const storagePath = `${id}${extension}`;
 
