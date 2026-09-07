@@ -27,7 +27,8 @@ export const PROCESSES: ProcessItem[] = [
       'Ángulos e inclinación de inglete: 45.0° ± 0.2° y 90.0° ± 0.2°',
       'Espesor de pared según catálogo y rectitud (flecha máx 1.0 mm/m)',
       'Desbarbado de extremos y lubricación constante en corte'
-    ]
+    ],
+    showMatrixValidationTab: true
   },
   {
     id: 'proc-pintura',

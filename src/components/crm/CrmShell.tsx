@@ -17,7 +17,8 @@ import {
   Lightbulb,
   ClipboardList,
   BadgeCheck,
-  BookOpen
+  BookOpen,
+  Ruler
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/base-conocimiento', label: 'Base de Conocimiento', icon: BookOpen },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/formularios', label: 'Formularios de Inspección', icon: ClipboardList },
+  { href: '/crm/fichas-matriz', label: 'Fichas de Matriz', icon: Ruler },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
   { href: '/crm/autocertificaciones', label: 'Verificaciones Supervisor', icon: BadgeCheck },
   { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },

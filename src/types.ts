@@ -33,6 +33,8 @@ export interface ProcessItem {
   showTasksTab?: boolean;
   /** true muestra la caja de Autocertificación por unidad en Principal. Por defecto false. */
   showSelfCertificationBox?: boolean;
+  /** true muestra la pestaña "Validación de Ficha de Matriz" (materia prima vs. plano de extrusión). Por defecto false. */
+  showMatrixValidationTab?: boolean;
 }
 
 export interface QualityControl {
