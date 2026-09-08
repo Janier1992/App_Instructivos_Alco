@@ -95,17 +95,28 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const currentIsVideo = isVideoContentType(currentItem?.attachmentContentType ?? null);
 
   useEffect(() => {
-    // El avance automático sigue su curso normal aunque la publicación
-    // destacada sea un video — las demás publicaciones deben seguir
-    // rotando, no quedar bloqueadas esperando a que termine el video.
-    if (!items || items.length < 2 || isPaused) return;
+    // Mientras la destacada es un video, el avance por tiempo se detiene —
+    // el video controla cuándo se pasa a la siguiente publicación (ver
+    // handleVideoEnded), así se reproduce completo en vez de cortarlo a la
+    // mitad. Para el resto de publicaciones (imagen, texto, embebido) el
+    // avance automático de siempre sigue funcionando igual.
+    if (!items || items.length < 2 || isPaused || currentIsVideo) return;
     timerRef.current = setInterval(() => {
       setActiveIndex(prev => (prev + 1) % items.length);
     }, AUTO_ADVANCE_MS);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [items, isPaused]);
+  }, [items, isPaused, currentIsVideo]);
+
+  // Al terminar el video, avanza a la siguiente publicación — así el
+  // carrusel nunca queda bloqueado esperando, y la próxima vez que vuelva
+  // a esta misma publicación el video se reproduce de nuevo desde el inicio
+  // (key={current.id} fuerza el remontaje, que dispara el efecto de arriba).
+  const handleVideoEnded = () => {
+    if (!items || items.length < 2) return;
+    setActiveIndex(prev => (prev + 1) % items.length);
+  };
 
   useEffect(() => {
     // Intenta reproducir con sonido primero — funciona en la gran mayoría
@@ -229,7 +240,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             key={current.id}
             ref={heroVideoRef}
             src={`/api/circulares/${current.id}/attachment`}
-            loop
+            onEnded={handleVideoEnded}
             playsInline
             controls
             className="w-full h-80 sm:h-[32rem] object-contain bg-black"
