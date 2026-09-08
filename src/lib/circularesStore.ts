@@ -126,8 +126,27 @@ export async function getCircularAttachmentBuffer(circular: Circular): Promise<B
  * de memoria/duración) y sí soporta "Range" requests para adelantar o
  * que el navegador pueda reproducirlo (algunos, como iOS Safari, lo exigen).
  */
+const PLAYBACK_URL_TTL_SECONDS = 6 * 60 * 60;
+// Margen de seguridad: se deja de reutilizar la URL un poco antes de que
+// venza de verdad, para no arriesgarse a servir una que expire a mitad de
+// una descarga en curso.
+const PLAYBACK_URL_REUSE_MARGIN_MS = 10 * 60 * 1000;
+
+// Cada llamada a createSignedUrl genera un token distinto, así que una URL
+// nueva en cada request le impide al navegador cachear el video — vuelve a
+// descargar el archivo completo cada vez que el carrusel de Principal
+// vuelve a mostrar el mismo video. Se reutiliza la misma URL firmada
+// mientras no esté por vencer, para que el navegador sirva el video ya
+// descargado desde su caché en los ciclos siguientes.
+const playbackUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+
 export async function getCircularAttachmentPlaybackUrl(circular: Circular): Promise<string | null> {
   if (!circular.attachmentStoragePath) return null;
+
+  const cached = playbackUrlCache.get(circular.attachmentStoragePath);
+  if (cached && cached.expiresAtMs > Date.now() + PLAYBACK_URL_REUSE_MARGIN_MS) {
+    return cached.url;
+  }
 
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -135,9 +154,14 @@ export async function getCircularAttachmentPlaybackUrl(circular: Circular): Prom
   try {
     const { data, error } = await supabase.storage
       .from(CIRCULAR_ATTACHMENTS_BUCKET)
-      .createSignedUrl(circular.attachmentStoragePath, 6 * 60 * 60);
+      .createSignedUrl(circular.attachmentStoragePath, PLAYBACK_URL_TTL_SECONDS);
 
     if (error || !data) return null;
+
+    playbackUrlCache.set(circular.attachmentStoragePath, {
+      url: data.signedUrl,
+      expiresAtMs: Date.now() + PLAYBACK_URL_TTL_SECONDS * 1000
+    });
     return data.signedUrl;
   } catch {
     return null;
