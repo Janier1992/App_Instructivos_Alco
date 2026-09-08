@@ -25,6 +25,7 @@ interface PrincipalItem {
   attachmentFileName: string | null;
   attachmentContentType: string | null;
   embedUrl: string | null;
+  displayOrder: number;
   publishedAt: string | null;
   createdAt: string;
 }
@@ -43,8 +44,13 @@ function formatDate(item: PrincipalItem): string {
   });
 }
 
-function sortByDate(items: PrincipalItem[], dir: SortDirection): PrincipalItem[] {
+// El "Orden de visualización" que Calidad asigna en el CRM manda siempre
+// primero (el número más bajo aparece primero, tal como se le promete en
+// esa pantalla) — la fecha solo desempata entre publicaciones que
+// comparten el mismo número de orden.
+function sortForCarousel(items: PrincipalItem[], dir: SortDirection): PrincipalItem[] {
   return [...items].sort((a, b) => {
+    if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder;
     const diff = new Date(a.publishedAt || a.createdAt).getTime() - new Date(b.publishedAt || b.createdAt).getTime();
     return dir === 'desc' ? -diff : diff;
   });
@@ -91,7 +97,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     load();
   }, [load]);
 
-  const currentItem = items && items.length > 0 ? sortByDate(items, sortDir)[activeIndex] : null;
+  const currentItem = items && items.length > 0 ? sortForCarousel(items, sortDir)[activeIndex] : null;
   const currentIsVideo = isVideoContentType(currentItem?.attachmentContentType ?? null);
 
   useEffect(() => {
@@ -169,7 +175,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     );
   }
 
-  const sortedItems = sortByDate(items, sortDir);
+  const sortedItems = sortForCarousel(items, sortDir);
 
   const toggleSortDir = () => {
     setSortDir(prev => (prev === 'desc' ? 'asc' : 'desc'));
