@@ -320,14 +320,14 @@ export const CrmCircularesManager: React.FC = () => {
                 </p>
               ) : (
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Imagen o adjunto (opcional):</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Imagen, video o adjunto (opcional):</label>
                   <input
                     type="file"
-                    accept=".pdf,application/pdf,image/*"
+                    accept=".pdf,application/pdf,image/*,video/*"
                     onChange={e => setAttachment(e.target.files?.[0] || null)}
                     className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-800 file:text-xs file:font-bold"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Recomendado: una imagen — se muestra como imagen principal de la publicación.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Una imagen o video se muestra como contenido principal de la publicación — el video se reproduce automáticamente con sonido al llegar a esta publicación, y el carrusel sigue rotando entre publicaciones aunque el video siga sonando.</p>
                 </div>
               )}
 

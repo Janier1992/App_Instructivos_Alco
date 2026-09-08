@@ -119,6 +119,31 @@ export async function getCircularAttachmentBuffer(circular: Circular): Promise<B
   }
 }
 
+/**
+ * URL firmada de corta duración para reproducir un adjunto de video
+ * directo desde Storage — igual que en el módulo de Videos, evita
+ * descargar el archivo completo dentro de la función serverless (límite
+ * de memoria/duración) y sí soporta "Range" requests para adelantar o
+ * que el navegador pueda reproducirlo (algunos, como iOS Safari, lo exigen).
+ */
+export async function getCircularAttachmentPlaybackUrl(circular: Circular): Promise<string | null> {
+  if (!circular.attachmentStoragePath) return null;
+
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(CIRCULAR_ATTACHMENTS_BUCKET)
+      .createSignedUrl(circular.attachmentStoragePath, 6 * 60 * 60);
+
+    if (error || !data) return null;
+    return data.signedUrl;
+  } catch {
+    return null;
+  }
+}
+
 export async function createCircular(params: {
   title: string;
   bodyText?: string;

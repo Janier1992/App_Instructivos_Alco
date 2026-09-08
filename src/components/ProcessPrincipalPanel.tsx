@@ -10,7 +10,8 @@ import {
   AlertCircle,
   ExternalLink,
   LayoutDashboard,
-  FileText
+  FileText,
+  PlayCircle
 } from 'lucide-react';
 import { NotifyProcessButton } from './NotifyProcessButton';
 import { PublicationComments } from './PublicationComments';
@@ -42,6 +43,17 @@ function formatDate(item: PrincipalItem): string {
   });
 }
 
+function sortByDate(items: PrincipalItem[], dir: SortDirection): PrincipalItem[] {
+  return [...items].sort((a, b) => {
+    const diff = new Date(a.publishedAt || a.createdAt).getTime() - new Date(b.publishedAt || b.createdAt).getTime();
+    return dir === 'desc' ? -diff : diff;
+  });
+}
+
+function isVideoContentType(contentType: string | null): boolean {
+  return (contentType || '').startsWith('video/');
+}
+
 /**
  * Contenido informativo/editorial de la pestaña "Principal" — texto, imagen,
  * adjunto o enlace embebible, publicado desde /crm/principal. Con una sola
@@ -59,6 +71,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const [isPaused, setIsPaused] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ src: string; alt: string } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   const load = useCallback(async () => {
     setHasError(false);
@@ -78,7 +91,13 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     load();
   }, [load]);
 
+  const currentItem = items && items.length > 0 ? sortByDate(items, sortDir)[activeIndex] : null;
+  const currentIsVideo = isVideoContentType(currentItem?.attachmentContentType ?? null);
+
   useEffect(() => {
+    // El avance automático sigue su curso normal aunque la publicación
+    // destacada sea un video — las demás publicaciones deben seguir
+    // rotando, no quedar bloqueadas esperando a que termine el video.
     if (!items || items.length < 2 || isPaused) return;
     timerRef.current = setInterval(() => {
       setActiveIndex(prev => (prev + 1) % items.length);
@@ -87,6 +106,22 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [items, isPaused]);
+
+  useEffect(() => {
+    // Intenta reproducir con sonido primero — funciona en la gran mayoría
+    // de los casos reales porque el colaborador ya interactuó con la app
+    // (clics de navegación) antes de llegar a esta publicación, y eso
+    // satisface la política de autoplay-con-sonido del navegador. Si de
+    // todas formas el navegador la bloquea (ej. primera carga sin ningún
+    // clic previo), cae a silenciado en vez de no reproducir nada.
+    const el = heroVideoRef.current;
+    if (!currentIsVideo || !el) return;
+    el.muted = false;
+    el.play().catch(() => {
+      el.muted = true;
+      el.play().catch(() => {});
+    });
+  }, [currentItem?.id, currentIsVideo]);
 
   if (hasError) {
     return (
@@ -123,10 +158,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
     );
   }
 
-  const sortedItems = [...items].sort((a, b) => {
-    const diff = new Date(a.publishedAt || a.createdAt).getTime() - new Date(b.publishedAt || b.createdAt).getTime();
-    return sortDir === 'desc' ? -diff : diff;
-  });
+  const sortedItems = sortByDate(items, sortDir);
 
   const toggleSortDir = () => {
     setSortDir(prev => (prev === 'desc' ? 'asc' : 'desc'));
@@ -136,8 +168,10 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const current = sortedItems[activeIndex];
   const hasMultiple = sortedItems.length > 1;
   const isImageAttachment = (current.attachmentContentType || '').startsWith('image/');
+  const isVideoAttachment = isVideoContentType(current.attachmentContentType);
   const showImage = current.attachmentFileName && isImageAttachment && !brokenImageIds.has(current.id);
-  const showAttachmentLink = current.attachmentFileName && !isImageAttachment;
+  const showVideo = current.attachmentFileName && isVideoAttachment;
+  const showAttachmentLink = current.attachmentFileName && !isImageAttachment && !isVideoAttachment;
   const showEmbed = !!current.embedUrl;
 
   const goTo = (idx: number) => setActiveIndex(((idx % sortedItems.length) + sortedItems.length) % sortedItems.length);
@@ -183,6 +217,22 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
             onClick={() => setZoomedImage({ src: `/api/circulares/${current.id}/attachment`, alt: current.title })}
             className="w-full h-80 sm:h-[32rem] object-contain bg-slate-100 transition-opacity duration-300 cursor-zoom-in"
             onError={() => setBrokenImageIds(prev => new Set(prev).add(current.id))}
+          />
+        ) : showVideo ? (
+          // key={current.id} fuerza a React a remontar el <video> al cambiar
+          // de publicación. El play() con sonido (con su fallback a
+          // silenciado si el navegador lo bloquea) lo dispara el efecto de
+          // arriba, no un atributo `autoPlay`/`muted` — React no aplica
+          // `muted` de forma confiable al montar (gotcha conocido), y
+          // controlar todo desde el efecto evita esa inconsistencia.
+          <video
+            key={current.id}
+            ref={heroVideoRef}
+            src={`/api/circulares/${current.id}/attachment`}
+            loop
+            playsInline
+            controls
+            className="w-full h-80 sm:h-[32rem] object-contain bg-black"
           />
         ) : (
           <div className="w-full h-32 sm:h-40 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center">
@@ -286,6 +336,7 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {others.map(({ item, idx }) => {
             const itemIsImage = (item.attachmentContentType || '').startsWith('image/');
+            const itemIsVideo = isVideoContentType(item.attachmentContentType);
             const itemShowImage = item.attachmentFileName && itemIsImage && !brokenImageIds.has(item.id);
             return (
               <button
@@ -303,6 +354,8 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
                       className="w-full h-full object-cover"
                       onError={() => setBrokenImageIds(prev => new Set(prev).add(item.id))}
                     />
+                  ) : itemIsVideo ? (
+                    <PlayCircle className="w-6 h-6 text-[#003366]/40" />
                   ) : item.attachmentFileName ? (
                     <FileText className="w-6 h-6 text-[#003366]/40" />
                   ) : (
