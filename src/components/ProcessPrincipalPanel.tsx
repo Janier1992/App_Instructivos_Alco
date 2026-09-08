@@ -190,8 +190,14 @@ export const ProcessPrincipalPanel: React.FC<ProcessPrincipalPanelProps> = ({ pr
   const HeroCard = (
     <div
       className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      // Solo mouse real activa la pausa por hover: un toque en pantalla
+      // dispara "pointerenter" pero no siempre le sigue un "pointerleave"
+      // (no hay puntero que "se aleje" en un dispositivo táctil) — filtrar
+      // por pointerType evita que un simple toque deje el carrusel
+      // pausado para siempre. onFocus/onBlur sí se liberan de forma
+      // confiable (incluso los controles nativos del video, verificado).
+      onPointerEnter={e => { if (e.pointerType === 'mouse') setIsPaused(true); }}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') setIsPaused(false); }}
       onFocus={() => setIsPaused(true)}
       onBlur={() => setIsPaused(false)}
     >
