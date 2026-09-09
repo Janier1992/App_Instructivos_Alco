@@ -204,7 +204,8 @@ export const PROCESSES: ProcessItem[] = [
     showAutonomyTab: false,
     showFormsTab: true,
     showTasksTab: true,
-    showFieldInspectionsTab: true
+    showFieldInspectionsTab: true,
+    showMetrologyDeliveryTab: true
   }
 ];
 

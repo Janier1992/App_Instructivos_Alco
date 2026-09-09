@@ -37,6 +37,7 @@ export interface ProcessItem {
   showMatrixValidationTab?: boolean;
   /** true muestra la pestaña pública "Inspecciones en Campo" (solo lectura — crear/editar/eliminar es desde el CRM). Por defecto false. */
   showFieldInspectionsTab?: boolean;
+  showMetrologyDeliveryTab?: boolean;
 }
 
 export interface QualityControl {

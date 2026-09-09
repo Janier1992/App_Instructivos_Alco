@@ -17,6 +17,8 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "jose": "^6.2.8",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "next": "^16.3.0",

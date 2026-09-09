@@ -24,7 +24,8 @@ import {
   ClipboardList,
   ClipboardCheck,
   LayoutGrid,
-  Ruler
+  Ruler,
+  Wrench
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
@@ -37,6 +38,7 @@ import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
 import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessMatrixValidationPanel } from './ProcessMatrixValidationPanel';
 import { ProcessFieldInspectionsPanel } from './ProcessFieldInspectionsPanel';
+import { MetrologyDeliveriesPanel } from './MetrologyDeliveriesPanel';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessDetailProps {
@@ -51,7 +53,7 @@ const SHOW_PROCESS_VIDEOS_SECTION = true;
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
-  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones'>('principal');
+  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones' | 'metrologia'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
@@ -137,6 +139,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const showSelfCertificationBox = process.showSelfCertificationBox === true;
   const showMatrixValidationTab = process.showMatrixValidationTab === true;
   const showFieldInspectionsTab = process.showFieldInspectionsTab === true;
+  const showMetrologyDeliveryTab = process.showMetrologyDeliveryTab === true;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
@@ -256,6 +259,21 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           >
             <ClipboardCheck className="w-4 h-4 text-[#003366] shrink-0" />
             <span>Inspecciones en Campo</span>
+          </button>
+        )}
+
+        {showMetrologyDeliveryTab && (
+          <button
+            onClick={() => setActiveTab('metrologia')}
+            id="tab-metrologia"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'metrologia'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Wrench className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Metrología Pro</span>
           </button>
         )}
 
@@ -380,6 +398,8 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {activeTab === 'matriz' && showMatrixValidationTab && <ProcessMatrixValidationPanel processSlug={slug} />}
 
       {activeTab === 'inspecciones' && showFieldInspectionsTab && <ProcessFieldInspectionsPanel processSlug={slug} />}
+
+      {activeTab === 'metrologia' && showMetrologyDeliveryTab && <MetrologyDeliveriesPanel processSlug={slug} />}
 
       {/* MODULO: TAREAS (tablero Kanban del equipo de Calidad) */}
       {activeTab === 'tareas' && showTasksTab && <ProcessTasksBoard processSlug={slug} />}

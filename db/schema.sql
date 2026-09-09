@@ -678,6 +678,27 @@ CREATE TABLE IF NOT EXISTS field_inspection_links (
 );
 ALTER TABLE field_inspection_links ENABLE ROW LEVEL SECURITY;
 
+-- Metrología Pro — Entrega de Equipos (ver db/migrate_add_metrology_deliveries.sql)
+CREATE TABLE IF NOT EXISTS metrology_deliveries (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL DEFAULT 'control-calidad',
+  fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+  area VARCHAR(100) NOT NULL,
+  sede VARCHAR(60) NOT NULL,
+  receptor_nombre VARCHAR(255) NOT NULL,
+  receptor_cedula VARCHAR(40) NOT NULL,
+  receptor_cargo VARCHAR(150),
+  items JSONB NOT NULL DEFAULT '[]',
+  firma_entrega TEXT,
+  firma_recibe TEXT,
+  created_by UUID,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_metrology_deliveries_process_slug ON metrology_deliveries(process_slug);
+CREATE INDEX IF NOT EXISTS idx_metrology_deliveries_created_at ON metrology_deliveries(created_at);
+ALTER TABLE metrology_deliveries ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,
