@@ -13,7 +13,6 @@ import {
   LogOut,
   Home,
   MessageSquare,
-  ThumbsUp,
   Lightbulb,
   ClipboardList,
   BadgeCheck,
@@ -39,7 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/formularios', label: 'Formularios de Inspección', icon: ClipboardList },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
   { href: '/crm/autocertificaciones', label: 'Verificaciones Supervisor', icon: BadgeCheck },
-  { href: '/crm/retroalimentacion', label: 'Retroalimentación IA', icon: ThumbsUp },
   { href: '/crm/mejoras', label: 'Buzón de Mejoras', icon: Lightbulb },
   { href: '/crm/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
   { href: '/crm/auditoria', label: 'Auditoría', icon: ShieldCheck, adminOnly: true }

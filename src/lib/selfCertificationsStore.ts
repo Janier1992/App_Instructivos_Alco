@@ -131,6 +131,65 @@ export async function getSelfCertifications(processSlug?: string, limit: number 
   }
 }
 
+/**
+ * Corrige un registro ya guardado (referencia, nombre, resultados por
+ * criterio o notas) — a diferencia de reviewSelfCertification, esto sí
+ * cambia el contenido original, para cuando Calidad necesita arreglar un
+ * error de digitación del Supervisor. Si se editan los resultados,
+ * allPassed se recalcula; competencyLevel y requiresQualityReview no se
+ * tocan aquí porque reflejan el contexto de autorización del momento en
+ * que se registró, no algo que deba cambiar al corregir un dato.
+ */
+export async function updateSelfCertification(
+  id: string,
+  updates: {
+    orderReference?: string;
+    collaboratorName?: string;
+    results?: SelfCertificationResult[];
+    notes?: string;
+  }
+): Promise<{ success: boolean; certification?: SelfCertification; error?: string }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+
+  const patch: Record<string, unknown> = {};
+  if (updates.orderReference !== undefined) patch.order_reference = updates.orderReference.trim();
+  if (updates.collaboratorName !== undefined) patch.collaborator_name = updates.collaboratorName.trim();
+  if (updates.notes !== undefined) patch.notes = updates.notes.trim() || null;
+  if (updates.results !== undefined) {
+    patch.results = updates.results;
+    patch.all_passed = updates.results.every(r => r.passed);
+  }
+
+  try {
+    const { data, error } = await supabase.from('self_certifications').update(patch).eq('id', id).select().single();
+    if (error || !data) {
+      return { success: false, error: error?.message || 'No se pudo guardar la corrección.' };
+    }
+    return { success: true, certification: mapRow(data) };
+  } catch (err: any) {
+    console.warn('⚠️ Error corrigiendo autocertificación:', err?.message || err);
+    return { success: false, error: err?.message || 'Error desconocido.' };
+  }
+}
+
+export async function deleteSelfCertification(id: string): Promise<{ success: boolean }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false };
+
+  try {
+    const { error } = await supabase.from('self_certifications').delete().eq('id', id);
+    if (error) {
+      console.warn('⚠️ No se pudo eliminar la autocertificación:', error.message);
+      return { success: false };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('⚠️ Error eliminando autocertificación:', err?.message || err);
+    return { success: false };
+  }
+}
+
 /** Anotación de auditoría de Calidad — nunca modifica los resultados originales que el colaborador certificó. */
 export async function reviewSelfCertification(
   id: string,
