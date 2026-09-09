@@ -8,35 +8,32 @@ import { FieldInspectionTable } from './FieldInspectionTable';
 import { FieldInspectionBulkUpload } from './FieldInspectionBulkUpload';
 import { CrmFieldInspectionLinksManager } from './CrmFieldInspectionLinksManager';
 import { CrmNonConformitiesManager } from './CrmNonConformitiesManager';
+import { loadFieldInspectionQueue, saveFieldInspectionQueue, OfflineQueueItem as BaseOfflineQueueItem } from '@/src/lib/fieldInspectionOfflineQueue';
 
 const OFFLINE_QUEUE_KEY = 'alco_field_inspection_offline_queue';
 
-interface OfflineQueueItem {
-  id: string;
+interface OfflineQueueItem extends BaseOfflineQueueItem {
   type: 'create' | 'update';
-  payload: FieldInspectionFormValues;
   editingId?: string;
 }
 
 function loadQueue(): OfflineQueueItem[] {
-  try {
-    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  return loadFieldInspectionQueue(OFFLINE_QUEUE_KEY) as OfflineQueueItem[];
 }
 
 function saveQueue(queue: OfflineQueueItem[]) {
-  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  saveFieldInspectionQueue(OFFLINE_QUEUE_KEY, queue);
 }
 
 type Tab = 'tabla' | 'enlaces' | 'nc';
 
 /**
  * Inspecciones en Campo — módulo de Control Calidad portado del proyecto
- * de referencia. Acá vive el CRUD completo (foto + IA + voz + medición 2D
- * + carga masiva + cola offline); la vista pública en /procesos/control-calidad
- * es de solo lectura (ver ProcessFieldInspectionsPanel).
+ * de referencia. El registro normal (foto + IA + voz + medición 2D) también
+ * está disponible desde el módulo público en /procesos/control-calidad
+ * (ver ProcessFieldInspectionsPanel); acá además viven la edición, el
+ * borrado, la carga masiva, los enlaces externos y las No Conformidades —
+ * operaciones que requieren entrar al Portal de Administración.
  */
 export const CrmFieldInspectionsManager: React.FC = () => {
   const [tab, setTab] = useState<Tab>('tabla');

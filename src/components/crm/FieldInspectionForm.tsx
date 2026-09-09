@@ -68,9 +68,11 @@ interface Props {
   isEditing: boolean;
   onCancel: () => void;
   onSubmit: (values: FieldInspectionFormValues) => Promise<void>;
+  /** Base de las rutas de API a usar (foto, IA). Por defecto las del CRM; el módulo público pasa `/api/field-inspections`. */
+  apiBase?: string;
 }
 
-export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl, isEditing, onCancel, onSubmit }) => {
+export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl, isEditing, onCancel, onSubmit, apiBase = '/api/crm/field-inspections' }) => {
   const [values, setValues] = useState<FieldInspectionFormValues>({ ...EMPTY_FORM, ...initial });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(initialPhotoUrl || null);
@@ -135,7 +137,7 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
     if (values.photoStoragePath) return { storagePath: values.photoStoragePath, contentType: 'image/jpeg' };
     if (!photoFile) return null;
 
-    const urlRes = await fetch('/api/crm/field-inspections/upload-url', {
+    const urlRes = await fetch(`${apiBase}/upload-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName: photoFile.name })
@@ -161,7 +163,7 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
       const uploaded = await ensurePhotoUploaded();
       if (!uploaded) throw new Error('Selecciona o toma una foto primero.');
 
-      const res = await fetch('/api/crm/field-inspections/analyze-defect', {
+      const res = await fetch(`${apiBase}/analyze-defect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(uploaded)
@@ -194,7 +196,7 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
       const uploaded = await ensurePhotoUploaded();
       if (!uploaded) throw new Error('Selecciona o toma una foto primero.');
 
-      const res = await fetch('/api/crm/field-inspections/count-units', {
+      const res = await fetch(`${apiBase}/count-units`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(uploaded)
