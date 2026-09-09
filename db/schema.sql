@@ -699,6 +699,31 @@ CREATE INDEX IF NOT EXISTS idx_metrology_deliveries_process_slug ON metrology_de
 CREATE INDEX IF NOT EXISTS idx_metrology_deliveries_created_at ON metrology_deliveries(created_at);
 ALTER TABLE metrology_deliveries ENABLE ROW LEVEL SECURITY;
 
+-- Metrología Pro — Reposición y Baja (ver db/migrate_add_metrology_replacements.sql)
+CREATE TABLE IF NOT EXISTS metrology_replacements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  process_slug VARCHAR(100) NOT NULL DEFAULT 'control-calidad',
+  fecha_registro DATE NOT NULL DEFAULT CURRENT_DATE,
+  nombre_equipo VARCHAR(255) NOT NULL,
+  marca VARCHAR(100),
+  codigo VARCHAR(100) NOT NULL,
+  area_uso VARCHAR(100) NOT NULL,
+  nombre_responsable VARCHAR(255) NOT NULL,
+  motivo_reposicion TEXT NOT NULL,
+  devuelve_equipo_anterior VARCHAR(5),
+  descripcion_baja TEXT,
+  se_cobra_equipo VARCHAR(5),
+  nombre_responsable_calidad VARCHAR(255),
+  firma_responsable_area TEXT,
+  firma_responsable_calidad TEXT,
+  created_by UUID,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_metrology_replacements_process_slug ON metrology_replacements(process_slug);
+CREATE INDEX IF NOT EXISTS idx_metrology_replacements_created_at ON metrology_replacements(created_at);
+ALTER TABLE metrology_replacements ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- NOTA: si tu proyecto de Supabase ya tenía las tablas whatsapp_* de una
 -- version anterior de la app (whatsapp_webhook_events, whatsapp_contacts,

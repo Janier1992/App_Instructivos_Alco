@@ -38,7 +38,7 @@ import { ProcessInspectionFormsPanel } from './ProcessInspectionFormsPanel';
 import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessMatrixValidationPanel } from './ProcessMatrixValidationPanel';
 import { ProcessFieldInspectionsPanel } from './ProcessFieldInspectionsPanel';
-import { MetrologyDeliveriesPanel } from './MetrologyDeliveriesPanel';
+import { MetrologyProPanel } from './MetrologyProPanel';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessDetailProps {
@@ -399,7 +399,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
 
       {activeTab === 'inspecciones' && showFieldInspectionsTab && <ProcessFieldInspectionsPanel processSlug={slug} />}
 
-      {activeTab === 'metrologia' && showMetrologyDeliveryTab && <MetrologyDeliveriesPanel processSlug={slug} />}
+      {activeTab === 'metrologia' && showMetrologyDeliveryTab && <MetrologyProPanel processSlug={slug} />}
 
       {/* MODULO: TAREAS (tablero Kanban del equipo de Calidad) */}
       {activeTab === 'tareas' && showTasksTab && <ProcessTasksBoard processSlug={slug} />}
