@@ -35,6 +35,8 @@ export interface ProcessItem {
   showSelfCertificationBox?: boolean;
   /** true muestra la pestaña "Validación de Ficha de Matriz" (materia prima vs. plano de extrusión). Por defecto false. */
   showMatrixValidationTab?: boolean;
+  /** true muestra la pestaña pública "Inspecciones en Campo" (solo lectura — crear/editar/eliminar es desde el CRM). Por defecto false. */
+  showFieldInspectionsTab?: boolean;
 }
 
 export interface QualityControl {

@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Lightbulb,
   ClipboardList,
+  ClipboardCheck,
   BadgeCheck,
   BookOpen
 } from 'lucide-react';
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/base-conocimiento', label: 'Base de Conocimiento', icon: BookOpen },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/formularios', label: 'Formularios de Inspección', icon: ClipboardList },
+  { href: '/crm/inspecciones-campo', label: 'Inspecciones en Campo', icon: ClipboardCheck },
   { href: '/crm/autonomia', label: 'Autonomía', icon: UserCheck },
   { href: '/crm/autocertificaciones', label: 'Verificaciones Supervisor', icon: BadgeCheck },
   { href: '/crm/mejoras', label: 'Buzón de Mejoras', icon: Lightbulb },

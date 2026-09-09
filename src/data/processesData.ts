@@ -203,7 +203,8 @@ export const PROCESSES: ProcessItem[] = [
     keyAspects: [],
     showAutonomyTab: false,
     showFormsTab: true,
-    showTasksTab: true
+    showTasksTab: true,
+    showFieldInspectionsTab: true
   }
 ];
 

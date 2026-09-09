@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from '../types';
 import { Bot, Send, RefreshCw, ShieldAlert, Camera, X, Mic, MicOff, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
+import { compressImageFile } from '../lib/imageCompression';
 
 interface AiChatPanelProps {
   processSlug: string;
@@ -11,46 +12,6 @@ interface AiChatPanelProps {
 }
 
 const formatTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-// Las fotos de cámara pueden pesar varios MB — se redimensionan en el
-// navegador antes de enviarlas para que la consulta viaje rápido incluso
-// con señal débil en planta/obra, y para no arriesgar el límite de tamaño
-// de request de las funciones serverless.
-const MAX_IMAGE_DIMENSION = 1280;
-const IMAGE_JPEG_QUALITY = 0.8;
-
-function compressImageFile(file: File): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onerror = () => reject(new Error('No se pudo procesar la imagen.'));
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-          const scale = MAX_IMAGE_DIMENSION / Math.max(width, height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('No se pudo procesar la imagen.'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY);
-        const base64 = dataUrl.split(',')[1] || '';
-        resolve({ base64, mimeType: 'image/jpeg', previewUrl: dataUrl });
-      };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 // Sugerencias de respaldo, iguales para los 8 procesos — se muestran hasta
 // que un proceso acumule suficientes preguntas repetidas propias (ver

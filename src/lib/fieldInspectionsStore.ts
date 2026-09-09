@@ -1,0 +1,276 @@
+import { getSupabaseClient } from './supabaseService';
+import { createNonConformity } from './nonConformitiesStore';
+
+const PHOTO_BUCKET = 'field-inspection-photos';
+const PHOTO_URL_TTL_SECONDS = 6 * 60 * 60;
+const PHOTO_URL_REUSE_MARGIN_MS = 10 * 60 * 1000;
+
+export interface FieldInspection {
+  id: string;
+  processSlug: string;
+  fecha: string;
+  areaProceso: string;
+  op: string;
+  planoOpc: string | null;
+  disenoReferencia: string | null;
+  cantTotal: number;
+  cantRetenida: number;
+  estado: string;
+  defecto: string;
+  reviso: string | null;
+  responsable: string | null;
+  accionCorrectiva: string | null;
+  observacionSugerida: string | null;
+  observacion: string | null;
+  photoStoragePath: string | null;
+  alertLevel: 'None' | 'Warning' | 'Critical';
+  aiMetadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+function mapRow(row: any): FieldInspection {
+  return {
+    id: row.id,
+    processSlug: row.process_slug,
+    fecha: row.fecha,
+    areaProceso: row.area_proceso,
+    op: row.op,
+    planoOpc: row.plano_opc || null,
+    disenoReferencia: row.diseno_referencia || null,
+    cantTotal: row.cant_total ?? 0,
+    cantRetenida: row.cant_retenida ?? 0,
+    estado: row.estado,
+    defecto: row.defecto,
+    reviso: row.reviso || null,
+    responsable: row.responsable || null,
+    accionCorrectiva: row.accion_correctiva || null,
+    observacionSugerida: row.observacion_sugerida || null,
+    observacion: row.observacion || null,
+    photoStoragePath: row.photo_storage_path || null,
+    alertLevel: row.alert_level || 'None',
+    aiMetadata: row.ai_metadata || null,
+    createdAt: row.created_at
+  };
+}
+
+/**
+ * "1-5, 8, 10" -> ['1','2','3','4','5','8','10'] — mismo formato de rango
+ * de planos/ítems del proyecto de referencia. Cada número expandido genera
+ * un registro de inspección independiente en el mismo envío.
+ */
+export function parsePlanNumbers(input: string): string[] {
+  const plans = new Set<string>();
+  const parts = input.split(',').map(p => p.trim());
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-').map(n => parseInt(n, 10));
+      if (!isNaN(start) && !isNaN(end) && start <= end) {
+        for (let i = start; i <= end; i++) plans.add(i.toString());
+      }
+    } else if (part) {
+      plans.add(part);
+    }
+  }
+
+  return Array.from(plans).sort((a, b) => {
+    const numA = parseInt(a);
+    const numB = parseInt(b);
+    return !isNaN(numA) && !isNaN(numB) ? numA - numB : a.localeCompare(b);
+  });
+}
+
+export interface FieldInspectionInput {
+  fecha: string;
+  areaProceso: string;
+  op: string;
+  planoOpc?: string;
+  disenoReferencia?: string;
+  cantTotal: number;
+  cantRetenida: number;
+  estado: string;
+  defecto: string;
+  reviso?: string;
+  responsable?: string;
+  accionCorrectiva?: string;
+  observacionSugerida?: string;
+  observacion?: string;
+  photoStoragePath?: string;
+  alertLevel?: 'None' | 'Warning' | 'Critical';
+  aiMetadata?: Record<string, unknown>;
+}
+
+function toDbRow(input: FieldInspectionInput, planoOpc: string | undefined, createdBy?: string) {
+  return {
+    process_slug: 'control-calidad',
+    fecha: input.fecha || new Date().toISOString().split('T')[0],
+    area_proceso: (input.areaProceso || '').toUpperCase(),
+    op: (input.op || '').toUpperCase(),
+    plano_opc: (planoOpc ?? input.planoOpc ?? '').toString().toUpperCase() || null,
+    diseno_referencia: (input.disenoReferencia || '').toUpperCase() || null,
+    cant_total: Number(input.cantTotal) || 0,
+    cant_retenida: Number(input.cantRetenida) || 0,
+    estado: input.estado || 'Aprobado',
+    defecto: (input.defecto || 'NINGUNO').toUpperCase(),
+    reviso: input.reviso || null,
+    responsable: (input.responsable || '').toUpperCase() || null,
+    accion_correctiva: (input.accionCorrectiva || 'NA').toUpperCase(),
+    observacion_sugerida: (input.observacionSugerida || '').toUpperCase() || null,
+    observacion: input.observacion || 'NA',
+    photo_storage_path: input.photoStoragePath || null,
+    alert_level: input.alertLevel || 'None',
+    ai_metadata: input.aiMetadata || null,
+    created_by: createdBy || null
+  };
+}
+
+/**
+ * Crea una o varias inspecciones en un solo envío (si planoOpc trae un
+ * rango tipo "1-5, 8" se expande a un registro por cada plano/ítem — igual
+ * que el proyecto de referencia). Si el estado queda "Rechazado", abre
+ * automáticamente un borrador de No Conformidad sobre el primer registro
+ * creado.
+ */
+export async function createFieldInspections(
+  input: FieldInspectionInput,
+  createdBy?: string
+): Promise<{ success: boolean; inspections?: FieldInspection[]; nonConformityCreated?: boolean; error?: string }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+
+  const planNumbers = input.planoOpc ? parsePlanNumbers(input.planoOpc) : [];
+  const plansToSubmit = planNumbers.length > 0 ? planNumbers : [input.planoOpc || ''];
+  const rows = plansToSubmit.map(plan => toDbRow(input, plan, createdBy));
+
+  try {
+    const { data, error } = await supabase.from('field_inspections').insert(rows).select();
+    if (error || !data) {
+      return { success: false, error: error?.message || 'No se pudieron guardar las inspecciones.' };
+    }
+
+    const inspections = data.map(mapRow);
+
+    let nonConformityCreated = false;
+    if (input.estado === 'Rechazado' && inspections[0]) {
+      const first = inspections[0];
+      const result = await createNonConformity({
+        title: `NC AUTOMÁTICA: RECHAZO EN ${first.areaProceso}`.toUpperCase(),
+        processArea: first.areaProceso,
+        projectReference: first.op,
+        description: `Hallazgo generado automáticamente por inspección rechazada. Defecto: ${first.defecto}. Observación: ${first.observacion || ''}`,
+        sourceFieldInspectionId: first.id
+      });
+      nonConformityCreated = result.success;
+    }
+
+    return { success: true, inspections, nonConformityCreated };
+  } catch (err: any) {
+    console.warn('⚠️ Error guardando inspecciones de campo:', err?.message || err);
+    return { success: false, error: err?.message || 'Error desconocido.' };
+  }
+}
+
+/** Carga masiva (Excel) — inserta N filas ya validadas por el cliente, sin expandir rangos de plano. */
+export async function bulkCreateFieldInspections(
+  inputs: FieldInspectionInput[],
+  createdBy?: string
+): Promise<{ success: boolean; count: number; error?: string }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, count: 0, error: 'Supabase no está configurado.' };
+  if (inputs.length === 0) return { success: false, count: 0, error: 'No hay filas para insertar.' };
+
+  const rows = inputs.map(input => toDbRow(input, undefined, createdBy));
+  try {
+    const { data, error } = await supabase.from('field_inspections').insert(rows).select('id');
+    if (error) return { success: false, count: 0, error: error.message };
+    return { success: true, count: data?.length || 0 };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err?.message || 'Error desconocido.' };
+  }
+}
+
+export async function getFieldInspections(filters?: { estado?: string; areaProceso?: string; limit?: number }): Promise<FieldInspection[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  try {
+    let query = supabase.from('field_inspections').select('*').order('created_at', { ascending: false }).limit(filters?.limit || 500);
+    if (filters?.estado) query = query.eq('estado', filters.estado);
+    if (filters?.areaProceso) query = query.eq('area_proceso', filters.areaProceso);
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn('⚠️ No se pudieron cargar las inspecciones de campo:', error.message);
+      return [];
+    }
+    return (data || []).map(mapRow);
+  } catch (err: any) {
+    console.warn('⚠️ Error cargando inspecciones de campo:', err?.message || err);
+    return [];
+  }
+}
+
+export async function getFieldInspectionById(id: string): Promise<FieldInspection | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.from('field_inspections').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return mapRow(data);
+}
+
+export async function updateFieldInspection(
+  id: string,
+  input: FieldInspectionInput
+): Promise<{ success: boolean; inspection?: FieldInspection; error?: string }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+
+  const patch = toDbRow(input, input.planoOpc);
+  delete (patch as any).created_by;
+  (patch as any).updated_at = new Date().toISOString();
+
+  try {
+    const { data, error } = await supabase.from('field_inspections').update(patch).eq('id', id).select().single();
+    if (error || !data) return { success: false, error: error?.message || 'No se pudo actualizar.' };
+    return { success: true, inspection: mapRow(data) };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error desconocido.' };
+  }
+}
+
+export async function deleteFieldInspections(ids: string[]): Promise<{ success: boolean }> {
+  const supabase = getSupabaseClient();
+  if (!supabase || ids.length === 0) return { success: false };
+
+  const { error } = await supabase.from('field_inspections').delete().in('id', ids);
+  if (error) {
+    console.warn('⚠️ No se pudieron eliminar las inspecciones:', error.message);
+    return { success: false };
+  }
+  return { success: true };
+}
+
+const playbackUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+
+/**
+ * URL firmada reutilizable para la foto de una inspección — mismo patrón
+ * que Principal/Videos: se cachea en memoria mientras no esté por vencer,
+ * para que el navegador pueda servirla desde su caché en vez de volver a
+ * descargarla cada vez.
+ */
+export async function getFieldInspectionPhotoUrl(inspection: FieldInspection): Promise<string | null> {
+  if (!inspection.photoStoragePath) return null;
+
+  const cached = playbackUrlCache.get(inspection.photoStoragePath);
+  if (cached && cached.expiresAtMs > Date.now() + PHOTO_URL_REUSE_MARGIN_MS) return cached.url;
+
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(inspection.photoStoragePath, PHOTO_URL_TTL_SECONDS);
+  if (error || !data) return null;
+
+  playbackUrlCache.set(inspection.photoStoragePath, { url: data.signedUrl, expiresAtMs: Date.now() + PHOTO_URL_TTL_SECONDS * 1000 });
+  return data.signedUrl;
+}
