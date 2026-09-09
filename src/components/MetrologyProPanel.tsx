@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Truck, RefreshCcw as RepeatIcon } from 'lucide-react';
+import { Truck, RefreshCcw as RepeatIcon, Ruler } from 'lucide-react';
 import { MetrologyDeliveriesPanel } from './MetrologyDeliveriesPanel';
 import { MetrologyReplacementsPanel } from './MetrologyReplacementsPanel';
+import { MetrologyCalibrationsPanel } from './MetrologyCalibrationsPanel';
 
-type MetrologySubTab = 'entrega' | 'reposicion';
+type MetrologySubTab = 'entrega' | 'reposicion' | 'calibracion';
 
 /** Metrología Pro dentro de Control Calidad — agrupa sus submódulos (Entrega de Equipos, Reposición y Baja, ...). */
 export const MetrologyProPanel: React.FC<{ processSlug: string }> = ({ processSlug }) => {
@@ -16,10 +17,12 @@ export const MetrologyProPanel: React.FC<{ processSlug: string }> = ({ processSl
       <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
         <SubTabButton active={tab === 'entrega'} onClick={() => setTab('entrega')} icon={<Truck className="w-3.5 h-3.5" />} label="Entrega de Equipos" />
         <SubTabButton active={tab === 'reposicion'} onClick={() => setTab('reposicion')} icon={<RepeatIcon className="w-3.5 h-3.5" />} label="Reposición y Baja" />
+        <SubTabButton active={tab === 'calibracion'} onClick={() => setTab('calibracion')} icon={<Ruler className="w-3.5 h-3.5" />} label="Control Calibración" />
       </div>
 
       {tab === 'entrega' && <MetrologyDeliveriesPanel processSlug={processSlug} />}
       {tab === 'reposicion' && <MetrologyReplacementsPanel processSlug={processSlug} />}
+      {tab === 'calibracion' && <MetrologyCalibrationsPanel processSlug={processSlug} />}
     </div>
   );
 };
