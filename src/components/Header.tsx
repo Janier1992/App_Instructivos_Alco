@@ -9,12 +9,19 @@ import { PwaInstallButton } from './PwaInstallButton';
 
 interface HeaderProps {
   currentProcessName?: string;
+  currentProcessSlug?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentProcessName }) => {
+export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProcessSlug }) => {
   const pathname = usePathname();
   const router = useRouter();
   const isDashboard = pathname === '/dashboard';
+  // Cada proceso se accede escaneando el QR de su propia tarjeta — el
+  // botón que lleva al listado completo de tarjetas solo se muestra en
+  // Control Calidad, para que el resto de secciones no navegue a ver la
+  // información de otras áreas.
+  const isOnProcessPage = pathname?.startsWith('/procesos/');
+  const showModulosDePlanta = !isOnProcessPage || currentProcessSlug === 'control-calidad';
 
   // Acceso al Portal de Administración: a propósito no se anuncia en la
   // navegación pública. En computador se entra con Ctrl+Q; en celular (donde
@@ -89,17 +96,19 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName }) => {
       {/* Navigation Tab Bar */}
       <div className="bg-[#002244] border-t border-white/10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
-          <Link
-            href="/"
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
-              !isDashboard
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <ListFilter className="w-4 h-4 text-blue-300" />
-            <span>Módulos de Planta</span>
-          </Link>
+          {showModulosDePlanta && (
+            <Link
+              href="/"
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
+                !isDashboard
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <ListFilter className="w-4 h-4 text-blue-300" />
+              <span>Módulos de Planta</span>
+            </Link>
+          )}
 
           <Link
             href="/dashboard"

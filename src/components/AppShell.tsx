@@ -30,7 +30,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col antialiased selection:bg-blue-600 selection:text-white">
-      <Header currentProcessName={currentProcess?.name} />
+      <Header currentProcessName={currentProcess?.name} currentProcessSlug={currentProcess?.slug} />
       <OfflineBanner />
 
       <main className="flex-1 pb-12">{children}</main>
