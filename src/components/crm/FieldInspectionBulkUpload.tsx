@@ -73,6 +73,7 @@ interface SkippedRow {
   rowNumber: number;
   op: string;
   fecha: string;
+  reason: string;
 }
 
 interface MapResult {
@@ -118,16 +119,25 @@ function mapRowsToInspections(rows: any[][]): MapResult {
 
     const fechaRaw = get('fecha');
     const fechaStr = fechaRaw ? String(fechaRaw).trim() : '';
-    const op = String(get('op') || '');
+    const op = String(get('op') || '').trim();
+    const areaProceso = String(get('areaProceso') || '').trim();
 
     if (fechaStr && !isValidDateValue(fechaStr)) {
-      skipped.push({ rowNumber: idx + 1, op, fecha: fechaStr });
+      skipped.push({ rowNumber: idx + 1, op, fecha: fechaStr, reason: `fecha no reconocida ("${fechaStr}")` });
+      continue;
+    }
+
+    // OP y Área son obligatorios para cualquier inspección (misma regla que
+    // exige el registro individual) — una fila real sin uno de los dos se
+    // omite en vez de dejar que rompa todo el lote de 500 donde caiga.
+    if (!op || !areaProceso) {
+      skipped.push({ rowNumber: idx + 1, op, fecha: fechaStr, reason: !op && !areaProceso ? 'sin OP ni Área' : !op ? 'sin OP' : 'sin Área' });
       continue;
     }
 
     inspections.push({
       fecha: fechaStr || new Date().toISOString().split('T')[0],
-      areaProceso: String(get('areaProceso') || ''),
+      areaProceso,
       op,
       planoOpc: get('planoOpc') ? String(get('planoOpc')) : undefined,
       disenoReferencia: get('disenoReferencia') ? String(get('disenoReferencia')) : undefined,
@@ -163,20 +173,21 @@ export const FieldInspectionBulkUpload: React.FC<{ onClose: () => void; onDone: 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
       const { inspections, matchedFieldCount, skipped } = mapRowsToInspections(rawRows);
-      if (inspections.length === 0) {
+      const totalParsed = inspections.length + skipped.length;
+      if (totalParsed === 0) {
         setError('No se reconoció una fila de encabezados en el archivo (se esperan columnas como Fecha, Área, OP, Plano, Cant. Total...). Verifica que la primera fila con esos encabezados esté entre las primeras 30 filas del archivo.');
         return;
       }
 
-      // Nunca se deja pasar un lote donde el mapeo de columnas claramente
-      // falló — antes esto insertaba cientos de filas en blanco en
-      // silencio. Si no se reconocieron al menos OP y Área, o la mayoría
-      // de filas quedaron sin esos dos datos, se bloquea con un mensaje
-      // claro en vez de dejar confirmar la carga.
-      const blankCount = inspections.filter(r => !r.op.trim() && !r.areaProceso.trim()).length;
-      if (matchedFieldCount < 2 || blankCount / inspections.length > 0.3) {
+      // Nunca se deja pasar un archivo donde el mapeo de columnas
+      // claramente falló — antes esto insertaba miles de filas en blanco
+      // en silencio. Si no se reconocieron al menos OP y Área, o mas del
+      // 30% de las filas quedarían sin esos datos (señal de columnas mal
+      // detectadas, no de errores puntuales de digitación), se bloquea con
+      // un mensaje claro en vez de dejar confirmar la carga.
+      if (matchedFieldCount < 2 || skipped.length / totalParsed > 0.3) {
         setError(
-          `No se pudieron identificar correctamente las columnas del archivo — ${blankCount} de ${inspections.length} filas quedarían sin OP ni Área. ` +
+          `No se pudieron identificar correctamente las columnas del archivo — ${skipped.length} de ${totalParsed} filas quedarían sin OP, Área o fecha válida. ` +
           'Revisa que la fila de encabezados use nombres reconocibles (Fecha, Área, OP, Plano, Diseño, Cant. Total, Cant. Retenida, Estado, Defecto, Revisó, Responsable) y vuelve a intentar.'
         );
         return;
@@ -263,15 +274,15 @@ export const FieldInspectionBulkUpload: React.FC<{ onClose: () => void; onDone: 
               <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-1">
                 <p className="flex items-center gap-1.5 font-bold">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  {skippedRows.length} fila{skippedRows.length === 1 ? '' : 's'} omitida{skippedRows.length === 1 ? '' : 's'} por tener una fecha no reconocida — no se van a cargar:
+                  {skippedRows.length} fila{skippedRows.length === 1 ? '' : 's'} omitida{skippedRows.length === 1 ? '' : 's'} — no se van a cargar:
                 </p>
                 <ul className="pl-5 list-disc">
                   {skippedRows.slice(0, 10).map(s => (
-                    <li key={s.rowNumber}>Fila {s.rowNumber} (OP {s.op || 'sin OP'}): fecha = "{s.fecha}"</li>
+                    <li key={s.rowNumber}>Fila {s.rowNumber} (OP {s.op || 'sin OP'}): {s.reason}</li>
                   ))}
                   {skippedRows.length > 10 && <li>... y {skippedRows.length - 10} más.</li>}
                 </ul>
-                <p>Corrige la fecha en el archivo original y vuelve a intentar si quieres incluirlas.</p>
+                <p>Corrige el archivo original y vuelve a intentar si quieres incluirlas.</p>
               </div>
             )}
 
