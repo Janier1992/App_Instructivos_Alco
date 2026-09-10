@@ -82,15 +82,6 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
           />
         </div>
         <div className="flex items-center gap-2">
-          {filtered.length > 0 && (
-            <button
-              onClick={toggleSelectAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-            >
-              <input ref={selectAllRef} type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} onClick={e => e.stopPropagation()} className="pointer-events-none" />
-              {allFilteredSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
-            </button>
-          )}
           {selected.size > 0 && (
             <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
               <Trash2 className="w-3.5 h-3.5" /> Eliminar {selected.size} seleccionada{selected.size === 1 ? '' : 's'}
@@ -103,7 +94,11 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
         <table className="w-full text-xs">
           <thead className="bg-slate-50">
             <tr>
-              <th className="p-2 w-8"></th>
+              <th className="p-2 w-8">
+                {filtered.length > 0 && (
+                  <input ref={selectAllRef} type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} title="Seleccionar todo" />
+                )}
+              </th>
               <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
               <th className="p-2 text-left font-bold text-slate-500">Área</th>
               <th className="p-2 text-left font-bold text-slate-500">OP</th>
