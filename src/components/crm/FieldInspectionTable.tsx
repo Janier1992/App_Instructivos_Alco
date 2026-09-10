@@ -99,7 +99,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por OP, área, diseño, responsable..."
+            placeholder="Buscar por Área, OP, Plano/Ítem, Diseño..."
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
           />
         </div>
