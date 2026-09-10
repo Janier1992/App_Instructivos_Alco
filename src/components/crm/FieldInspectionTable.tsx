@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Pencil, Trash2, Search, ImageOff, CloudOff } from 'lucide-react';
 import { FieldInspection } from '@/src/lib/fieldInspectionsStore';
 
@@ -39,6 +39,28 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
     });
   };
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every(i => selected.has(i.id));
+  const someFilteredSelected = filtered.some(i => selected.has(i.id));
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someFilteredSelected && !allFilteredSelected;
+    }
+  }, [someFilteredSelected, allFilteredSelected]);
+
+  const toggleSelectAll = () => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filtered.forEach(i => next.delete(i.id));
+      } else {
+        filtered.forEach(i => next.add(i.id));
+      }
+      return next;
+    });
+  };
+
   const handleBulkDelete = () => {
     if (selected.size === 0) return;
     if (!confirm(`¿Eliminar ${selected.size} inspección(es) seleccionada(s)?`)) return;
@@ -59,11 +81,22 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
           />
         </div>
-        {selected.size > 0 && (
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
-            <Trash2 className="w-3.5 h-3.5" /> Eliminar {selected.size} seleccionada{selected.size === 1 ? '' : 's'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+            >
+              <input ref={selectAllRef} type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} onClick={e => e.stopPropagation()} className="pointer-events-none" />
+              {allFilteredSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+            </button>
+          )}
+          {selected.size > 0 && (
+            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
+              <Trash2 className="w-3.5 h-3.5" /> Eliminar {selected.size} seleccionada{selected.size === 1 ? '' : 's'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto border border-slate-200 rounded-xl">

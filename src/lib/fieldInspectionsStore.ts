@@ -179,6 +179,17 @@ export async function bulkCreateFieldInspections(
   if (!supabase) return { success: false, count: 0, error: 'Supabase no está configurado.' };
   if (inputs.length === 0) return { success: false, count: 0, error: 'No hay filas para insertar.' };
 
+  // Defensa adicional a la validación del cliente: nunca insertar en
+  // silencio una fila sin OP ni Área (síntoma de un archivo mal mapeado).
+  const withoutOpOrArea = inputs.filter(i => !i.op?.trim() || !i.areaProceso?.trim()).length;
+  if (withoutOpOrArea > 0) {
+    return {
+      success: false,
+      count: 0,
+      error: `${withoutOpOrArea} de ${inputs.length} fila(s) no tienen OP o Área — probablemente el archivo no se mapeó correctamente. Ninguna fila fue insertada.`
+    };
+  }
+
   const rows = inputs.map(input => toDbRow(input, undefined, createdBy));
 
   // Sin límite de filas: se inserta en lotes para que un archivo grande no

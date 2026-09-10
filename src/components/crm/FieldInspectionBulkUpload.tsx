@@ -32,17 +32,42 @@ function normalize(text: string): string {
     .trim();
 }
 
-function detectHeaderRow(rows: any[][]): number {
-  for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const rowText = rows[i].map(c => normalize(String(c || ''))).join(' ');
-    if (rowText.includes('area') && (rowText.includes('op') || rowText.includes('proceso'))) return i;
+const MIN_HEADER_MATCHES = 3;
+
+/**
+ * Busca la fila de encabezados por puntaje (cuántos campos conocidos
+ * reconoce esa fila) en vez de exigir una combinación fija de palabras en
+ * una sola fila — más tolerante a archivos reales con filas de título o
+ * encabezados en un orden distinto. Si ninguna fila junta al menos
+ * MIN_HEADER_MATCHES coincidencias, no hay encabezado reconocible.
+ */
+function detectHeaderRow(rows: any[][]): number | null {
+  let bestIdx = 0;
+  let bestScore = 0;
+  const searchLimit = Math.min(rows.length, 30);
+
+  for (let i = 0; i < searchLimit; i++) {
+    const cells = rows[i].map(c => normalize(String(c || '')));
+    const score = HEADER_MAP.reduce((acc, { keywords }) => (cells.some(cell => keywords.some(k => cell.includes(normalize(k)))) ? acc + 1 : acc), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
   }
-  return 0;
+
+  return bestScore >= MIN_HEADER_MATCHES ? bestIdx : null;
 }
 
-function mapRowsToInspections(rows: any[][]): FieldInspectionInput[] {
-  if (rows.length === 0) return [];
+interface MapResult {
+  inspections: FieldInspectionInput[];
+  /** Cuántos de los campos esperados (Fecha, Área, OP, ...) se lograron reconocer en el encabezado. */
+  matchedFieldCount: number;
+}
+
+function mapRowsToInspections(rows: any[][]): MapResult {
+  if (rows.length === 0) return { inspections: [], matchedFieldCount: 0 };
   const headerIdx = detectHeaderRow(rows);
+  if (headerIdx === null) return { inspections: [], matchedFieldCount: 0 };
   const headers = rows[headerIdx].map(h => normalize(String(h || '')));
 
   const columnIndexByField = new Map<keyof FieldInspectionInput, number>();
@@ -53,7 +78,7 @@ function mapRowsToInspections(rows: any[][]): FieldInspectionInput[] {
 
   const dataRows = rows.slice(headerIdx + 1).filter(r => r.some(c => c !== undefined && c !== ''));
 
-  return dataRows.map(row => {
+  const inspections = dataRows.map(row => {
     const get = (field: keyof FieldInspectionInput) => {
       const idx = columnIndexByField.get(field);
       return idx !== undefined ? row[idx] : undefined;
@@ -74,6 +99,8 @@ function mapRowsToInspections(rows: any[][]): FieldInspectionInput[] {
       observacion: get('observacion') ? String(get('observacion')) : undefined
     };
   });
+
+  return { inspections, matchedFieldCount: columnIndexByField.size };
 }
 
 export const FieldInspectionBulkUpload: React.FC<{ onClose: () => void; onDone: () => void }> = ({ onClose, onDone }) => {
@@ -91,12 +118,27 @@ export const FieldInspectionBulkUpload: React.FC<{ onClose: () => void; onDone: 
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-      const parsed = mapRowsToInspections(rawRows);
-      if (parsed.length === 0) {
-        setError('No se detectaron filas válidas en el archivo.');
+      const { inspections, matchedFieldCount } = mapRowsToInspections(rawRows);
+      if (inspections.length === 0) {
+        setError('No se reconoció una fila de encabezados en el archivo (se esperan columnas como Fecha, Área, OP, Plano, Cant. Total...). Verifica que la primera fila con esos encabezados esté entre las primeras 30 filas del archivo.');
         return;
       }
-      setRows(parsed);
+
+      // Nunca se deja pasar un lote donde el mapeo de columnas claramente
+      // falló — antes esto insertaba cientos de filas en blanco en
+      // silencio. Si no se reconocieron al menos OP y Área, o la mayoría
+      // de filas quedaron sin esos dos datos, se bloquea con un mensaje
+      // claro en vez de dejar confirmar la carga.
+      const blankCount = inspections.filter(r => !r.op.trim() && !r.areaProceso.trim()).length;
+      if (matchedFieldCount < 2 || blankCount / inspections.length > 0.3) {
+        setError(
+          `No se pudieron identificar correctamente las columnas del archivo — ${blankCount} de ${inspections.length} filas quedarían sin OP ni Área. ` +
+          'Revisa que la fila de encabezados use nombres reconocibles (Fecha, Área, OP, Plano, Diseño, Cant. Total, Cant. Retenida, Estado, Defecto, Revisó, Responsable) y vuelve a intentar.'
+        );
+        return;
+      }
+
+      setRows(inspections);
     } catch (err: any) {
       setError(err?.message || 'No se pudo leer el archivo.');
     }
