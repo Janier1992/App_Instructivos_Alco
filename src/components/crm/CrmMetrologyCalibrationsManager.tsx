@@ -129,16 +129,16 @@ export const CrmMetrologyCalibrationsManager: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+        <div className="max-h-[65vh] overflow-auto border border-slate-200 rounded-xl">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left font-bold text-slate-500">Instrumento</th>
-                <th className="p-2 text-left font-bold text-slate-500">Código</th>
-                <th className="p-2 text-left font-bold text-slate-500">Certificado</th>
-                <th className="p-2 text-left font-bold text-slate-500">Estado</th>
-                <th className="p-2 text-left font-bold text-slate-500">Vencimiento</th>
-                <th className="p-2 text-right font-bold text-slate-500">Gestión</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Instrumento</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Código</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Certificado</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Estado</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Vencimiento</th>
+                <th className="p-2 text-right font-bold text-slate-500 bg-slate-50">Gestión</th>
               </tr>
             </thead>
             <tbody>

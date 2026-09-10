@@ -72,16 +72,16 @@ export const MetrologyReplacementsPanel: React.FC<{ processSlug: string }> = () 
           <p className="text-sm text-slate-500">Aún no hay registros de reposición o baja.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+        <div className="max-h-[65vh] overflow-auto border border-slate-200 rounded-xl bg-white">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
-                <th className="p-2 text-left font-bold text-slate-500">Equipo</th>
-                <th className="p-2 text-left font-bold text-slate-500">Código</th>
-                <th className="p-2 text-left font-bold text-slate-500">Área</th>
-                <th className="p-2 text-left font-bold text-slate-500">Responsable</th>
-                <th className="p-2 text-left font-bold text-slate-500">Acciones</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Fecha</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Equipo</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Código</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Área</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Responsable</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Acciones</th>
               </tr>
             </thead>
             <tbody>

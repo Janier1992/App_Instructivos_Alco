@@ -72,16 +72,16 @@ export const MetrologyDeliveriesPanel: React.FC<{ processSlug: string }> = () =>
           <p className="text-sm text-slate-500">Aún no hay actas de entrega registradas.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+        <div className="max-h-[65vh] overflow-auto border border-slate-200 rounded-xl bg-white">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
-                <th className="p-2 text-left font-bold text-slate-500">Receptor</th>
-                <th className="p-2 text-left font-bold text-slate-500">Área</th>
-                <th className="p-2 text-left font-bold text-slate-500">Sede</th>
-                <th className="p-2 text-left font-bold text-slate-500">Ítems</th>
-                <th className="p-2 text-left font-bold text-slate-500">Acciones</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Fecha</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Receptor</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Área</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Sede</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Ítems</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Acciones</th>
               </tr>
             </thead>
             <tbody>
