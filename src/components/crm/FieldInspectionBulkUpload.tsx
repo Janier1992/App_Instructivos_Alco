@@ -135,14 +135,29 @@ function mapRowsToInspections(rows: any[][]): MapResult {
       continue;
     }
 
+    // Cant. Total / Retenida admiten decimales (ej. metros cuadrados en
+    // Vidrio Crudo/Templado) pero no texto libre — antes esto se convertía
+    // en silencio a 0 (Number('52 Naves') es NaN) perdiendo la cantidad
+    // real sin avisar. Ahora se omite la fila con el valor original a la
+    // vista, en vez de guardar una cantidad inventada.
+    const cantTotalRaw = get('cantTotal');
+    const cantRetenidaRaw = get('cantRetenida');
+    const cantTotalNum = cantTotalRaw ? Number(cantTotalRaw) : 0;
+    const cantRetenidaNum = cantRetenidaRaw ? Number(cantRetenidaRaw) : 0;
+    if (isNaN(cantTotalNum) || isNaN(cantRetenidaNum)) {
+      const badValue = isNaN(cantTotalNum) ? cantTotalRaw : cantRetenidaRaw;
+      skipped.push({ rowNumber: idx + 1, op, fecha: fechaStr, reason: `cantidad no numérica ("${badValue}")` });
+      continue;
+    }
+
     inspections.push({
       fecha: fechaStr || new Date().toISOString().split('T')[0],
       areaProceso,
       op,
       planoOpc: get('planoOpc') ? String(get('planoOpc')) : undefined,
       disenoReferencia: get('disenoReferencia') ? String(get('disenoReferencia')) : undefined,
-      cantTotal: Number(get('cantTotal')) || 0,
-      cantRetenida: Number(get('cantRetenida')) || 0,
+      cantTotal: cantTotalNum,
+      cantRetenida: cantRetenidaNum,
       estado: String(get('estado') || 'Aprobado'),
       defecto: String(get('defecto') || 'NINGUNO'),
       reviso: get('reviso') ? String(get('reviso')) : undefined,
