@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession } from '@/src/lib/adminAuth';
-import { getFieldInspections, createFieldInspections, deleteFieldInspections, deleteFieldInspectionsMatching, FieldInspectionInput } from '@/src/lib/fieldInspectionsStore';
+import { getFieldInspections, createFieldInspections, deleteFieldInspections, deleteFieldInspectionsMatchingBatch, FieldInspectionInput } from '@/src/lib/fieldInspectionsStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
 export const maxDuration = 60;
@@ -54,9 +54,12 @@ export async function POST(request: NextRequest) {
 
 /**
  * Borrado múltiple. El cliente envía { ids: string[] } para borrar una
- * selección puntual, o { deleteAll: true, search?: string } para borrar
- * TODOS los registros que coincidan con la búsqueda (o toda la tabla si
- * search viene vacío) — sin importar cuántos estén cargados en el navegador.
+ * selección puntual, o { deleteAll: true, search?: string } para borrar UN
+ * LOTE (hasta 500) de los registros que coincidan con la búsqueda (o del
+ * total de la tabla si search viene vacío) — sin importar cuántos estén
+ * cargados en el navegador. El cliente debe llamar repetidamente mientras
+ * `done` sea false; esto evita que una tabla de decenas de miles de filas
+ * agote el timeout de la función serverless en una sola invocación.
  */
 export async function DELETE(request: NextRequest) {
   const auth = await requireSession(request);
@@ -66,21 +69,23 @@ export async function DELETE(request: NextRequest) {
 
   if (body?.deleteAll) {
     const search: string | undefined = typeof body.search === 'string' ? body.search : undefined;
-    const result = await deleteFieldInspectionsMatching(search);
+    const result = await deleteFieldInspectionsMatchingBatch(search);
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'No se pudieron eliminar las inspecciones.' }, { status: 500 });
     }
 
-    await recordAuditEvent({
-      adminUserId: auth.session.sub,
-      adminEmail: auth.session.email,
-      action: 'delete',
-      entityType: 'field_inspection',
-      entityId: 'bulk-all',
-      metadata: { count: result.count, search: search || null }
-    });
+    if (result.deleted > 0) {
+      await recordAuditEvent({
+        adminUserId: auth.session.sub,
+        adminEmail: auth.session.email,
+        action: 'delete',
+        entityType: 'field_inspection',
+        entityId: 'bulk-all',
+        metadata: { count: result.deleted, search: search || null, done: result.done }
+      });
+    }
 
-    return NextResponse.json({ success: true, count: result.count });
+    return NextResponse.json({ success: true, deleted: result.deleted, done: result.done });
   }
 
   const { ids } = body;

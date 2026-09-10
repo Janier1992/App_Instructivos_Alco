@@ -25,6 +25,12 @@ function saveQueue(queue: OfflineQueueItem[]) {
   saveFieldInspectionQueue(OFFLINE_QUEUE_KEY, queue);
 }
 
+async function parseJsonResponse(res: Response): Promise<any> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return { success: false, error: `Respuesta inesperada del servidor (${res.status}).` };
+  return res.json();
+}
+
 type Tab = 'tabla' | 'enlaces' | 'nc';
 
 /**
@@ -44,6 +50,7 @@ export const CrmFieldInspectionsManager: React.FC = () => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [queueSize, setQueueSize] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
+  const [deleteAllProgress, setDeleteAllProgress] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -146,14 +153,33 @@ export const CrmFieldInspectionsManager: React.FC = () => {
   };
 
   const handleDeleteAllMatching = async (search: string) => {
-    const res = await fetch('/api/crm/field-inspections', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deleteAll: true, search })
-    });
-    const data = await res.json();
-    if (data.success) await load();
-    else alert(data.error || 'No se pudieron eliminar.');
+    setDeleteAllProgress(0);
+    let total = 0;
+    try {
+      // Se borra por lotes (uno por llamada) en vez de todo de una sola vez,
+      // para que ninguna invocación exceda el timeout de la función
+      // serverless en tablas de decenas de miles de filas.
+      while (true) {
+        const res = await fetch('/api/crm/field-inspections', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deleteAll: true, search })
+        });
+        const data = await parseJsonResponse(res);
+        if (!data.success) {
+          alert(`${data.error || 'No se pudieron eliminar los registros.'}${total > 0 ? ` (se eliminaron ${total} antes del error)` : ''}`);
+          break;
+        }
+        total += data.deleted || 0;
+        setDeleteAllProgress(total);
+        if (data.done) break;
+      }
+    } catch (err: any) {
+      alert(`Error eliminando registros${total > 0 ? ` (se eliminaron ${total} antes del error)` : ''}: ${err?.message || 'desconocido'}`);
+    } finally {
+      setDeleteAllProgress(null);
+      await load();
+    }
   };
 
   const initialFormValues: Partial<FieldInspectionFormValues> | undefined = editing
@@ -220,7 +246,13 @@ export const CrmFieldInspectionsManager: React.FC = () => {
               </button>
             </div>
           </div>
-          <FieldInspectionTable inspections={inspections} onEdit={openEdit} onDeleteSelected={handleDeleteSelected} onDeleteAllMatching={handleDeleteAllMatching} />
+          <FieldInspectionTable
+            inspections={inspections}
+            onEdit={openEdit}
+            onDeleteSelected={handleDeleteSelected}
+            onDeleteAllMatching={handleDeleteAllMatching}
+            deleteAllProgress={deleteAllProgress}
+          />
         </div>
       )}
 

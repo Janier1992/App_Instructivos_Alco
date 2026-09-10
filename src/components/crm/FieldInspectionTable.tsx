@@ -17,9 +17,10 @@ interface Props {
   onEdit: (inspection: FieldInspection) => void;
   onDeleteSelected: (ids: string[]) => void;
   onDeleteAllMatching: (search: string) => void;
+  deleteAllProgress: number | null;
 }
 
-export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onDeleteSelected, onDeleteAllMatching }) => {
+export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onDeleteSelected, onDeleteAllMatching, deleteAllProgress }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectAllMode, setSelectAllMode] = useState(false);
@@ -103,13 +104,19 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
           />
         </div>
         <div className="flex items-center gap-2">
-          {(selected.size > 0 || selectAllMode) && (
-            <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
-              <Trash2 className="w-3.5 h-3.5" />
-              {selectAllMode
-                ? `Eliminar TODOS${search.trim() ? ' los coincidentes' : ''}`
-                : `Eliminar ${selected.size} seleccionada${selected.size === 1 ? '' : 's'}`}
-            </button>
+          {deleteAllProgress !== null ? (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 rounded-lg">
+              <Trash2 className="w-3.5 h-3.5 animate-pulse" /> Eliminando… {deleteAllProgress} borrado{deleteAllProgress === 1 ? '' : 's'}
+            </span>
+          ) : (
+            (selected.size > 0 || selectAllMode) && (
+              <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
+                <Trash2 className="w-3.5 h-3.5" />
+                {selectAllMode
+                  ? `Eliminar TODOS${search.trim() ? ' los coincidentes' : ''}`
+                  : `Eliminar ${selected.size} seleccionada${selected.size === 1 ? '' : 's'}`}
+              </button>
+            )
           )}
         </div>
       </div>

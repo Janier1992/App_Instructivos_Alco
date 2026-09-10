@@ -288,45 +288,49 @@ export async function deleteFieldInspections(ids: string[]): Promise<{ success: 
 }
 
 const SEARCHABLE_COLUMNS = ['op', 'plano_opc', 'area_proceso', 'diseno_referencia', 'responsable', 'reviso', 'defecto'];
+const DELETE_ALL_BATCH_SIZE = 500;
+
+/** Escapa un valor para usarlo entre comillas dobles dentro de un filtro .or() de PostgREST. */
+function escapeOrFilterValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 
 /**
- * Borra TODOS los registros que coincidan con `search` (mismos campos que el
- * buscador del CRM), o toda la tabla si `search` viene vacío — a diferencia
- * de deleteFieldInspections, no depende de los ids ya cargados en el
- * navegador (limitados a 500 por getFieldInspections).
+ * Borra UN LOTE (hasta DELETE_ALL_BATCH_SIZE filas) de los registros que
+ * coincidan con `search` (mismos campos que el buscador del CRM), o del
+ * total de la tabla si `search` viene vacío. A diferencia de
+ * deleteFieldInspections, no depende de los ids ya cargados en el navegador
+ * (limitados a 500 por getFieldInspections) — pero borra por lotes en vez de
+ * todo de una vez, para que cada invocación se mantenga rápida y no exceda
+ * el timeout de las funciones serverless en tablas de decenas de miles de
+ * filas. El cliente debe llamar repetidamente hasta que `done` sea true.
  */
-export async function deleteFieldInspectionsMatching(search?: string): Promise<{ success: boolean; count: number; error?: string }> {
+export async function deleteFieldInspectionsMatchingBatch(
+  search?: string
+): Promise<{ success: boolean; deleted: number; done: boolean; error?: string }> {
   const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, count: 0, error: 'Supabase no está configurado.' };
+  if (!supabase) return { success: false, deleted: 0, done: true, error: 'Supabase no está configurado.' };
 
   try {
-    const idSet = new Set<string>();
     const trimmed = search?.trim();
-
-    if (!trimmed) {
-      const { data, error } = await supabase.from('field_inspections').select('id');
-      if (error) return { success: false, count: 0, error: error.message };
-      (data || []).forEach((row: any) => idSet.add(row.id));
-    } else {
-      const pattern = `%${trimmed}%`;
-      for (const column of SEARCHABLE_COLUMNS) {
-        const { data, error } = await supabase.from('field_inspections').select('id').ilike(column, pattern);
-        if (error) return { success: false, count: 0, error: error.message };
-        (data || []).forEach((row: any) => idSet.add(row.id));
-      }
+    let query = supabase.from('field_inspections').select('id').limit(DELETE_ALL_BATCH_SIZE);
+    if (trimmed) {
+      const pattern = `%${escapeOrFilterValue(trimmed)}%`;
+      query = query.or(SEARCHABLE_COLUMNS.map(column => `${column}.ilike."${pattern}"`).join(','));
     }
 
-    const ids = Array.from(idSet);
-    if (ids.length === 0) return { success: true, count: 0 };
+    const { data, error } = await query;
+    if (error) return { success: false, deleted: 0, done: true, error: error.message };
 
-    for (let i = 0; i < ids.length; i += BULK_INSERT_CHUNK_SIZE) {
-      const chunk = ids.slice(i, i + BULK_INSERT_CHUNK_SIZE);
-      const { error } = await supabase.from('field_inspections').delete().in('id', chunk);
-      if (error) return { success: false, count: i, error: `${error.message} (se eliminaron ${i} de ${ids.length} antes del error).` };
-    }
-    return { success: true, count: ids.length };
+    const ids = (data || []).map((row: any) => row.id);
+    if (ids.length === 0) return { success: true, deleted: 0, done: true };
+
+    const { error: deleteError } = await supabase.from('field_inspections').delete().in('id', ids);
+    if (deleteError) return { success: false, deleted: 0, done: true, error: deleteError.message };
+
+    return { success: true, deleted: ids.length, done: ids.length < DELETE_ALL_BATCH_SIZE };
   } catch (err: any) {
-    return { success: false, count: 0, error: err?.message || 'Error desconocido.' };
+    return { success: false, deleted: 0, done: true, error: err?.message || 'Error desconocido.' };
   }
 }
 
