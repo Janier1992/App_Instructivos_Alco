@@ -237,20 +237,20 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
           <p className="text-sm text-slate-500">Ninguna inspección coincide con "{search}".</p>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+        <div className="max-h-[65vh] overflow-auto border border-slate-200 rounded-xl bg-white">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
-                <th className="p-2 text-left font-bold text-slate-500">Área</th>
-                <th className="p-2 text-left font-bold text-slate-500">OP</th>
-                <th className="p-2 text-left font-bold text-slate-500">Plano/Ítem</th>
-                <th className="p-2 text-left font-bold text-slate-500">Diseño</th>
-                <th className="p-2 text-left font-bold text-slate-500">Cant.</th>
-                <th className="p-2 text-left font-bold text-slate-500">Estado</th>
-                <th className="p-2 text-left font-bold text-slate-500">Defecto</th>
-                <th className="p-2 text-left font-bold text-slate-500">Foto</th>
-                <th className="p-2 text-left font-bold text-slate-500">Acciones</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Fecha</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Área</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">OP</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Plano/Ítem</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Diseño</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Cant.</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Estado</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Defecto</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Foto</th>
+                <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Acciones</th>
               </tr>
             </thead>
             <tbody>
