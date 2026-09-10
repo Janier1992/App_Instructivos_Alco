@@ -115,25 +115,27 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 flex">
-      {/* Sidebar — escritorio */}
-      <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 bg-[#002244] border-r border-white/10 p-4 gap-6">
-        <div className="bg-white px-2.5 py-1.5 rounded-lg shadow-md flex items-center w-fit">
+    <div className="h-screen bg-slate-100 flex overflow-hidden">
+      {/* Sidebar — escritorio. h-full + overflow-y-auto propio: con listas
+          largas en el contenido (ej. cientos de inspecciones), solo la
+          tabla debe desplazarse, nunca el menú ni "Cerrar sesión". */}
+      <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 h-full bg-[#002244] border-r border-white/10 p-4 gap-6 overflow-y-auto">
+        <div className="bg-white px-2.5 py-1.5 rounded-lg shadow-md flex items-center w-fit shrink-0">
           <AlcoLogo className="h-7" />
         </div>
-        <div>
+        <div className="shrink-0">
           <p className="text-[11px] font-bold text-blue-300 uppercase tracking-wider px-1">Portal de Administración</p>
         </div>
         {NavLinks}
-        <div className="mt-auto pt-4 border-t border-white/10 space-y-2">
+        <div className="mt-auto pt-4 border-t border-white/10 space-y-2 shrink-0">
           {AccountActions}
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header móvil — solo marca y acciones de cuenta; la navegación
             entre módulos vive en la barra inferior de íconos. */}
-        <header className="lg:hidden bg-[#002244] text-white flex items-center justify-between px-4 py-3 sticky top-0 z-40">
+        <header className="lg:hidden bg-[#002244] text-white flex items-center justify-between px-4 py-3 shrink-0">
           <div className="bg-white px-2 py-1 rounded-lg flex items-center">
             <AlcoLogo className="h-6" />
           </div>
@@ -155,11 +157,11 @@ export const CrmShell: React.FC<{ user: AdminSessionPayload; children: React.Rea
           </div>
         </header>
 
-        {/* El contenido nunca queda tapado ni compartiendo pantalla con un
-            menú superpuesto: solo se ve la página activa. pb-20 deja
-            espacio para que la barra inferior fija no tape el final del
-            contenido en móvil. */}
-        <main className="flex-1 p-4 pb-20 sm:p-6 lg:pb-6">
+        {/* Única región con scroll propio del panel: el menú lateral y el
+            header quedan fijos, y con listas largas solo se desplaza esto.
+            pb-20 deja espacio para que la barra inferior fija no tape el
+            final del contenido en móvil. */}
+        <main className="flex-1 overflow-y-auto p-4 pb-20 sm:p-6 lg:pb-6">
           <CrmSessionProvider user={user}>{children}</CrmSessionProvider>
         </main>
       </div>
