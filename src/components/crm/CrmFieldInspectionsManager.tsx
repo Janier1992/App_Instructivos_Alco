@@ -152,7 +152,7 @@ export const CrmFieldInspectionsManager: React.FC = () => {
         op: editing.op,
         planoOpc: editing.planoOpc || '',
         disenoReferencia: editing.disenoReferencia || '',
-        cantTotal: editing.cantTotal,
+        cantTotal: String(editing.cantTotal),
         cantRetenida: editing.cantRetenida,
         estado: editing.estado,
         defecto: editing.defecto,

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Mic, MicOff, Sparkles, Ruler, Layers, RefreshCw, AlertTriangle, X } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Camera, Mic, MicOff, Sparkles, Ruler, Layers, RefreshCw, AlertTriangle, X, ListChecks } from 'lucide-react';
 import { compressImageFile } from '@/src/lib/imageCompression';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
+import { parsePlanoGroups, matchCantidadesToGroups } from '@/src/lib/fieldPlanoGroups';
 import { FieldInspectionMeasureTool } from './FieldInspectionMeasureTool';
 import {
   AREAS_PROCESO,
@@ -22,7 +23,8 @@ export interface FieldInspectionFormValues {
   op: string;
   planoOpc: string;
   disenoReferencia: string;
-  cantTotal: number;
+  /** Un número simple, o una cantidad por cada grupo de "Plano/Ítems" separada por coma (ej. "1,2,1"). */
+  cantTotal: string;
   cantRetenida: number;
   estado: string;
   defecto: string;
@@ -42,7 +44,7 @@ const EMPTY_FORM: FieldInspectionFormValues = {
   op: '',
   planoOpc: '',
   disenoReferencia: '',
-  cantTotal: 0,
+  cantTotal: '0',
   cantRetenida: 0,
   estado: 'Aprobado',
   defecto: 'NINGUNO',
@@ -94,6 +96,23 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
 
   const set = <K extends keyof FieldInspectionFormValues>(key: K, value: FieldInspectionFormValues[K]) =>
     setValues(prev => ({ ...prev, [key]: value }));
+
+  /**
+   * Vista previa del registro masivo: cuántas inspecciones se crearán y con
+   * qué cantidad cada una, a partir de "Plano/Ítems" y "Cant. Total" — para
+   * que el usuario detecte un desajuste antes de enviar, no después.
+   */
+  const batchPreview = useMemo(() => {
+    if (isEditing || !values.planoOpc.trim()) return null;
+    const groups = parsePlanoGroups(values.planoOpc);
+    if (groups.length === 0) return null;
+    const match = matchCantidadesToGroups(values.cantTotal || '', groups.length);
+    const rows =
+      match.success && match.cantidadesPorGrupo
+        ? groups.flatMap((g, idx) => g.planos.map(plano => ({ plano, cantidad: match.cantidadesPorGrupo![idx] })))
+        : [];
+    return { groups, match, rows };
+  }, [isEditing, values.planoOpc, values.cantTotal]);
 
   const toggleVoice = () => {
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -174,7 +193,7 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
       const r = data.result;
       setValues(prev => ({
         ...prev,
-        cantTotal: r.cantTotal,
+        cantTotal: String(r.cantTotal),
         defecto: r.defecto,
         estado: r.estado,
         alertLevel: r.alertLevel,
@@ -208,7 +227,7 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
       setDetectedUnits(r.unidades || []);
       setValues(prev => ({
         ...prev,
-        cantTotal: r.cantTotal,
+        cantTotal: String(r.cantTotal),
         observacion: prev.observacion.trim() ? `${prev.observacion.trim()}\n[IA Conteo]: ${r.observacion}` : `[IA Conteo]: ${r.observacion}`
       }));
     } catch (err: any) {
@@ -221,6 +240,16 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLocked) return;
+
+    if (isEditing && values.cantTotal.includes(',')) {
+      setError('Al editar un registro, "Cant. Total" debe ser un solo número.');
+      return;
+    }
+    if (!isEditing && batchPreview && !batchPreview.match.success) {
+      setError(batchPreview.match.error || 'Revisa "Plano/Ítems" y "Cant. Total".');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -247,8 +276,15 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
           <input type="text" value={values.planoOpc} onChange={e => set('planoOpc', e.target.value)} className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="1-5, 8, 10" />
         </Field>
         <ComboField label="Diseño / Serie" value={values.disenoReferencia} onChange={v => set('disenoReferencia', v)} options={DISENO_REFERENCIA_OPTIONS} listId="disenos" />
-        <Field label="Cant. Total">
-          <input type="number" value={values.cantTotal} onChange={e => set('cantTotal', Number(e.target.value) || 0)} className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]" />
+        <Field label={isEditing ? 'Cant. Total' : 'Cant. Total (1 valor, o 1 por grupo de plano)'}>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={values.cantTotal}
+            onChange={e => set('cantTotal', e.target.value)}
+            placeholder={isEditing ? '' : 'Ej: 1  o  1,2,1,3,1'}
+            className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+          />
         </Field>
         <Field label="Cant. Retenida">
           <input type="number" value={values.cantRetenida} onChange={e => set('cantRetenida', Number(e.target.value) || 0)} className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]" />
@@ -271,6 +307,8 @@ export const FieldInspectionForm: React.FC<Props> = ({ initial, initialPhotoUrl,
           </select>
         </Field>
       </div>
+
+      {batchPreview && <BatchPreviewBox preview={batchPreview} />}
 
       <ComboField label="Observación sugerida" value={values.observacionSugerida} onChange={v => set('observacionSugerida', v)} options={OBSERVACIONES_SUGERIDAS} listId="obs-sugeridas" />
 
@@ -380,3 +418,37 @@ const ComboField: React.FC<{ label: string; value: string; onChange: (v: string)
     </datalist>
   </Field>
 );
+
+interface BatchPreviewData {
+  groups: ReturnType<typeof parsePlanoGroups>;
+  match: ReturnType<typeof matchCantidadesToGroups>;
+  rows: { plano: string; cantidad: number }[];
+}
+
+/** Muestra cuántas inspecciones se van a crear (y con qué cantidad cada una) antes de enviar, o el error si "Plano/Ítems" y "Cant. Total" no coinciden. */
+const BatchPreviewBox: React.FC<{ preview: BatchPreviewData }> = ({ preview }) => {
+  if (!preview.match.success) {
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+        <AlertTriangle className="w-4 h-4 shrink-0" /> {preview.match.error}
+      </p>
+    );
+  }
+
+  if (preview.rows.length <= 1) return null;
+
+  return (
+    <div className="flex items-start gap-1.5 text-xs text-blue-900 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+      <ListChecks className="w-4 h-4 shrink-0 mt-0.5" />
+      <p>
+        Se crearán <strong>{preview.rows.length} inspecciones</strong>:{' '}
+        {preview.rows.map((r, i) => (
+          <span key={r.plano}>
+            {i > 0 && ', '}
+            plano {r.plano} ({r.cantidad})
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+};

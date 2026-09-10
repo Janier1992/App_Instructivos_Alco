@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabaseService';
 import { createNonConformity } from './nonConformitiesStore';
+import { parsePlanoGroups, flattenPlanoGroups, matchCantidadesToGroups } from './fieldPlanoGroups';
 
 const PHOTO_BUCKET = 'field-inspection-photos';
 const PHOTO_URL_TTL_SECONDS = 6 * 60 * 60;
@@ -56,28 +57,12 @@ function mapRow(row: any): FieldInspection {
 /**
  * "1-5, 8, 10" -> ['1','2','3','4','5','8','10'] — mismo formato de rango
  * de planos/ítems del proyecto de referencia. Cada número expandido genera
- * un registro de inspección independiente en el mismo envío.
+ * un registro de inspección independiente en el mismo envío. Ver
+ * ./fieldPlanoGroups para la lógica real (compartida con el emparejamiento
+ * de cantidades por grupo).
  */
 export function parsePlanNumbers(input: string): string[] {
-  const plans = new Set<string>();
-  const parts = input.split(',').map(p => p.trim());
-
-  for (const part of parts) {
-    if (part.includes('-')) {
-      const [start, end] = part.split('-').map(n => parseInt(n, 10));
-      if (!isNaN(start) && !isNaN(end) && start <= end) {
-        for (let i = start; i <= end; i++) plans.add(i.toString());
-      }
-    } else if (part) {
-      plans.add(part);
-    }
-  }
-
-  return Array.from(plans).sort((a, b) => {
-    const numA = parseInt(a);
-    const numB = parseInt(b);
-    return !isNaN(numA) && !isNaN(numB) ? numA - numB : a.localeCompare(b);
-  });
+  return flattenPlanoGroups(parsePlanoGroups(input));
 }
 
 export interface FieldInspectionInput {
@@ -86,7 +71,12 @@ export interface FieldInspectionInput {
   op: string;
   planoOpc?: string;
   disenoReferencia?: string;
-  cantTotal: number;
+  /**
+   * Acepta un número simple (comportamiento clásico) o, cuando "Plano/Ítems"
+   * trae varios grupos separados por coma, una cantidad por grupo separada
+   * por coma en el mismo orden (ej. planoOpc="1-5, 8, 9" y cantTotal="1,2,1").
+   */
+  cantTotal: number | string;
   cantRetenida: number;
   estado: string;
   defecto: string;
@@ -100,7 +90,7 @@ export interface FieldInspectionInput {
   aiMetadata?: Record<string, unknown>;
 }
 
-function toDbRow(input: FieldInspectionInput, planoOpc: string | undefined, createdBy?: string) {
+function toDbRow(input: FieldInspectionInput, planoOpc: string | undefined, createdBy?: string, cantTotalOverride?: number) {
   return {
     process_slug: 'control-calidad',
     fecha: input.fecha || new Date().toISOString().split('T')[0],
@@ -108,7 +98,7 @@ function toDbRow(input: FieldInspectionInput, planoOpc: string | undefined, crea
     op: (input.op || '').toUpperCase(),
     plano_opc: (planoOpc ?? input.planoOpc ?? '').toString().toUpperCase() || null,
     diseno_referencia: (input.disenoReferencia || '').toUpperCase() || null,
-    cant_total: Number(input.cantTotal) || 0,
+    cant_total: cantTotalOverride ?? (Number(input.cantTotal) || 0),
     cant_retenida: Number(input.cantRetenida) || 0,
     estado: input.estado || 'Aprobado',
     defecto: (input.defecto || 'NINGUNO').toUpperCase(),
@@ -127,9 +117,11 @@ function toDbRow(input: FieldInspectionInput, planoOpc: string | undefined, crea
 /**
  * Crea una o varias inspecciones en un solo envío (si planoOpc trae un
  * rango tipo "1-5, 8" se expande a un registro por cada plano/ítem — igual
- * que el proyecto de referencia). Si el estado queda "Rechazado", abre
- * automáticamente un borrador de No Conformidad sobre el primer registro
- * creado.
+ * que el proyecto de referencia). "Cant. Total" puede traer una sola
+ * cantidad (se aplica a todos los planos) o una cantidad por cada grupo de
+ * plano separado por coma, en el mismo orden — ver ./fieldPlanoGroups. Si
+ * el estado queda "Rechazado", abre automáticamente un borrador de No
+ * Conformidad sobre el primer registro creado.
  */
 export async function createFieldInspections(
   input: FieldInspectionInput,
@@ -138,9 +130,16 @@ export async function createFieldInspections(
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
 
-  const planNumbers = input.planoOpc ? parsePlanNumbers(input.planoOpc) : [];
-  const plansToSubmit = planNumbers.length > 0 ? planNumbers : [input.planoOpc || ''];
-  const rows = plansToSubmit.map(plan => toDbRow(input, plan, createdBy));
+  const planGroups = input.planoOpc ? parsePlanoGroups(input.planoOpc) : [];
+  const cantidadMatch = matchCantidadesToGroups(String(input.cantTotal ?? ''), planGroups.length);
+  if (!cantidadMatch.success || !cantidadMatch.cantidadesPorGrupo) {
+    return { success: false, error: cantidadMatch.error || 'Cantidad inválida.' };
+  }
+
+  const rows =
+    planGroups.length > 0
+      ? planGroups.flatMap((group, idx) => group.planos.map(plano => toDbRow(input, plano, createdBy, cantidadMatch.cantidadesPorGrupo![idx])))
+      : [toDbRow(input, input.planoOpc, createdBy, cantidadMatch.cantidadesPorGrupo[0])];
 
   try {
     const { data, error } = await supabase.from('field_inspections').insert(rows).select();
@@ -225,6 +224,13 @@ export async function updateFieldInspection(
 ): Promise<{ success: boolean; inspection?: FieldInspection; error?: string }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+
+  // La edición actúa sobre un único registro ya existente — "Cant. Total"
+  // debe ser un solo número aquí (la sintaxis de varias cantidades por
+  // grupo solo aplica al crear varios planos en un mismo envío).
+  if (String(input.cantTotal ?? '').includes(',')) {
+    return { success: false, error: 'Al editar un registro, "Cant. Total" debe ser un solo número.' };
+  }
 
   const patch = toDbRow(input, input.planoOpc);
   delete (patch as any).created_by;
