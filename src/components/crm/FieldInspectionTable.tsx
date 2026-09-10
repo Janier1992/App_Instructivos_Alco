@@ -26,7 +26,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
     if (!search.trim()) return inspections;
     const q = search.trim().toLowerCase();
     return inspections.filter(i =>
-      [i.op, i.areaProceso, i.disenoReferencia, i.responsable, i.reviso, i.defecto].some(v => (v || '').toLowerCase().includes(q))
+      [i.op, i.planoOpc, i.areaProceso, i.disenoReferencia, i.responsable, i.reviso, i.defecto].some(v => (v || '').toLowerCase().includes(q))
     );
   }, [inspections, search]);
 
@@ -74,6 +74,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
               <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
               <th className="p-2 text-left font-bold text-slate-500">Área</th>
               <th className="p-2 text-left font-bold text-slate-500">OP</th>
+              <th className="p-2 text-left font-bold text-slate-500">Plano/Ítem</th>
               <th className="p-2 text-left font-bold text-slate-500">Diseño</th>
               <th className="p-2 text-left font-bold text-slate-500">Cant.</th>
               <th className="p-2 text-left font-bold text-slate-500">Estado</th>
@@ -86,7 +87,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={11} className="p-6 text-center text-slate-400">Sin inspecciones registradas.</td>
+                <td colSpan={12} className="p-6 text-center text-slate-400">Sin inspecciones registradas.</td>
               </tr>
             ) : (
               filtered.map(insp => (
@@ -98,6 +99,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
                     {insp.op}
                     {insp.isOffline && <CloudOff className="w-3 h-3 inline ml-1 text-amber-500" aria-label="Pendiente de sincronizar" />}
                   </td>
+                  <td className="p-2 font-mono">{insp.planoOpc || '—'}</td>
                   <td className="p-2">{insp.disenoReferencia}</td>
                   <td className="p-2">{insp.cantTotal}{insp.cantRetenida > 0 && <span className="text-rose-600"> ({insp.cantRetenida} ret.)</span>}</td>
                   <td className="p-2">

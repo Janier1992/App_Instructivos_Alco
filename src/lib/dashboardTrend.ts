@@ -1,3 +1,5 @@
+import { movingAverage } from './dashboardColors';
+
 /**
  * Construye una serie continua de los últimos `days` días (sin huecos,
  * incluso si un día no tuvo registros) a partir de una fecha 'YYYY-MM-DD'
@@ -37,6 +39,17 @@ export function buildDailyTrend<T>(
   return Array.from(buckets.values());
 }
 
+/** Agrega una serie de media móvil (`${sourceKey}Avg`) a una tendencia ya construida — para mostrar la tendencia real sin el ruido diario. */
+export function withMovingAverage(
+  trend: Array<Record<string, number | string>>,
+  sourceKey: string,
+  window = 7
+): Array<Record<string, number | string>> {
+  const values = trend.map(row => Number(row[sourceKey]) || 0);
+  const avg = movingAverage(values, window);
+  return trend.map((row, i) => ({ ...row, [`${sourceKey}Avg`]: Math.round(avg[i] * 10) / 10 }));
+}
+
 export function countBy<T>(items: T[], getKey: (item: T) => string | null | undefined): { name: string; value: number }[] {
   const counts = new Map<string, number>();
   for (const item of items) {
@@ -46,4 +59,33 @@ export function countBy<T>(items: T[], getKey: (item: T) => string | null | unde
   return Array.from(counts.entries())
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
+}
+
+export interface PeriodComparison {
+  current: number;
+  previous: number;
+  /** null cuando el periodo previo no tiene datos para comparar (evita un % engañoso). */
+  deltaPct: number | null;
+}
+
+/** Compara los últimos `days` días contra los `days` inmediatamente anteriores — para las flechas de tendencia de los KPI. */
+export function compareToPreviousPeriod<T>(items: T[], getDate: (item: T) => string | null, days: number): PeriodComparison {
+  const today = new Date();
+  const cutoffCurrent = new Date(today);
+  cutoffCurrent.setDate(cutoffCurrent.getDate() - days);
+  const cutoffPrevious = new Date(today);
+  cutoffPrevious.setDate(cutoffPrevious.getDate() - days * 2);
+
+  let current = 0;
+  let previous = 0;
+  for (const item of items) {
+    const fecha = getDate(item);
+    if (!fecha) continue;
+    const d = new Date(fecha);
+    if (d >= cutoffCurrent) current++;
+    else if (d >= cutoffPrevious) previous++;
+  }
+
+  const deltaPct = previous === 0 ? null : ((current - previous) / previous) * 100;
+  return { current, previous, deltaPct };
 }

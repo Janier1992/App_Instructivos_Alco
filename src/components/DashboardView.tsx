@@ -7,11 +7,13 @@ import { MetrologyDelivery } from '@/src/lib/metrologyDeliveriesStore';
 import { MetrologyReplacement } from '@/src/lib/metrologyReplacementsStore';
 import { MetrologyCalibration } from '@/src/lib/metrologyCalibrationsStore';
 import { getDaysUntilDue, getStatusConfig } from '@/src/lib/metrologyCalibrationUtils';
+import { buildDailyTrend, compareToPreviousPeriod } from '@/src/lib/dashboardTrend';
 import { FieldInspectionsAnalytics } from './dashboard/FieldInspectionsAnalytics';
 import { MetrologyAnalytics } from './dashboard/MetrologyAnalytics';
 import { StatCard } from './dashboard/StatCard';
 
 const AUTO_REFRESH_MS = 60_000;
+const PERIOD_OPTIONS = [7, 30, 90] as const;
 
 type DashboardTab = 'inspecciones' | 'metrologia';
 
@@ -33,6 +35,7 @@ export const DashboardView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tab, setTab] = useState<DashboardTab>('inspecciones');
+  const [days, setDays] = useState<number>(30);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -80,34 +83,70 @@ export const DashboardView: React.FC = () => {
   const totalMetrologyRecords = data ? data.deliveries.length + data.replacements.length + data.calibrations.length : 0;
   const rejectedInspections = data ? data.inspections.filter(i => i.estado === 'Rechazado').length : 0;
 
+  const inspectionsComparison = useMemo(() => (data ? compareToPreviousPeriod(data.inspections, i => i.fecha, days) : null), [data, days]);
+  const inspectionsSparkline = useMemo(() => {
+    if (!data) return [];
+    return buildDailyTrend(data.inspections, i => i.fecha, [{ key: 'total' }], days).map(row => Number(row.total));
+  }, [data, days]);
+
+  const metrologyComparison = useMemo(() => {
+    if (!data) return null;
+    const combined = [
+      ...data.deliveries.map(d => d.fecha),
+      ...data.replacements.map(r => r.fechaRegistro)
+    ].map(fecha => ({ fecha }));
+    return compareToPreviousPeriod(combined, r => r.fecha, days);
+  }, [data, days]);
+  const metrologySparkline = useMemo(() => {
+    if (!data) return [];
+    const combined = [
+      ...data.deliveries.map(d => ({ fecha: d.fecha })),
+      ...data.replacements.map(r => ({ fecha: r.fechaRegistro }))
+    ];
+    return buildDailyTrend(combined, r => r.fecha, [{ key: 'total' }], days).map(row => Number(row.total));
+  }, [data, days]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-br from-[#002244] via-[#003366] to-[#00498f] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-900">Dashboard Operativo</h2>
-            <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            <h2 className="text-xl font-bold text-white">Dashboard Operativo</h2>
+            <span className="bg-white/15 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full border border-white/20">
               Inspecciones en Campo • Metrología Pro
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-blue-100 mt-1">
             Métricas en vivo a partir de los registros de Control Calidad — se actualiza automáticamente cada minuto.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center bg-white/10 border border-white/20 rounded-xl p-0.5">
+            {PERIOD_OPTIONS.map(opt => (
+              <button
+                key={opt}
+                onClick={() => setDays(opt)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                  days === opt ? 'bg-white text-[#003366] shadow-sm' : 'text-blue-100 hover:text-white'
+                }`}
+              >
+                {opt}d
+              </button>
+            ))}
+          </div>
           {lastUpdated && (
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-blue-200">
               Actualizado {lastUpdated.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
           <button
             onClick={() => load()}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl transition disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Actualizar
           </button>
         </div>
@@ -121,9 +160,21 @@ export const DashboardView: React.FC = () => {
         <>
           {/* KPI global */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Inspecciones registradas" value={data.inspections.length} icon={<ClipboardCheck className="w-3.5 h-3.5" />} />
+            <StatCard
+              label="Inspecciones registradas"
+              value={data.inspections.length}
+              icon={<ClipboardCheck className="w-3.5 h-3.5" />}
+              deltaPct={inspectionsComparison?.deltaPct}
+              sparkline={inspectionsSparkline}
+            />
             <StatCard label="Inspecciones rechazadas" value={rejectedInspections} icon={<AlertOctagon className="w-3.5 h-3.5" />} tone={rejectedInspections > 0 ? 'danger' : 'default'} />
-            <StatCard label="Registros de Metrología Pro" value={totalMetrologyRecords} icon={<Wrench className="w-3.5 h-3.5" />} />
+            <StatCard
+              label="Registros de Metrología Pro"
+              value={totalMetrologyRecords}
+              icon={<Wrench className="w-3.5 h-3.5" />}
+              deltaPct={metrologyComparison?.deltaPct}
+              sparkline={metrologySparkline}
+            />
             <StatCard label="Instrumentos vencidos" value={overdueCalibrations} icon={<AlertOctagon className="w-3.5 h-3.5" />} tone={overdueCalibrations > 0 ? 'danger' : 'default'} />
           </div>
 
@@ -133,9 +184,9 @@ export const DashboardView: React.FC = () => {
             <TabButton active={tab === 'metrologia'} onClick={() => setTab('metrologia')} icon={<Wrench className="w-3.5 h-3.5" />} label="Metrología Pro" />
           </div>
 
-          {tab === 'inspecciones' && <FieldInspectionsAnalytics inspections={data.inspections} />}
+          {tab === 'inspecciones' && <FieldInspectionsAnalytics inspections={data.inspections} days={days} />}
           {tab === 'metrologia' && (
-            <MetrologyAnalytics deliveries={data.deliveries} replacements={data.replacements} calibrations={data.calibrations} />
+            <MetrologyAnalytics deliveries={data.deliveries} replacements={data.replacements} calibrations={data.calibrations} days={days} />
           )}
         </>
       )}

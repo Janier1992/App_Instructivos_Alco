@@ -13,6 +13,7 @@ interface FieldInspection {
   fecha: string;
   areaProceso: string;
   op: string;
+  planoOpc: string | null;
   disenoReferencia: string | null;
   cantTotal: number;
   cantRetenida: number;
@@ -157,6 +158,7 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
                 <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
                 <th className="p-2 text-left font-bold text-slate-500">Área</th>
                 <th className="p-2 text-left font-bold text-slate-500">OP</th>
+                <th className="p-2 text-left font-bold text-slate-500">Plano/Ítem</th>
                 <th className="p-2 text-left font-bold text-slate-500">Diseño</th>
                 <th className="p-2 text-left font-bold text-slate-500">Cant.</th>
                 <th className="p-2 text-left font-bold text-slate-500">Estado</th>
@@ -170,6 +172,7 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
                   <td className="p-2 whitespace-nowrap">{insp.fecha}</td>
                   <td className="p-2">{insp.areaProceso}</td>
                   <td className="p-2 font-semibold">{insp.op}</td>
+                  <td className="p-2 font-mono">{insp.planoOpc || '—'}</td>
                   <td className="p-2">{insp.disenoReferencia}</td>
                   <td className="p-2">{insp.cantTotal}{insp.cantRetenida > 0 && <span className="text-rose-600"> ({insp.cantRetenida} ret.)</span>}</td>
                   <td className="p-2">
