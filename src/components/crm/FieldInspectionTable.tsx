@@ -16,11 +16,13 @@ interface Props {
   inspections: (FieldInspection & { isOffline?: boolean })[];
   onEdit: (inspection: FieldInspection) => void;
   onDeleteSelected: (ids: string[]) => void;
+  onDeleteAllMatching: (search: string) => void;
 }
 
-export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onDeleteSelected }) => {
+export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onDeleteSelected, onDeleteAllMatching }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectAllMode, setSelectAllMode] = useState(false);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return inspections;
@@ -30,7 +32,13 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
     );
   }, [inspections, search]);
 
+  useEffect(() => {
+    setSelected(new Set());
+    setSelectAllMode(false);
+  }, [search]);
+
   const toggleSelect = (id: string) => {
+    setSelectAllMode(false);
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -50,9 +58,11 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
   }, [someFilteredSelected, allFilteredSelected]);
 
   const toggleSelectAll = () => {
+    const turningOn = !allFilteredSelected;
+    setSelectAllMode(turningOn);
     setSelected(prev => {
       const next = new Set(prev);
-      if (allFilteredSelected) {
+      if (!turningOn) {
         filtered.forEach(i => next.delete(i.id));
       } else {
         filtered.forEach(i => next.add(i.id));
@@ -62,6 +72,17 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
   };
 
   const handleBulkDelete = () => {
+    if (selectAllMode) {
+      const trimmedSearch = search.trim();
+      const confirmMsg = trimmedSearch
+        ? `¿Eliminar TODOS los registros que coincidan con "${trimmedSearch}"? Puede ser un número mayor a los ${filtered.length} que ves cargados. Esta acción no se puede deshacer.`
+        : `¿Eliminar TODOS los registros de Inspecciones en Campo (no solo los ${inspections.length} cargados)? Esta acción no se puede deshacer.`;
+      if (!confirm(confirmMsg)) return;
+      onDeleteAllMatching(trimmedSearch);
+      setSelected(new Set());
+      setSelectAllMode(false);
+      return;
+    }
     if (selected.size === 0) return;
     if (!confirm(`¿Eliminar ${selected.size} inspección(es) seleccionada(s)?`)) return;
     onDeleteSelected(Array.from(selected));
@@ -82,9 +103,12 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
           />
         </div>
         <div className="flex items-center gap-2">
-          {selected.size > 0 && (
+          {(selected.size > 0 || selectAllMode) && (
             <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition">
-              <Trash2 className="w-3.5 h-3.5" /> Eliminar {selected.size} seleccionada{selected.size === 1 ? '' : 's'}
+              <Trash2 className="w-3.5 h-3.5" />
+              {selectAllMode
+                ? `Eliminar TODOS${search.trim() ? ' los coincidentes' : ''}`
+                : `Eliminar ${selected.size} seleccionada${selected.size === 1 ? '' : 's'}`}
             </button>
           )}
         </div>

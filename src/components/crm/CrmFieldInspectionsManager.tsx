@@ -145,6 +145,17 @@ export const CrmFieldInspectionsManager: React.FC = () => {
     else alert(data.error || 'No se pudieron eliminar.');
   };
 
+  const handleDeleteAllMatching = async (search: string) => {
+    const res = await fetch('/api/crm/field-inspections', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deleteAll: true, search })
+    });
+    const data = await res.json();
+    if (data.success) await load();
+    else alert(data.error || 'No se pudieron eliminar.');
+  };
+
   const initialFormValues: Partial<FieldInspectionFormValues> | undefined = editing
     ? {
         fecha: editing.fecha,
@@ -209,7 +220,7 @@ export const CrmFieldInspectionsManager: React.FC = () => {
               </button>
             </div>
           </div>
-          <FieldInspectionTable inspections={inspections} onEdit={openEdit} onDeleteSelected={handleDeleteSelected} />
+          <FieldInspectionTable inspections={inspections} onEdit={openEdit} onDeleteSelected={handleDeleteSelected} onDeleteAllMatching={handleDeleteAllMatching} />
         </div>
       )}
 

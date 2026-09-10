@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureHydrated } from '@/src/lib/hydrate';
 import { requireSession } from '@/src/lib/adminAuth';
-import { getFieldInspections, createFieldInspections, deleteFieldInspections, FieldInspectionInput } from '@/src/lib/fieldInspectionsStore';
+import { getFieldInspections, createFieldInspections, deleteFieldInspections, deleteFieldInspectionsMatching, FieldInspectionInput } from '@/src/lib/fieldInspectionsStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
+
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   await ensureHydrated();
@@ -50,12 +52,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Borrado múltiple — el cliente envía { ids: string[] } en el body. */
+/**
+ * Borrado múltiple. El cliente envía { ids: string[] } para borrar una
+ * selección puntual, o { deleteAll: true, search?: string } para borrar
+ * TODOS los registros que coincidan con la búsqueda (o toda la tabla si
+ * search viene vacío) — sin importar cuántos estén cargados en el navegador.
+ */
 export async function DELETE(request: NextRequest) {
   const auth = await requireSession(request);
   if ('error' in auth) return auth.error;
 
-  const { ids } = await request.json();
+  const body = await request.json();
+
+  if (body?.deleteAll) {
+    const search: string | undefined = typeof body.search === 'string' ? body.search : undefined;
+    const result = await deleteFieldInspectionsMatching(search);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || 'No se pudieron eliminar las inspecciones.' }, { status: 500 });
+    }
+
+    await recordAuditEvent({
+      adminUserId: auth.session.sub,
+      adminEmail: auth.session.email,
+      action: 'delete',
+      entityType: 'field_inspection',
+      entityId: 'bulk-all',
+      metadata: { count: result.count, search: search || null }
+    });
+
+    return NextResponse.json({ success: true, count: result.count });
+  }
+
+  const { ids } = body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'Se requiere un arreglo de ids.' }, { status: 400 });
   }

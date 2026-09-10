@@ -287,6 +287,49 @@ export async function deleteFieldInspections(ids: string[]): Promise<{ success: 
   return { success: true };
 }
 
+const SEARCHABLE_COLUMNS = ['op', 'plano_opc', 'area_proceso', 'diseno_referencia', 'responsable', 'reviso', 'defecto'];
+
+/**
+ * Borra TODOS los registros que coincidan con `search` (mismos campos que el
+ * buscador del CRM), o toda la tabla si `search` viene vacío — a diferencia
+ * de deleteFieldInspections, no depende de los ids ya cargados en el
+ * navegador (limitados a 500 por getFieldInspections).
+ */
+export async function deleteFieldInspectionsMatching(search?: string): Promise<{ success: boolean; count: number; error?: string }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, count: 0, error: 'Supabase no está configurado.' };
+
+  try {
+    const idSet = new Set<string>();
+    const trimmed = search?.trim();
+
+    if (!trimmed) {
+      const { data, error } = await supabase.from('field_inspections').select('id');
+      if (error) return { success: false, count: 0, error: error.message };
+      (data || []).forEach((row: any) => idSet.add(row.id));
+    } else {
+      const pattern = `%${trimmed}%`;
+      for (const column of SEARCHABLE_COLUMNS) {
+        const { data, error } = await supabase.from('field_inspections').select('id').ilike(column, pattern);
+        if (error) return { success: false, count: 0, error: error.message };
+        (data || []).forEach((row: any) => idSet.add(row.id));
+      }
+    }
+
+    const ids = Array.from(idSet);
+    if (ids.length === 0) return { success: true, count: 0 };
+
+    for (let i = 0; i < ids.length; i += BULK_INSERT_CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + BULK_INSERT_CHUNK_SIZE);
+      const { error } = await supabase.from('field_inspections').delete().in('id', chunk);
+      if (error) return { success: false, count: i, error: `${error.message} (se eliminaron ${i} de ${ids.length} antes del error).` };
+    }
+    return { success: true, count: ids.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err?.message || 'Error desconocido.' };
+  }
+}
+
 const playbackUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 
 /**
