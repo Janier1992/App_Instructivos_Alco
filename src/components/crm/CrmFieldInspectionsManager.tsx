@@ -167,8 +167,8 @@ export const CrmFieldInspectionsManager: React.FC = () => {
     : undefined;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="h-full flex flex-col gap-4">
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-[#003366]" /> Inspecciones en Campo
@@ -187,15 +187,15 @@ export const CrmFieldInspectionsManager: React.FC = () => {
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
+      <div className="shrink-0 flex items-center gap-1.5 border-b border-slate-200 pb-2">
         <TabButton active={tab === 'tabla'} onClick={() => setTab('tabla')} icon={<ClipboardList className="w-3.5 h-3.5" />} label="Registros" />
         <TabButton active={tab === 'enlaces'} onClick={() => setTab('enlaces')} icon={<Link2 className="w-3.5 h-3.5" />} label="Enlaces externos" />
         <TabButton active={tab === 'nc'} onClick={() => setTab('nc')} icon={<AlertTriangle className="w-3.5 h-3.5" />} label="No Conformidades" />
       </div>
 
       {tab === 'tabla' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 p-6 gap-4 shadow-sm">
+          <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
             <span className="font-bold text-sm text-slate-800">{inspections.length} registro{inspections.length === 1 ? '' : 's'}</span>
             <div className="flex items-center gap-2">
               <button onClick={load} className="text-[11px] font-semibold text-[#003366] hover:underline flex items-center gap-1">
@@ -214,13 +214,13 @@ export const CrmFieldInspectionsManager: React.FC = () => {
       )}
 
       {tab === 'enlaces' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <CrmFieldInspectionLinksManager />
         </div>
       )}
 
       {tab === 'nc' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <CrmNonConformitiesManager />
         </div>
       )}

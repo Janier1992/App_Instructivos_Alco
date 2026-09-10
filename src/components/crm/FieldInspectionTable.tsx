@@ -69,8 +69,8 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flex-1 min-h-0 flex flex-col gap-3">
+      <div className="shrink-0 flex items-center justify-between gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
@@ -90,26 +90,26 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 rounded-xl">
+      <div className="flex-1 min-h-0 overflow-auto border border-slate-200 rounded-xl">
         <table className="w-full text-xs">
-          <thead className="bg-slate-50">
+          <thead className="bg-slate-50 sticky top-0 z-10">
             <tr>
-              <th className="p-2 w-8">
+              <th className="p-2 w-8 bg-slate-50">
                 {filtered.length > 0 && (
                   <input ref={selectAllRef} type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} title="Seleccionar todo" />
                 )}
               </th>
-              <th className="p-2 text-left font-bold text-slate-500">Fecha</th>
-              <th className="p-2 text-left font-bold text-slate-500">Área</th>
-              <th className="p-2 text-left font-bold text-slate-500">OP</th>
-              <th className="p-2 text-left font-bold text-slate-500">Plano/Ítem</th>
-              <th className="p-2 text-left font-bold text-slate-500">Diseño</th>
-              <th className="p-2 text-left font-bold text-slate-500">Cant.</th>
-              <th className="p-2 text-left font-bold text-slate-500">Estado</th>
-              <th className="p-2 text-left font-bold text-slate-500">Defecto</th>
-              <th className="p-2 text-left font-bold text-slate-500">Responsable</th>
-              <th className="p-2 text-left font-bold text-slate-500">Foto</th>
-              <th className="p-2 text-left font-bold text-slate-500">Acciones</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Fecha</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Área</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">OP</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Plano/Ítem</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Diseño</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Cant.</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Estado</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Defecto</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Responsable</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Foto</th>
+              <th className="p-2 text-left font-bold text-slate-500 bg-slate-50">Acciones</th>
             </tr>
           </thead>
           <tbody>
