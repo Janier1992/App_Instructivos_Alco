@@ -5,6 +5,7 @@ import { parsePlanoGroups, flattenPlanoGroups, matchCantidadesToGroups } from '.
 const PHOTO_BUCKET = 'field-inspection-photos';
 const PHOTO_URL_TTL_SECONDS = 6 * 60 * 60;
 const PHOTO_URL_REUSE_MARGIN_MS = 10 * 60 * 1000;
+const BULK_INSERT_CHUNK_SIZE = 500;
 
 export interface FieldInspection {
   id: string;
@@ -179,12 +180,30 @@ export async function bulkCreateFieldInspections(
   if (inputs.length === 0) return { success: false, count: 0, error: 'No hay filas para insertar.' };
 
   const rows = inputs.map(input => toDbRow(input, undefined, createdBy));
+
+  // Sin límite de filas: se inserta en lotes para que un archivo grande no
+  // falle por el tamaño de un único INSERT (parámetros de Postgres, tiempo
+  // de respuesta). Si un lote falla a mitad de camino, se informa cuántas
+  // filas sí quedaron guardadas en vez de fingir que no pasó nada.
+  let inserted = 0;
   try {
-    const { data, error } = await supabase.from('field_inspections').insert(rows).select('id');
-    if (error) return { success: false, count: 0, error: error.message };
-    return { success: true, count: data?.length || 0 };
+    for (let i = 0; i < rows.length; i += BULK_INSERT_CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + BULK_INSERT_CHUNK_SIZE);
+      const { error } = await supabase.from('field_inspections').insert(chunk);
+      if (error) {
+        return {
+          success: inserted > 0,
+          count: inserted,
+          error: inserted > 0
+            ? `${error.message} (se insertaron ${inserted} de ${rows.length} filas antes del error).`
+            : error.message
+        };
+      }
+      inserted += chunk.length;
+    }
+    return { success: true, count: inserted };
   } catch (err: any) {
-    return { success: false, count: 0, error: err?.message || 'Error desconocido.' };
+    return { success: inserted > 0, count: inserted, error: err?.message || 'Error desconocido.' };
   }
 }
 

@@ -3,7 +3,13 @@ import { requireSession } from '@/src/lib/adminAuth';
 import { bulkCreateFieldInspections, FieldInspectionInput } from '@/src/lib/fieldInspectionsStore';
 import { recordAuditEvent } from '@/src/lib/auditLog';
 
-/** Carga masiva desde Excel — el cliente ya parseó y validó las filas. */
+export const maxDuration = 60;
+
+/**
+ * Carga masiva desde Excel — el cliente ya parseó y validó las filas. Sin
+ * límite de filas: bulkCreateFieldInspections inserta en lotes internamente
+ * para que un archivo grande no falle por el tamaño de un único INSERT.
+ */
 export async function POST(request: NextRequest) {
   const auth = await requireSession(request);
   if ('error' in auth) return auth.error;
@@ -11,9 +17,6 @@ export async function POST(request: NextRequest) {
   const { rows }: { rows: FieldInspectionInput[] } = await request.json();
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: 'No hay filas para insertar.' }, { status: 400 });
-  }
-  if (rows.length > 500) {
-    return NextResponse.json({ error: 'Máximo 500 filas por carga.' }, { status: 400 });
   }
 
   const result = await bulkCreateFieldInspections(rows, auth.session.sub);
