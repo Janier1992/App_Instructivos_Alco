@@ -631,7 +631,77 @@ CREATE TABLE IF NOT EXISTS field_inspections (
 CREATE INDEX IF NOT EXISTS idx_field_inspections_process_slug ON field_inspections(process_slug);
 CREATE INDEX IF NOT EXISTS idx_field_inspections_estado ON field_inspections(estado);
 CREATE INDEX IF NOT EXISTS idx_field_inspections_created_at ON field_inspections(created_at);
+CREATE INDEX IF NOT EXISTS idx_field_inspections_fecha ON field_inspections(fecha);
+CREATE INDEX IF NOT EXISTS idx_field_inspections_area_proceso ON field_inspections(area_proceso);
 ALTER TABLE field_inspections ENABLE ROW LEVEL SECURITY;
+
+-- Métricas del Dashboard Operativo agregadas en el servidor — ver
+-- db/migrate_field_inspections_dashboard_stats.sql para el detalle.
+CREATE OR REPLACE FUNCTION field_inspections_dashboard_stats(days_back INTEGER DEFAULT 30)
+RETURNS JSON
+LANGUAGE sql
+STABLE
+AS $$
+  WITH period AS (
+    SELECT
+      CURRENT_DATE - (days_back - 1) AS period_start,
+      CURRENT_DATE - days_back AS current_cutoff,
+      CURRENT_DATE - (2 * days_back) AS prev_cutoff
+  ),
+  trend_days AS (
+    SELECT generate_series((SELECT period_start FROM period), CURRENT_DATE, interval '1 day')::date AS day
+  )
+  SELECT json_build_object(
+    'total', (SELECT COUNT(*) FROM field_inspections),
+    'approvedCount', (SELECT COUNT(*) FROM field_inspections WHERE estado ILIKE 'Aprobado%'),
+    'rejectedCount', (SELECT COUNT(*) FROM field_inspections WHERE estado = 'Rechazado'),
+    'criticalCount', (SELECT COUNT(*) FROM field_inspections WHERE alert_level = 'Critical'),
+    'cantTotalSum', (SELECT COALESCE(SUM(cant_total), 0) FROM field_inspections),
+    'cantRetenidaSum', (SELECT COALESCE(SUM(cant_retenida), 0) FROM field_inspections),
+    'byEstado', (
+      SELECT COALESCE(json_agg(json_build_object('name', estado, 'value', cnt) ORDER BY cnt DESC), '[]'::json)
+      FROM (SELECT estado, COUNT(*) AS cnt FROM field_inspections GROUP BY estado) t
+    ),
+    'byDefecto', (
+      SELECT COALESCE(json_agg(json_build_object('name', defecto, 'value', cnt) ORDER BY cnt DESC), '[]'::json)
+      FROM (
+        SELECT defecto, COUNT(*) AS cnt FROM field_inspections
+        WHERE defecto IS NOT NULL AND defecto <> 'NINGUNO'
+        GROUP BY defecto ORDER BY COUNT(*) DESC LIMIT 8
+      ) t
+    ),
+    'byArea', (
+      SELECT COALESCE(json_agg(json_build_object('name', area_proceso, 'value', cnt) ORDER BY cnt DESC), '[]'::json)
+      FROM (
+        SELECT area_proceso, COUNT(*) AS cnt FROM field_inspections
+        GROUP BY area_proceso ORDER BY COUNT(*) DESC LIMIT 10
+      ) t
+    ),
+    'trend', (
+      SELECT COALESCE(json_agg(json_build_object(
+        'date', td.day,
+        'total', COALESCE(c.total, 0),
+        'rechazadas', COALESCE(c.rechazadas, 0)
+      ) ORDER BY td.day), '[]'::json)
+      FROM trend_days td
+      LEFT JOIN (
+        SELECT fecha, COUNT(*) AS total, COUNT(*) FILTER (WHERE estado = 'Rechazado') AS rechazadas
+        FROM field_inspections
+        WHERE fecha >= (SELECT period_start FROM period)
+        GROUP BY fecha
+      ) c ON c.fecha = td.day
+    ),
+    'periodComparison', json_build_object(
+      'current', (SELECT COUNT(*) FROM field_inspections WHERE fecha >= (SELECT current_cutoff FROM period)),
+      'previous', (
+        SELECT COUNT(*) FROM field_inspections
+        WHERE fecha >= (SELECT prev_cutoff FROM period) AND fecha < (SELECT current_cutoff FROM period)
+      )
+    )
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION field_inspections_dashboard_stats(INTEGER) TO service_role, authenticated, anon;
 
 DO $$
 BEGIN

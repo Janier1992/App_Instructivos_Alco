@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { RefreshCw, ClipboardCheck, Wrench, AlertOctagon } from 'lucide-react';
-import { FieldInspection } from '@/src/lib/fieldInspectionsStore';
+import { FieldInspectionsDashboardStats } from '@/src/lib/fieldInspectionsStore';
 import { MetrologyDelivery } from '@/src/lib/metrologyDeliveriesStore';
 import { MetrologyReplacement } from '@/src/lib/metrologyReplacementsStore';
 import { MetrologyCalibration } from '@/src/lib/metrologyCalibrationsStore';
@@ -18,7 +18,8 @@ const PERIOD_OPTIONS = [7, 30, 90] as const;
 type DashboardTab = 'inspecciones' | 'metrologia';
 
 interface OperationalData {
-  inspections: FieldInspection[];
+  /** null cuando aún no se ejecutó la migración de la función SQL de agregación (ver db/migrate_field_inspections_dashboard_stats.sql). */
+  inspectionStats: FieldInspectionsDashboardStats | null;
   deliveries: MetrologyDelivery[];
   replacements: MetrologyReplacement[];
   calibrations: MetrologyCalibration[];
@@ -42,7 +43,7 @@ export const DashboardView: React.FC = () => {
     if (!silent) setIsLoading(true);
     try {
       const [inspRes, delivRes, replRes, calibRes] = await Promise.all([
-        fetch('/api/field-inspections'),
+        fetch(`/api/field-inspections/stats?days=${days}`),
         fetch('/api/metrology-deliveries'),
         fetch('/api/metrology-replacements'),
         fetch('/api/metrology-calibrations')
@@ -53,8 +54,9 @@ export const DashboardView: React.FC = () => {
         replRes.json(),
         calibRes.json()
       ]);
+      if (!inspData.success) console.error('Error cargando métricas de inspecciones:', inspData.error);
       setData({
-        inspections: inspData.inspections || [],
+        inspectionStats: inspData.success ? inspData.stats : null,
         deliveries: delivData.deliveries || [],
         replacements: replData.replacements || [],
         calibrations: calibData.calibrations || []
@@ -65,7 +67,7 @@ export const DashboardView: React.FC = () => {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => {
     load();
@@ -81,13 +83,14 @@ export const DashboardView: React.FC = () => {
   }, [data]);
 
   const totalMetrologyRecords = data ? data.deliveries.length + data.replacements.length + data.calibrations.length : 0;
-  const rejectedInspections = data ? data.inspections.filter(i => i.estado === 'Rechazado').length : 0;
+  const rejectedInspections = data?.inspectionStats ? data.inspectionStats.rejectedCount : 0;
 
-  const inspectionsComparison = useMemo(() => (data ? compareToPreviousPeriod(data.inspections, i => i.fecha, days) : null), [data, days]);
-  const inspectionsSparkline = useMemo(() => {
-    if (!data) return [];
-    return buildDailyTrend(data.inspections, i => i.fecha, [{ key: 'total' }], days).map(row => Number(row.total));
-  }, [data, days]);
+  const inspectionsComparison = useMemo(() => {
+    if (!data?.inspectionStats) return null;
+    const { current, previous } = data.inspectionStats.periodComparison;
+    return { current, previous, deltaPct: previous === 0 ? null : ((current - previous) / previous) * 100 };
+  }, [data]);
+  const inspectionsSparkline = useMemo(() => (data?.inspectionStats ? data.inspectionStats.trend.map(row => row.total) : []), [data]);
 
   const metrologyComparison = useMemo(() => {
     if (!data) return null;
@@ -162,7 +165,7 @@ export const DashboardView: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
               label="Inspecciones registradas"
-              value={data.inspections.length}
+              value={data.inspectionStats?.total ?? '—'}
               icon={<ClipboardCheck className="w-3.5 h-3.5" />}
               deltaPct={inspectionsComparison?.deltaPct}
               sparkline={inspectionsSparkline}
@@ -184,7 +187,17 @@ export const DashboardView: React.FC = () => {
             <TabButton active={tab === 'metrologia'} onClick={() => setTab('metrologia')} icon={<Wrench className="w-3.5 h-3.5" />} label="Metrología Pro" />
           </div>
 
-          {tab === 'inspecciones' && <FieldInspectionsAnalytics inspections={data.inspections} days={days} />}
+          {tab === 'inspecciones' && (
+            data.inspectionStats ? (
+              <FieldInspectionsAnalytics stats={data.inspectionStats} days={days} />
+            ) : (
+              <div className="bg-white rounded-2xl border border-amber-200 bg-amber-50/50 shadow-sm p-6 text-sm text-amber-800">
+                No se pudieron calcular las métricas de Inspecciones en Campo. Verifica que la migración{' '}
+                <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs">db/migrate_field_inspections_dashboard_stats.sql</code>{' '}
+                se haya ejecutado en Supabase.
+              </div>
+            )
+          )}
           {tab === 'metrologia' && (
             <MetrologyAnalytics deliveries={data.deliveries} replacements={data.replacements} calibrations={data.calibrations} days={days} />
           )}

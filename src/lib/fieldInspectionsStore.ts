@@ -7,6 +7,18 @@ const PHOTO_URL_TTL_SECONDS = 6 * 60 * 60;
 const PHOTO_URL_REUSE_MARGIN_MS = 10 * 60 * 1000;
 const BULK_INSERT_CHUNK_SIZE = 500;
 
+const SEARCHABLE_COLUMNS = ['op', 'plano_opc', 'area_proceso', 'diseno_referencia', 'responsable', 'reviso', 'defecto'];
+
+/** Escapa un valor para usarlo entre comillas dobles dentro de un filtro .or() de PostgREST. */
+function escapeOrFilterValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function buildSearchOrFilter(search: string): string {
+  const pattern = `%${escapeOrFilterValue(search.trim())}%`;
+  return SEARCHABLE_COLUMNS.map(column => `${column}.ilike."${pattern}"`).join(',');
+}
+
 export interface FieldInspection {
   id: string;
   processSlug: string;
@@ -218,14 +230,32 @@ export async function bulkCreateFieldInspections(
   }
 }
 
-export async function getFieldInspections(filters?: { estado?: string; areaProceso?: string; limit?: number }): Promise<FieldInspection[]> {
+/**
+ * `search` se resuelve en el servidor contra TODA la tabla (mismos 7 campos
+ * que el buscador de la UI), no solo contra las filas que caben en `limit` —
+ * de lo contrario, con una tabla de decenas de miles de filas por carga
+ * masiva, una búsqueda no encontraría registros que existen pero quedaron
+ * fuera del recorte de "más recientes por fecha de creación".
+ */
+export async function getFieldInspections(filters?: {
+  estado?: string;
+  areaProceso?: string;
+  search?: string;
+  limit?: number;
+}): Promise<FieldInspection[]> {
   const supabase = getSupabaseClient();
   if (!supabase) return [];
 
   try {
-    let query = supabase.from('field_inspections').select('*').order('created_at', { ascending: false }).limit(filters?.limit || 500);
+    const trimmedSearch = filters?.search?.trim();
+    let query = supabase
+      .from('field_inspections')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(filters?.limit || (trimmedSearch ? 1000 : 500));
     if (filters?.estado) query = query.eq('estado', filters.estado);
     if (filters?.areaProceso) query = query.eq('area_proceso', filters.areaProceso);
+    if (trimmedSearch) query = query.or(buildSearchOrFilter(trimmedSearch));
 
     const { data, error } = await query;
     if (error) {
@@ -287,13 +317,7 @@ export async function deleteFieldInspections(ids: string[]): Promise<{ success: 
   return { success: true };
 }
 
-const SEARCHABLE_COLUMNS = ['op', 'plano_opc', 'area_proceso', 'diseno_referencia', 'responsable', 'reviso', 'defecto'];
 const DELETE_ALL_BATCH_SIZE = 500;
-
-/** Escapa un valor para usarlo entre comillas dobles dentro de un filtro .or() de PostgREST. */
-function escapeOrFilterValue(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
 
 /**
  * Borra UN LOTE (hasta DELETE_ALL_BATCH_SIZE filas) de los registros que
@@ -314,10 +338,7 @@ export async function deleteFieldInspectionsMatchingBatch(
   try {
     const trimmed = search?.trim();
     let query = supabase.from('field_inspections').select('id').limit(DELETE_ALL_BATCH_SIZE);
-    if (trimmed) {
-      const pattern = `%${escapeOrFilterValue(trimmed)}%`;
-      query = query.or(SEARCHABLE_COLUMNS.map(column => `${column}.ilike."${pattern}"`).join(','));
-    }
+    if (trimmed) query = query.or(buildSearchOrFilter(trimmed));
 
     const { data, error } = await query;
     if (error) return { success: false, deleted: 0, done: true, error: error.message };
@@ -356,4 +377,38 @@ export async function getFieldInspectionPhotoUrl(inspection: FieldInspection): P
 
   playbackUrlCache.set(inspection.photoStoragePath, { url: data.signedUrl, expiresAtMs: Date.now() + PHOTO_URL_TTL_SECONDS * 1000 });
   return data.signedUrl;
+}
+
+export interface FieldInspectionsDashboardStats {
+  total: number;
+  approvedCount: number;
+  rejectedCount: number;
+  criticalCount: number;
+  cantTotalSum: number;
+  cantRetenidaSum: number;
+  byEstado: { name: string; value: number }[];
+  byDefecto: { name: string; value: number }[];
+  byArea: { name: string; value: number }[];
+  trend: { date: string; total: number; rechazadas: number }[];
+  periodComparison: { current: number; previous: number };
+}
+
+/**
+ * Métricas del Dashboard Operativo, agregadas en el servidor (función SQL
+ * field_inspections_dashboard_stats, ver db/migrate_field_inspections_dashboard_stats.sql)
+ * sobre TODA la tabla — no sobre un recorte de las N filas más recientes.
+ * Antes el dashboard traía como máximo 200 filas y calculaba las métricas en
+ * el navegador; con la carga masiva de decenas de miles de filas históricas,
+ * esas métricas quedaban completamente incorrectas.
+ */
+export async function getFieldInspectionsDashboardStats(days: number): Promise<FieldInspectionsDashboardStats | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc('field_inspections_dashboard_stats', { days_back: days });
+  if (error) {
+    console.warn('⚠️ No se pudieron calcular las métricas del dashboard de inspecciones:', error.message);
+    return null;
+  }
+  return data as FieldInspectionsDashboardStats;
 }

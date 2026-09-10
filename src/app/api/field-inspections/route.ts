@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
 
   const estado = request.nextUrl.searchParams.get('estado') || undefined;
   const areaProceso = request.nextUrl.searchParams.get('areaProceso') || undefined;
-  const inspections = await getFieldInspections({ estado, areaProceso, limit: 200 });
+  const search = request.nextUrl.searchParams.get('search') || undefined;
+  const inspections = await getFieldInspections({ estado, areaProceso, search, limit: search ? 1000 : 200 });
   return NextResponse.json({ success: true, inspections });
 }
 

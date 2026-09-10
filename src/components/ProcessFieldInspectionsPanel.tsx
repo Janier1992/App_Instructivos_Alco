@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ClipboardList, RefreshCw, ImageOff, Plus, X, WifiOff, Search, Pencil } from 'lucide-react';
 import { FieldInspectionForm, FieldInspectionFormValues } from './crm/FieldInspectionForm';
 import { loadFieldInspectionQueue, saveFieldInspectionQueue, OfflineQueueItem as BaseOfflineQueueItem } from '@/src/lib/fieldInspectionOfflineQueue';
@@ -57,20 +57,39 @@ const ESTADO_BADGE: Record<string, string> = {
 export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = () => {
   const [inspections, setInspections] = useState<FieldInspection[] | null>(null);
   const [search, setSearch] = useState('');
+  const [everHadRecords, setEverHadRecords] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<FieldInspection | null>(null);
   const [queueSize, setQueueSize] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
+  const isFirstSearchRun = useRef(true);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(PUBLIC_API_BASE);
+      const q = search.trim();
+      const url = q ? `${PUBLIC_API_BASE}?search=${encodeURIComponent(q)}` : PUBLIC_API_BASE;
+      const res = await fetch(url);
       const data = await res.json();
-      setInspections(data.inspections || []);
+      const results = data.inspections || [];
+      setInspections(results);
+      if (results.length > 0) setEverHadRecords(true);
     } catch {
       setInspections([]);
     }
-  }, []);
+  }, [search]);
+
+  // La búsqueda se resuelve en el servidor contra toda la tabla (no solo lo
+  // ya cargado) — ver getFieldInspections en fieldInspectionsStore. Se
+  // debounce para no disparar una petición por cada tecla.
+  useEffect(() => {
+    if (isFirstSearchRun.current) {
+      isFirstSearchRun.current = false;
+      return;
+    }
+    const handle = setTimeout(() => { load(); }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const syncOfflineQueue = useCallback(async () => {
     const queue = loadQueue();
@@ -148,14 +167,7 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
     await load();
   };
 
-  const filtered = useMemo(() => {
-    if (!inspections) return [];
-    if (!search.trim()) return inspections;
-    const q = search.trim().toLowerCase();
-    return inspections.filter(i =>
-      [i.op, i.planoOpc, i.areaProceso, i.disenoReferencia, i.responsable, i.reviso, i.defecto].some(v => (v || '').toLowerCase().includes(q))
-    );
-  }, [inspections, search]);
+  const filtered = inspections || [];
 
   const initialFormValues: Partial<FieldInspectionFormValues> | undefined = editing
     ? {
@@ -213,7 +225,7 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
         </div>
       </div>
 
-      {inspections.length > 0 && (
+      {(everHadRecords || search.trim()) && (
         <div className="relative max-w-xs">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
@@ -226,7 +238,7 @@ export const ProcessFieldInspectionsPanel: React.FC<{ processSlug: string }> = (
         </div>
       )}
 
-      {inspections.length === 0 ? (
+      {!everHadRecords && !search.trim() ? (
         <div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-2">
           <ClipboardList className="w-8 h-8 text-slate-300 mx-auto" />
           <p className="text-sm text-slate-500">Aún no hay inspecciones registradas.</p>

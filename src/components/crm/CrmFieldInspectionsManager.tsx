@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ClipboardList, Plus, UploadCloud, Link2, AlertTriangle, RefreshCw, X, WifiOff } from 'lucide-react';
 import { FieldInspection } from '@/src/lib/fieldInspectionsStore';
 import { FieldInspectionForm, FieldInspectionFormValues } from './FieldInspectionForm';
@@ -51,11 +51,15 @@ export const CrmFieldInspectionsManager: React.FC = () => {
   const [queueSize, setQueueSize] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
   const [deleteAllProgress, setDeleteAllProgress] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const isFirstSearchRun = useRef(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/crm/field-inspections');
+      const q = search.trim();
+      const url = q ? `/api/crm/field-inspections?search=${encodeURIComponent(q)}` : '/api/crm/field-inspections';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) setInspections(data.inspections || []);
     } catch (err) {
@@ -63,7 +67,20 @@ export const CrmFieldInspectionsManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search]);
+
+  // La búsqueda se resuelve en el servidor contra toda la tabla (no solo
+  // contra lo ya cargado) — ver getFieldInspections en fieldInspectionsStore.
+  // Se debounce para no disparar una petición por cada tecla.
+  useEffect(() => {
+    if (isFirstSearchRun.current) {
+      isFirstSearchRun.current = false;
+      return;
+    }
+    const handle = setTimeout(() => { load(); }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const syncOfflineQueue = useCallback(async () => {
     const queue = loadQueue();
@@ -233,7 +250,10 @@ export const CrmFieldInspectionsManager: React.FC = () => {
       {tab === 'tabla' && (
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 p-6 gap-4 shadow-sm">
           <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
-            <span className="font-bold text-sm text-slate-800">{inspections.length} registro{inspections.length === 1 ? '' : 's'}</span>
+            <span className="font-bold text-sm text-slate-800">
+              {inspections.length} {search.trim() ? 'coincidencia' : 'registro'}{inspections.length === 1 ? '' : 's'}
+              {!search.trim() && <span className="font-normal text-slate-400"> (más recientes)</span>}
+            </span>
             <div className="flex items-center gap-2">
               <button onClick={load} className="text-[11px] font-semibold text-[#003366] hover:underline flex items-center gap-1">
                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Actualizar
@@ -248,6 +268,8 @@ export const CrmFieldInspectionsManager: React.FC = () => {
           </div>
           <FieldInspectionTable
             inspections={inspections}
+            search={search}
+            onSearchChange={setSearch}
             onEdit={openEdit}
             onDeleteSelected={handleDeleteSelected}
             onDeleteAllMatching={handleDeleteAllMatching}

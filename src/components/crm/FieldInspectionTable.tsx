@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2, Search, ImageOff, CloudOff } from 'lucide-react';
 import { FieldInspection } from '@/src/lib/fieldInspectionsStore';
 
@@ -14,24 +14,32 @@ const ESTADO_BADGE: Record<string, string> = {
 
 interface Props {
   inspections: (FieldInspection & { isOffline?: boolean })[];
+  search: string;
+  onSearchChange: (search: string) => void;
   onEdit: (inspection: FieldInspection) => void;
   onDeleteSelected: (ids: string[]) => void;
   onDeleteAllMatching: (search: string) => void;
   deleteAllProgress: number | null;
 }
 
-export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onDeleteSelected, onDeleteAllMatching, deleteAllProgress }) => {
-  const [search, setSearch] = useState('');
+/**
+ * `inspections` ya viene filtrado por `search` desde el servidor (ver
+ * CrmFieldInspectionsManager) — no se vuelve a filtrar acá, así una
+ * búsqueda encuentra cualquier coincidencia en toda la tabla y no solo
+ * entre las filas más recientes que caben en el recorte por defecto.
+ */
+export const FieldInspectionTable: React.FC<Props> = ({
+  inspections,
+  search,
+  onSearchChange,
+  onEdit,
+  onDeleteSelected,
+  onDeleteAllMatching,
+  deleteAllProgress
+}) => {
+  const filtered = inspections;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectAllMode, setSelectAllMode] = useState(false);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return inspections;
-    const q = search.trim().toLowerCase();
-    return inspections.filter(i =>
-      [i.op, i.planoOpc, i.areaProceso, i.disenoReferencia, i.responsable, i.reviso, i.defecto].some(v => (v || '').toLowerCase().includes(q))
-    );
-  }, [inspections, search]);
 
   useEffect(() => {
     setSelected(new Set());
@@ -98,7 +106,7 @@ export const FieldInspectionTable: React.FC<Props> = ({ inspections, onEdit, onD
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => onSearchChange(e.target.value)}
             placeholder="Buscar por Área, OP, Plano/Ítem, Diseño..."
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"
           />

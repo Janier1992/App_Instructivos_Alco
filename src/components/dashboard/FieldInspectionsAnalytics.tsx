@@ -7,51 +7,41 @@ import {
   ComposedChart, Area, Line
 } from 'recharts';
 import { ClipboardCheck, PackageX, ShieldAlert, Layers } from 'lucide-react';
-import { FieldInspection } from '@/src/lib/fieldInspectionsStore';
+import { FieldInspectionsDashboardStats } from '@/src/lib/fieldInspectionsStore';
 import { ChartCard, EmptyChartState } from './ChartCard';
 import { StatCard } from './StatCard';
 import { GaugeChart } from './GaugeChart';
 import { DonutChart } from './DonutChart';
 import { ChartTooltip } from './ChartTooltip';
 import { ESTADO_COLORS } from '@/src/lib/dashboardColors';
-import { buildDailyTrend, withMovingAverage, countBy, compareToPreviousPeriod } from '@/src/lib/dashboardTrend';
+import { withMovingAverage } from '@/src/lib/dashboardTrend';
 
 interface Props {
-  inspections: FieldInspection[];
+  stats: FieldInspectionsDashboardStats;
   days: number;
 }
 
-export const FieldInspectionsAnalytics: React.FC<Props> = ({ inspections, days }) => {
-  const total = inspections.length;
+/**
+ * Recibe métricas ya agregadas en el servidor (ver
+ * getFieldInspectionsDashboardStats / /api/field-inspections/stats) en vez
+ * de la lista cruda de inspecciones — con decenas de miles de filas por
+ * carga masiva, calcular estos totales en el navegador sobre un recorte
+ * arbitrario de filas daba métricas incorrectas.
+ */
+export const FieldInspectionsAnalytics: React.FC<Props> = ({ stats, days }) => {
+  const { total, byEstado, byDefecto, byArea, approvedCount, criticalCount, cantTotalSum, cantRetenidaSum, periodComparison } = stats;
 
-  const byEstado = useMemo(() => countBy(inspections, i => i.estado), [inspections]);
-  const byDefecto = useMemo(
-    () => countBy(inspections.filter(i => i.defecto && i.defecto !== 'NINGUNO'), i => i.defecto).slice(0, 8),
-    [inspections]
-  );
-  const byArea = useMemo(() => countBy(inspections, i => i.areaProceso).slice(0, 10), [inspections]);
-
-  const approvalRate = useMemo(() => {
-    if (total === 0) return 0;
-    const approved = inspections.filter(i => i.estado.startsWith('Aprobado')).length;
-    return (approved / total) * 100;
-  }, [inspections, total]);
-
-  const criticalCount = useMemo(() => inspections.filter(i => i.alertLevel === 'Critical').length, [inspections]);
-  const cantTotalSum = useMemo(() => inspections.reduce((s, i) => s + (i.cantTotal || 0), 0), [inspections]);
-  const cantRetenidaSum = useMemo(() => inspections.reduce((s, i) => s + (i.cantRetenida || 0), 0), [inspections]);
+  const approvalRate = total === 0 ? 0 : (approvedCount / total) * 100;
+  const deltaPct = periodComparison.previous === 0 ? null : ((periodComparison.current - periodComparison.previous) / periodComparison.previous) * 100;
 
   const trend = useMemo(() => {
-    const base = buildDailyTrend(
-      inspections,
-      i => i.fecha,
-      [{ key: 'total' }, { key: 'rechazadas', predicate: i => i.estado === 'Rechazado' }],
-      days
-    );
+    const base = stats.trend.map(row => ({
+      date: new Date(`${row.date}T00:00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }),
+      total: row.total,
+      rechazadas: row.rechazadas
+    }));
     return withMovingAverage(base, 'total', 7);
-  }, [inspections, days]);
-
-  const registrosComparison = useMemo(() => compareToPreviousPeriod(inspections, i => i.fecha, days), [inspections, days]);
+  }, [stats.trend]);
   const sparkline = useMemo(() => trend.map(row => Number(row.total)), [trend]);
 
   if (total === 0) {
@@ -69,7 +59,7 @@ export const FieldInspectionsAnalytics: React.FC<Props> = ({ inspections, days }
           label="Inspecciones registradas"
           value={total}
           icon={<ClipboardCheck className="w-3.5 h-3.5" />}
-          deltaPct={registrosComparison.deltaPct}
+          deltaPct={deltaPct}
           sparkline={sparkline}
         />
         <StatCard label="Unidades inspeccionadas" value={cantTotalSum} icon={<Layers className="w-3.5 h-3.5" />} />
