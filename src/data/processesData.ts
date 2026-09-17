@@ -138,7 +138,8 @@ export const PROCESSES: ProcessItem[] = [
       'Arrisado y pulido de cantos obligatorio antes del ingreso al horno de templado',
       'Prueba de fragmentación en vidrio templado (mín. 40 fragmentos en 50x50 mm)',
       'Pátina y enrutamiento directo a Ensamble o Despachos para vidrio crudo no procesado'
-    ]
+    ],
+    showGlassCriteriaTab: true
   },
   {
     id: 'proc-ensamble',

@@ -25,9 +25,11 @@ import {
   ClipboardCheck,
   LayoutGrid,
   Ruler,
-  Wrench
+  Wrench,
+  Gem
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
+import { GlassAcceptanceCriteriaPanel } from './GlassAcceptanceCriteriaPanel';
 import { ProcessVideosPanel } from './ProcessVideosPanel';
 import { ProcessPrincipalPanel } from './ProcessPrincipalPanel';
 import { SaveOfflineButton } from './SaveOfflineButton';
@@ -53,7 +55,7 @@ const SHOW_PROCESS_VIDEOS_SECTION = true;
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
-  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones' | 'metrologia'>('principal');
+  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones' | 'metrologia' | 'criterios-vidrio'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
@@ -140,6 +142,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const showMatrixValidationTab = process.showMatrixValidationTab === true;
   const showFieldInspectionsTab = process.showFieldInspectionsTab === true;
   const showMetrologyDeliveryTab = process.showMetrologyDeliveryTab === true;
+  const showGlassCriteriaTab = process.showGlassCriteriaTab === true;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 space-y-6">
@@ -214,6 +217,21 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           >
             <UserCheck className="w-4 h-4 text-[#003366] shrink-0" />
             <span>Matriz de Autonomía</span>
+          </button>
+        )}
+
+        {showGlassCriteriaTab && (
+          <button
+            onClick={() => setActiveTab('criterios-vidrio')}
+            id="tab-criterios-vidrio"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'criterios-vidrio'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Gem className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Criterios NTC 1909</span>
           </button>
         )}
 
@@ -396,6 +414,9 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {activeTab === 'formularios' && showFormsTab && <ProcessInspectionFormsPanel processSlug={slug} />}
 
       {activeTab === 'matriz' && showMatrixValidationTab && <ProcessMatrixValidationPanel processSlug={slug} />}
+
+      {/* MODULO: CRITERIOS NTC 1909 (defectos de vidrio) */}
+      {activeTab === 'criterios-vidrio' && showGlassCriteriaTab && <GlassAcceptanceCriteriaPanel />}
 
       {activeTab === 'inspecciones' && showFieldInspectionsTab && <ProcessFieldInspectionsPanel processSlug={slug} />}
 

@@ -38,6 +38,8 @@ export interface ProcessItem {
   /** true muestra la pestaña pública "Inspecciones en Campo" (solo lectura — crear/editar/eliminar es desde el CRM). Por defecto false. */
   showFieldInspectionsTab?: boolean;
   showMetrologyDeliveryTab?: boolean;
+  /** true muestra la pestaña "Criterios NTC 1909" (tabla de aceptación/rechazo de defectos de vidrio). Por defecto false. */
+  showGlassCriteriaTab?: boolean;
 }
 
 export interface QualityControl {
