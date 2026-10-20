@@ -22,7 +22,6 @@ export const CrmLoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [recoveryKey, setRecoveryKey] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +33,6 @@ export const CrmLoginForm: React.FC = () => {
     setPassword('');
     setRecoveryKey('');
     setNewPassword('');
-    setConfirmPassword('');
   };
 
   const postJson = async (url: string, body: object) => {
@@ -70,10 +68,6 @@ export const CrmLoginForm: React.FC = () => {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (newPassword !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
-      return;
-    }
     setIsSubmitting(true);
     try {
       const { ok, data } = await postJson('/api/crm/auth/reset-password', { email, recoveryKey, newPassword });
@@ -147,8 +141,8 @@ export const CrmLoginForm: React.FC = () => {
       ) : (
         <form onSubmit={handleReset} className="space-y-4">
           <p className="text-xs text-slate-500">
-            Ingresa tu correo, la clave de recuperación (te la entrega quien administra el servidor) y tu nueva
-            contraseña.
+            Escribe tu correo, la clave de recuperación y la nueva contraseña. Usa el ojito para verificar lo que
+            escribes.
           </p>
           {emailField}
           <PasswordField
@@ -164,13 +158,6 @@ export const CrmLoginForm: React.FC = () => {
             onChange={setNewPassword}
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"
-            minLength={8}
-          />
-          <PasswordField
-            label="Confirmar nueva contraseña"
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            autoComplete="new-password"
             minLength={8}
           />
           {error && <ErrorBox message={error} />}
