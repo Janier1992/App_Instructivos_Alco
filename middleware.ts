@@ -11,7 +11,7 @@ export const config = {
   matcher: ['/crm/:path*', '/api/crm/:path*']
 };
 
-const PUBLIC_PATHS = ['/crm/login', '/api/crm/auth/login'];
+const PUBLIC_PATHS = ['/crm/login', '/api/crm/auth/login', '/api/crm/auth/reset-password'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

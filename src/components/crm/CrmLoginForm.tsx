@@ -3,44 +3,107 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, AlertCircle, ArrowLeft } from 'lucide-react';
+import { LogIn, AlertCircle, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
+import { PasswordField } from './PasswordField';
+
+type Mode = 'login' | 'reset';
+
+const INPUT_CLASS =
+  'w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#003366]';
+const SUBMIT_CLASS =
+  'w-full flex items-center justify-center gap-2 py-2.5 bg-[#003366] hover:bg-[#002244] text-white font-bold text-sm rounded-xl shadow transition disabled:opacity-50';
 
 export const CrmLoginForm: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [recoveryKey, setRecoveryKey] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+    setPassword('');
+    setRecoveryKey('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const postJson = async (url: string, body: object) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    return { ok: res.ok && data.success, data };
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setIsSubmitting(true);
-
     try {
-      const res = await fetch('/api/crm/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      const { ok, data } = await postJson('/api/crm/auth/login', { email, password });
+      if (!ok) {
         setError(data.error || 'No se pudo iniciar sesión.');
         return;
       }
-
-      const next = searchParams?.get('next') || '/crm';
-      router.push(next);
+      router.push(searchParams?.get('next') || '/crm');
       router.refresh();
-    } catch (err: any) {
+    } catch {
       setError('Error de conexión. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (newPassword !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { ok, data } = await postJson('/api/crm/auth/reset-password', { email, recoveryKey, newPassword });
+      if (!ok) {
+        setError(data.error || 'No se pudo cambiar la contraseña.');
+        return;
+      }
+      switchMode('login');
+      setNotice('Contraseña actualizada. Ya puedes ingresar con la nueva contraseña.');
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const emailField = (
+    <div>
+      <label className="text-xs font-bold text-slate-700 block mb-1">Correo</label>
+      <input
+        type="email"
+        required
+        autoComplete="username"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        className={INPUT_CLASS}
+        placeholder="nombre@alco.com.co"
+      />
+    </div>
+  );
 
   return (
     <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-7 space-y-6">
@@ -49,54 +112,81 @@ export const CrmLoginForm: React.FC = () => {
           <AlcoLogo className="h-9" />
         </div>
         <div className="text-center">
-          <h1 className="text-base font-extrabold text-[#003366]">Portal de Administración</h1>
+          <h1 className="text-base font-extrabold text-[#003366]">
+            {mode === 'login' ? 'Portal de Administración' : 'Restablecer contraseña'}
+          </h1>
           <p className="text-xs text-slate-500 mt-0.5">Control de Calidad Alco S.A.S.</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Correo</label>
-          <input
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-            placeholder="nombre@alco.com.co"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Contraseña</label>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#003366]"
-            placeholder="••••••••"
-          />
-        </div>
-
-        {error && (
-          <div className="flex items-center gap-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
+      {mode === 'login' ? (
+        <form onSubmit={handleLogin} className="space-y-4">
+          {emailField}
+          <PasswordField label="Contraseña" value={password} onChange={setPassword} autoComplete="current-password" />
+          <div className="text-right -mt-2">
+            <button
+              type="button"
+              onClick={() => switchMode('reset')}
+              className="text-xs font-semibold text-[#003366] hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
           </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#003366] hover:bg-[#002244] text-white font-bold text-sm rounded-xl shadow transition disabled:opacity-50"
-        >
-          <LogIn className="w-4 h-4" />
-          {isSubmitting ? 'Ingresando...' : 'Ingresar'}
-        </button>
-      </form>
+          {notice && (
+            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-800">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              {notice}
+            </div>
+          )}
+          {error && <ErrorBox message={error} />}
+          <button type="submit" disabled={isSubmitting} className={SUBMIT_CLASS}>
+            <LogIn className="w-4 h-4" />
+            {isSubmitting ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleReset} className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Ingresa tu correo, la clave de recuperación (te la entrega quien administra el servidor) y tu nueva
+            contraseña.
+          </p>
+          {emailField}
+          <PasswordField
+            label="Clave de recuperación"
+            value={recoveryKey}
+            onChange={setRecoveryKey}
+            autoComplete="off"
+            placeholder="Clave de recuperación"
+          />
+          <PasswordField
+            label="Nueva contraseña"
+            value={newPassword}
+            onChange={setNewPassword}
+            autoComplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            minLength={8}
+          />
+          <PasswordField
+            label="Confirmar nueva contraseña"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            autoComplete="new-password"
+            minLength={8}
+          />
+          {error && <ErrorBox message={error} />}
+          <button type="submit" disabled={isSubmitting} className={SUBMIT_CLASS}>
+            <KeyRound className="w-4 h-4" />
+            {isSubmitting ? 'Guardando...' : 'Cambiar contraseña'}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('login')}
+            className="w-full text-xs font-semibold text-slate-500 hover:text-[#003366] transition"
+          >
+            Volver al inicio de sesión
+          </button>
+        </form>
+      )}
 
       <Link
         href="/"
@@ -108,3 +198,10 @@ export const CrmLoginForm: React.FC = () => {
     </div>
   );
 };
+
+const ErrorBox: React.FC<{ message: string }> = ({ message }) => (
+  <div className="flex items-center gap-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">
+    <AlertCircle className="w-4 h-4 shrink-0" />
+    {message}
+  </div>
+);
