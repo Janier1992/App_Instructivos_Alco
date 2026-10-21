@@ -187,9 +187,10 @@ class ReportWriter {
     this.y += 1.5;
   }
 
-  /** Fotos en filas de hasta 2, conservando proporción. */
+  /** Fotos en filas de hasta 2, conservando proporción, con su comentario debajo. */
   images(images: LoadedImage[]) {
     const gap = 3;
+    const captionLineH = 4;
     const perRow = images.length === 1 ? 1 : 2;
     const maxH = 80;
     const cellW = perRow === 1 ? this.contentW * 0.6 : (this.contentW - gap) / 2;
@@ -200,8 +201,11 @@ class ReportWriter {
         const scale = Math.min(cellW / img.w, maxH / img.h);
         return { w: img.w * scale, h: img.h * scale };
       });
+      this.doc.setFont('helvetica', 'italic').setFontSize(8.5);
+      const captions = row.map((img, idx) => (img.caption ? (this.doc.splitTextToSize(img.caption, Math.max(sizes[idx].w, 50)) as string[]) : []));
       const rowH = Math.max(...sizes.map(s => s.h));
-      this.ensureSpace(rowH + 4);
+      const captionH = Math.max(...captions.map(c => c.length * captionLineH));
+      this.ensureSpace(rowH + captionH + 5);
       const totalW = sizes.reduce((acc, s) => acc + s.w, 0) + gap * (row.length - 1);
       let x = MARGIN + (this.contentW - totalW) / 2;
       row.forEach((img, idx) => {
@@ -211,9 +215,11 @@ class ReportWriter {
         } catch {
           /* imagen ilegible: se omite sin romper el informe */
         }
+        this.doc.setFont('helvetica', 'italic').setFontSize(8.5).setTextColor(60, 60, 60);
+        captions[idx].forEach((line, li) => this.doc.text(line, x + sizes[idx].w / 2, this.y + sizes[idx].h + 4 + li * captionLineH, { align: 'center' }));
         x += sizes[idx].w + gap;
       });
-      this.y += rowH + 4;
+      this.y += rowH + captionH + 5;
     }
   }
 
@@ -253,8 +259,8 @@ export async function buildSupplierClaimPdf(rawClaim: SupplierClaim): Promise<js
   const claim = cleanClaimForExport(rawClaim);
   const [logo, etiquetaImgs, defectoImgs] = await Promise.all([
     loadLogoDataUrl(),
-    loadClaimImages(claim.fotoEtiquetaPaths),
-    loadClaimImages(claim.fotoDefectoPaths)
+    loadClaimImages(claim.fotoEtiquetaPaths, claim.fotoMeta),
+    loadClaimImages(claim.fotoDefectoPaths, claim.fotoMeta)
   ]);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });

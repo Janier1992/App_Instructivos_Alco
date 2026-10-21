@@ -84,8 +84,8 @@ function sectionBar(title: string): Paragraph {
   });
 }
 
-function imageRun(img: LoadedImage): ImageRun {
-  const scale = Math.min(MAX_IMAGE_WIDTH_PX / img.w, MAX_IMAGE_HEIGHT_PX / img.h, 1);
+function imageRun(img: LoadedImage, maxWidthPx: number): ImageRun {
+  const scale = Math.min(maxWidthPx / img.w, MAX_IMAGE_HEIGHT_PX / img.h, 1);
   return new ImageRun({
     type: img.format === 'PNG' ? 'png' : 'jpg',
     data: img.bytes,
@@ -93,19 +93,37 @@ function imageRun(img: LoadedImage): ImageRun {
   });
 }
 
-/** Fotos en filas de hasta 2, centradas. */
-function imageRows(images: LoadedImage[]): Paragraph[] {
-  const rows: Paragraph[] = [];
+/** Fotos en filas de hasta 2, centradas, cada una con su comentario debajo. */
+function imageRows(images: LoadedImage[]): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
   const perRow = images.length === 1 ? 1 : 2;
+  const maxWidthPx = perRow === 1 ? 400 : 300;
+  const colW = Math.floor(PAGE_CONTENT_DXA / perRow);
+
   for (let i = 0; i < images.length; i += perRow) {
-    const children: (ImageRun | TextRun)[] = [];
-    images.slice(i, i + perRow).forEach((img, idx) => {
-      if (idx > 0) children.push(new TextRun({ text: '  ' }));
-      children.push(imageRun(img));
-    });
-    rows.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children }));
+    const row = images.slice(i, i + perRow);
+    blocks.push(
+      new Table({
+        width: { size: PAGE_CONTENT_DXA, type: WidthType.DXA },
+        columnWidths: Array(perRow).fill(colW),
+        alignment: AlignmentType.CENTER,
+        borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+        rows: [
+          new TableRow({
+            children: row.map(img => {
+              const content: Paragraph[] = [new Paragraph({ alignment: AlignmentType.CENTER, children: [imageRun(img, maxWidthPx)] })];
+              if (img.caption) {
+                content.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 80 }, children: [new TextRun({ text: img.caption, font: FONT, size: 17, italics: true, color: '3C3C3C' })] }));
+              }
+              return cell(content, colW, { borders: NO_BORDERS });
+            })
+          })
+        ]
+      }),
+      new Paragraph({ spacing: { after: 80 }, children: [] })
+    );
   }
-  return rows;
+  return blocks;
 }
 
 function cell(children: Paragraph[], widthDxa: number, opts: { fill?: string; borders?: typeof CELL_BORDERS | typeof NO_BORDERS } = {}): TableCell {
@@ -197,7 +215,7 @@ function buildHeader(proveedor: string, logo: LoadedImage | null): Header {
 
 export async function buildSupplierClaimWord(rawClaim: SupplierClaim): Promise<Blob> {
   const claim = cleanClaimForExport(rawClaim);
-  const [logo, etiquetaImgs, defectoImgs] = await Promise.all([loadLogoImage(), loadClaimImages(claim.fotoEtiquetaPaths), loadClaimImages(claim.fotoDefectoPaths)]);
+  const [logo, etiquetaImgs, defectoImgs] = await Promise.all([loadLogoImage(), loadClaimImages(claim.fotoEtiquetaPaths, claim.fotoMeta), loadClaimImages(claim.fotoDefectoPaths, claim.fotoMeta)]);
   const spacer = () => new Paragraph({ spacing: { after: 120 }, children: [] });
 
   const children: (Paragraph | Table)[] = [

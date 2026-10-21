@@ -1,24 +1,16 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Sparkles, Camera, ImagePlus, X, Plus, Trash2, RefreshCw } from 'lucide-react';
-import { PhotoCaptureModal } from './PhotoCaptureModal';
+import React, { useState } from 'react';
+import { Sparkles, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { SupplierClaimPhotoGroup, PhotoItem, MAX_PHOTOS_PER_GROUP } from './SupplierClaimPhotoGroup';
 import { compressImageFile } from '@/src/lib/imageCompression';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
+import type { PhotoMeta } from '@/src/lib/photoMarks';
 import type { SupplierClaim, SupplierClaimInput, SupplierClaimRejectItem, SupplierClaimAction } from '@/src/lib/supplierClaimsStore';
 
 const PHOTO_BUCKET = 'supplier-claim-photos';
-const MAX_PHOTOS_PER_GROUP = 6;
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
-
-/** Foto del formulario: ya guardada (path en Storage) o recién elegida (archivo pendiente de subir). */
-interface PhotoItem {
-  key: string;
-  path?: string;
-  file?: File;
-  previewUrl: string;
-}
 
 interface Props {
   initial?: SupplierClaim;
@@ -34,8 +26,24 @@ async function parseJson(res: Response) {
   }
 }
 
-function photosFromPaths(paths: string[]): PhotoItem[] {
-  return paths.map(p => ({ key: p, path: p, previewUrl: `/api/supplier-claims/photo?path=${encodeURIComponent(p)}` }));
+function photosFromPaths(paths: string[], meta: Record<string, PhotoMeta> = {}): PhotoItem[] {
+  return paths.map(p => ({
+    key: p,
+    path: p,
+    previewUrl: `/api/supplier-claims/photo?path=${encodeURIComponent(p)}`,
+    comment: meta[p]?.comentario || '',
+    marks: meta[p]?.marcas || []
+  }));
+}
+
+/** Comentario y marcas de cada foto, indexados por la ruta final que tuvo en Storage. */
+function buildPhotoMeta(group: PhotoItem[], paths: string[]): Record<string, PhotoMeta> {
+  const meta: Record<string, PhotoMeta> = {};
+  group.forEach((photo, i) => {
+    const comentario = photo.comment.trim();
+    if (paths[i] && (comentario || photo.marks.length > 0)) meta[paths[i]] = { comentario, marcas: photo.marks };
+  });
+  return meta;
 }
 
 export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved }) => {
@@ -48,8 +56,8 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
   const [realizadoPor, setRealizadoPor] = useState(initial?.realizadoPor || '');
   const [cargo, setCargo] = useState(initial?.cargo || 'Asistente de Calidad');
   const [rechazo, setRechazo] = useState<SupplierClaimRejectItem[]>(initial?.rechazoItems || []);
-  const [etiquetas, setEtiquetas] = useState<PhotoItem[]>(photosFromPaths(initial?.fotoEtiquetaPaths || []));
-  const [defectos, setDefectos] = useState<PhotoItem[]>(photosFromPaths(initial?.fotoDefectoPaths || []));
+  const [etiquetas, setEtiquetas] = useState<PhotoItem[]>(photosFromPaths(initial?.fotoEtiquetaPaths || [], initial?.fotoMeta));
+  const [defectos, setDefectos] = useState<PhotoItem[]>(photosFromPaths(initial?.fotoDefectoPaths || [], initial?.fotoMeta));
   const [defectoTitulo, setDefectoTitulo] = useState(initial?.defectoTitulo || '');
   const [descripcionNc, setDescripcionNc] = useState(initial?.descripcionNc || '');
   const [observaciones, setObservaciones] = useState((initial?.observacionesTecnicas || []).join('\n'));
@@ -64,7 +72,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       const compressed = await compressImageFile(file);
       const blob = await (await fetch(compressed.previewUrl)).blob();
       const jpeg = new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
-      added.push({ key: `${Date.now()}-${Math.random()}`, file: jpeg, previewUrl: compressed.previewUrl });
+      added.push({ key: `${Date.now()}-${Math.random()}`, file: jpeg, previewUrl: compressed.previewUrl, comment: '', marks: [] });
     }
     setGroup(prev => [...prev, ...added].slice(0, MAX_PHOTOS_PER_GROUP));
   };
@@ -97,7 +105,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     const res = await fetch('/api/supplier-claims/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proveedor, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths })
+      body: JSON.stringify({ proveedor, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths, comentariosFotos: defectos.map(d => d.comment.trim()).filter(Boolean) })
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el informe.');
@@ -169,6 +177,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
         rechazoItems: rechazo.filter(r => Number(r.cantidad) > 0),
         fotoEtiquetaPaths: etiquetaPaths,
         fotoDefectoPaths: defectoPaths,
+        fotoMeta: { ...buildPhotoMeta(etiquetas, etiquetaPaths), ...buildPhotoMeta(defectos, defectoPaths) },
         realizadoPor,
         cargo
       };
@@ -187,6 +196,10 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     }
   };
 
+  const removePhoto = (setGroup: React.Dispatch<React.SetStateAction<PhotoItem[]>>) => (key: string) => setGroup(prev => prev.filter(p => p.key !== key));
+  const updatePhoto = (setGroup: React.Dispatch<React.SetStateAction<PhotoItem[]>>) => (key: string, patch: Partial<PhotoItem>) =>
+    setGroup(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)));
+
   const updateReject = (idx: number, patch: Partial<SupplierClaimRejectItem>) => setRechazo(rechazo.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   const updateAction = (idx: number, patch: Partial<SupplierClaimAction>) => setAcciones(acciones.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
 
@@ -200,8 +213,8 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
         <div className="sm:col-span-2"><label className={LABEL}>Número(s) de lote</label><input className={INPUT} value={lotes} onChange={e => setLotes(e.target.value)} placeholder="Ej: N° 15135-1" /></div>
       </div>
 
-      <PhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotos(f, setEtiquetas)} onRemove={k => setEtiquetas(etiquetas.filter(p => p.key !== k))} />
-      <PhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotos(f, setDefectos)} onRemove={k => setDefectos(defectos.filter(p => p.key !== k))} />
+      <SupplierClaimPhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotos(f, setEtiquetas)} onRemove={removePhoto(setEtiquetas)} onUpdate={updatePhoto(setEtiquetas)} />
+      <SupplierClaimPhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotos(f, setDefectos)} onRemove={removePhoto(setDefectos)} onUpdate={updatePhoto(setDefectos)} />
 
       <div>
         <label className={LABEL}>Novedad encontrada / tu análisis *</label>
@@ -256,45 +269,5 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
         </button>
       </div>
     </form>
-  );
-};
-
-const PhotoGroup: React.FC<{ title: string; photos: PhotoItem[]; disabled: boolean; onAdd: (files: File[]) => void; onRemove: (key: string) => void }> = ({ title, photos, disabled, onAdd, onRemove }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const addButton = 'h-20 px-3 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:text-[#003366] hover:border-[#003366] flex flex-col items-center justify-center gap-1 text-[10px] font-bold disabled:opacity-50';
-
-  return (
-    <div>
-      <label className={LABEL}>{title}</label>
-      <div className="flex flex-wrap gap-2">
-        {photos.map(p => (
-          <div key={p.key} className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.previewUrl} alt="" className="w-full h-full object-cover" />
-            <button type="button" onClick={() => onRemove(p.key)} disabled={disabled} aria-label="Quitar foto" className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5"><X className="w-3 h-3 text-white" /></button>
-          </div>
-        ))}
-        {photos.length < MAX_PHOTOS_PER_GROUP && (
-          <>
-            <button type="button" disabled={disabled} onClick={() => setCameraOpen(true)} className={addButton}>
-              <Camera className="w-5 h-5" /> Tomar foto
-            </button>
-            <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className={addButton}>
-              <ImagePlus className="w-5 h-5" /> Subir archivo
-            </button>
-          </>
-        )}
-      </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { onAdd(Array.from(e.target.files || [])); e.target.value = ''; }} />
-      {cameraOpen && (
-        <PhotoCaptureModal
-          remaining={MAX_PHOTOS_PER_GROUP - photos.length}
-          onCapture={file => onAdd([file])}
-          onClose={() => setCameraOpen(false)}
-          onUseFiles={() => { setCameraOpen(false); inputRef.current?.click(); }}
-        />
-      )}
-    </div>
   );
 };

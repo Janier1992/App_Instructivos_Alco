@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabaseService';
+import type { PhotoMeta } from './photoMarks';
 
 export const SUPPLIER_CLAIM_PHOTO_BUCKET = 'supplier-claim-photos';
 
@@ -29,6 +30,8 @@ export interface SupplierClaim {
   rechazoItems: SupplierClaimRejectItem[];
   fotoEtiquetaPaths: string[];
   fotoDefectoPaths: string[];
+  /** Comentario y marcas por foto, indexado por la ruta de la foto en Storage. */
+  fotoMeta: Record<string, PhotoMeta>;
   realizadoPor: string;
   cargo: string | null;
   createdAt: string;
@@ -48,6 +51,7 @@ export interface SupplierClaimInput {
   rechazoItems?: SupplierClaimRejectItem[];
   fotoEtiquetaPaths?: string[];
   fotoDefectoPaths?: string[];
+  fotoMeta?: Record<string, PhotoMeta>;
   realizadoPor: string;
   cargo?: string;
 }
@@ -79,6 +83,7 @@ function mapRow(row: any): SupplierClaim {
     rechazoItems: Array.isArray(row.rechazo_items) ? row.rechazo_items : [],
     fotoEtiquetaPaths: row.foto_etiqueta_paths || [],
     fotoDefectoPaths: row.foto_defecto_paths || [],
+    fotoMeta: row.foto_meta && typeof row.foto_meta === 'object' ? row.foto_meta : {},
     realizadoPor: row.realizado_por,
     cargo: row.cargo || null,
     createdAt: row.created_at
@@ -101,6 +106,7 @@ function toDbRow(input: SupplierClaimInput) {
     rechazo_items: input.rechazoItems || [],
     foto_etiqueta_paths: input.fotoEtiquetaPaths || [],
     foto_defecto_paths: input.fotoDefectoPaths || [],
+    foto_meta: input.fotoMeta || {},
     realizado_por: input.realizadoPor.trim(),
     cargo: input.cargo?.trim() || null
   };

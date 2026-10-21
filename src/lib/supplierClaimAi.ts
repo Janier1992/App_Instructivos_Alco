@@ -20,6 +20,7 @@ export interface SupplierClaimDraftInput {
   referencias: string;
   lotes: string;
   observacionInspector: string;
+  comentariosFotos?: string[];
   images: { buffer: Buffer; mimeType: string }[];
 }
 
@@ -40,7 +41,8 @@ DATOS
 - Referencia(s): ${input.referencias}
 - Lote(s): ${input.lotes || 'No indicado'}
 - Novedad registrada por el inspector: ${input.observacionInspector}
-
+${input.comentariosFotos?.length ? `- Comentarios del inspector sobre cada foto: ${input.comentariosFotos.join(' | ')}
+` : ''}
 TONO Y REDACCIÓN
 - Lenguaje formal, cordial, respetuoso y amable. El informe debe leerse como una comunicación entre aliados comerciales que buscan mejorar juntos, nunca como un reproche ni una presión sobre el proveedor.
 - Describe los hechos de manera objetiva y serena, sin adjetivos fuertes, sin culpar y sin amenazar. Evita expresiones como "inaceptable", "incumplimiento", "exigimos", "deben" o "obligatorio".

@@ -1,4 +1,5 @@
 import type { SupplierClaim } from './supplierClaimsStore';
+import { PhotoMeta, PhotoMark, drawMarksOnCanvas } from './photoMarks';
 
 /** Piezas compartidas por la exportación a PDF y a Word del informe de reclamo a proveedor. */
 
@@ -59,6 +60,8 @@ export interface LoadedImage {
   w: number;
   h: number;
   format: 'JPEG' | 'PNG';
+  /** Comentario de la foto, ya sin guiones largos; se muestra debajo de la imagen. */
+  caption?: string;
 }
 
 function readBlobAsDataUrl(blob: Blob): Promise<string> {
@@ -85,11 +88,45 @@ async function blobToLoadedImage(blob: Blob): Promise<LoadedImage> {
   return { dataUrl, bytes: new Uint8Array(await blob.arrayBuffer()), ...dims, format: blob.type === 'image/png' ? 'PNG' : 'JPEG' };
 }
 
-/** Foto del informe leída desde el mismo origen (sin problemas de CORS). */
-export async function loadClaimImage(path: string): Promise<LoadedImage | null> {
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const binary = atob(dataUrl.split(',')[1] || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** Dibuja las marcas (recuadros, flechas, etiquetas) sobre la foto para que viajen dentro del PDF y del Word. */
+async function burnMarks(image: LoadedImage, marks: PhotoMark[]): Promise<LoadedImage> {
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = image.dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = image.w;
+    canvas.height = image.h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return image;
+    ctx.drawImage(img, 0, 0, image.w, image.h);
+    drawMarksOnCanvas(ctx, marks, image.w, image.h);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    return { ...image, dataUrl, bytes: dataUrlToBytes(dataUrl), format: 'JPEG' };
+  } catch {
+    return image;
+  }
+}
+
+/** Foto del informe leída desde el mismo origen (sin problemas de CORS), con sus marcas y comentario aplicados. */
+export async function loadClaimImage(path: string, meta?: PhotoMeta): Promise<LoadedImage | null> {
   try {
     const res = await fetch(`/api/supplier-claims/photo?path=${encodeURIComponent(path)}`);
-    return res.ok ? await blobToLoadedImage(await res.blob()) : null;
+    if (!res.ok) return null;
+    let image = await blobToLoadedImage(await res.blob());
+    if (meta?.marcas?.length) image = await burnMarks(image, meta.marcas);
+    const caption = meta?.comentario?.trim();
+    return caption ? { ...image, caption: stripDashes(caption) } : image;
   } catch {
     return null;
   }
@@ -104,8 +141,8 @@ export async function loadLogoImage(): Promise<LoadedImage | null> {
   }
 }
 
-export async function loadClaimImages(paths: string[]): Promise<LoadedImage[]> {
-  const loaded = await Promise.all(paths.map(loadClaimImage));
+export async function loadClaimImages(paths: string[], metaMap: Record<string, PhotoMeta> = {}): Promise<LoadedImage[]> {
+  const loaded = await Promise.all(paths.map(path => loadClaimImage(path, metaMap[path])));
   return loaded.filter((i): i is LoadedImage => i !== null);
 }
 

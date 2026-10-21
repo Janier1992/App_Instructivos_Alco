@@ -17,7 +17,7 @@ function mimeFromPath(path: string): string {
 /** Pública — redacta el texto del informe con Gemini a partir de la novedad del inspector y las fotos del defecto ya subidas. */
 export async function POST(request: NextRequest) {
   try {
-    const { proveedor, materiaPrima, referencias, lotes, observacionInspector, fotoDefectoPaths } = await request.json();
+    const { proveedor, materiaPrima, referencias, lotes, observacionInspector, fotoDefectoPaths, comentariosFotos } = await request.json();
     if (!proveedor || !materiaPrima || !referencias || !observacionInspector?.trim()) {
       return NextResponse.json({ error: 'Se requiere proveedor, materia prima, referencia y la novedad encontrada.' }, { status: 400 });
     }
@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
       : [];
     const images = downloaded.filter((img): img is { buffer: Buffer; mimeType: string } => img !== null);
 
-    const draft = await generateSupplierClaimDraft({ proveedor, materiaPrima, referencias, lotes: lotes || '', observacionInspector, images });
+    const draft = await generateSupplierClaimDraft({ proveedor, materiaPrima, referencias, lotes: lotes || '', observacionInspector, images,
+      comentariosFotos: Array.isArray(comentariosFotos) ? comentariosFotos.filter((c: unknown): c is string => typeof c === 'string').slice(0, 6) : [] });
     return NextResponse.json({ success: true, draft });
   } catch (err: any) {
     console.error('Error generando informe de reclamo a proveedor:', err);

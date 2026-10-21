@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Pencil, Trash2 } from 'lucide-react';
 import type { SupplierClaim } from '@/src/lib/supplierClaimsStore';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
+import { MarkedImage } from './MarksOverlay';
 import { exportSupplierClaimToPDF } from '@/src/lib/supplierClaimPdfExport';
 import { exportSupplierClaimToWord } from '@/src/lib/supplierClaimWordExport';
 
@@ -55,12 +56,14 @@ export const SupplierClaimViewModal: React.FC<Props> = ({ claim, onClose, onEdit
       )}
 
       {[...claim.fotoEtiquetaPaths, ...claim.fotoDefectoPaths].length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[...claim.fotoEtiquetaPaths, ...claim.fotoDefectoPaths].map(p => (
-            <a key={p} href={photoUrl(p)} target="_blank" rel="noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoUrl(p)} alt="Foto del informe" className="w-24 h-24 object-cover rounded-lg border border-slate-200" />
-            </a>
+            <div key={p} className="space-y-1">
+              <a href={photoUrl(p)} target="_blank" rel="noreferrer" className="block rounded-lg border border-slate-200 bg-slate-100 overflow-hidden">
+                <MarkedImage src={photoUrl(p)} marks={claim.fotoMeta[p]?.marcas || []} className="w-full aspect-[4/3]" alt="Foto del informe" />
+              </a>
+              {claim.fotoMeta[p]?.comentario && <p className="text-[11px] text-slate-600 italic">{claim.fotoMeta[p].comentario}</p>}
+            </div>
           ))}
         </div>
       )}
