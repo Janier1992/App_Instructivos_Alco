@@ -2,6 +2,20 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SupplierClaim } from './supplierClaimsStore';
 import { loadLogoDataUrl } from './metrologyPdfHelpers';
+import {
+  DOC_DATE,
+  DOC_VERSION,
+  FOLLOW_UP,
+  INTRO,
+  NAVY_RGB as NAVY,
+  LoadedImage,
+  cleanClaimForExport,
+  defectLine,
+  formatLongDate,
+  loadClaimImages,
+  rejectIntro,
+  safeFileName
+} from './supplierClaimShared';
 
 /**
  * Genera el "Informe Calidad Abastecimiento — No Conformidades Proveedor"
@@ -10,55 +24,11 @@ import { loadLogoDataUrl } from './metrologyPdfHelpers';
  * y firma). Se arma en el navegador: no requiere sesión del CRM.
  */
 
-const NAVY: [number, number, number] = [31, 56, 100];
 const BORDER: [number, number, number] = [150, 150, 150];
 const MARGIN = 15;
 const BODY_TOP = 44;
 const BOTTOM_LIMIT = 280;
 const LINE_H = 4.7;
-const DOC_VERSION = '1';
-const DOC_DATE = '28/02/2023';
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const INTRO =
-  'En el presente informe se detallan las condiciones observadas durante el proceso de recepción de materias primas e insumos, con el fin de documentar posibles incidencias y garantizar el cumplimiento de los estándares de calidad establecidos por ALCO S.A.S.';
-const FOLLOW_UP = (proveedor: string) =>
-  `Se realizará un riguroso seguimiento para confirmar que se hayan implementado las correcciones necesarias por parte del proveedor. Se espera que ${proveedor} notifique formalmente las acciones adoptadas. El incumplimiento de los compromisos adquiridos podrá derivar en la revisión de las condiciones comerciales y de suministro.`;
-
-interface LoadedImage {
-  dataUrl: string;
-  w: number;
-  h: number;
-  format: 'JPEG' | 'PNG';
-}
-
-function formatLongDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  if (!y || !m || !d) return isoDate;
-  return `${d} de ${MONTHS[m - 1]} de ${y}`;
-}
-
-async function loadClaimImage(path: string): Promise<LoadedImage | null> {
-  try {
-    const res = await fetch(`/api/supplier-claims/photo?path=${encodeURIComponent(path)}`);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve({ w: img.width, h: img.height });
-      img.onerror = reject;
-      img.src = dataUrl;
-    });
-    return { dataUrl, ...dims, format: blob.type === 'image/png' ? 'PNG' : 'JPEG' };
-  } catch {
-    return null;
-  }
-}
 
 class ReportWriter {
   y = BODY_TOP;
@@ -128,7 +98,7 @@ class ReportWriter {
     rows.forEach(([label, value]) => {
       this.doc.rect(MARGIN, this.y, labelW, rowH).rect(MARGIN + labelW, this.y, this.contentW - labelW, rowH);
       this.doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(20, 20, 20).text(label, MARGIN + 3, this.y + 5.5);
-      this.doc.setFont('helvetica', 'normal').text(this.doc.splitTextToSize(value || '—', this.contentW - labelW - 6)[0], MARGIN + labelW + 3, this.y + 5.5);
+      this.doc.setFont('helvetica', 'normal').text(this.doc.splitTextToSize(value || 'No indicado', this.contentW - labelW - 6)[0], MARGIN + labelW + 3, this.y + 5.5);
       this.y += rowH;
     });
     this.y += 5;
@@ -141,35 +111,77 @@ class ReportWriter {
     this.y += 12;
   }
 
-  paragraph(text: string, bold = false, indent = 0) {
+  /** Dibuja una línea repartiendo el espacio sobrante entre las palabras (texto justificado). */
+  private justifiedLine(line: string, x: number, width: number, justify: boolean) {
+    const words = line.split(' ').filter(Boolean);
+    if (!justify || words.length < 2) {
+      this.doc.text(line, x, this.y);
+      return;
+    }
+    const wordsWidth = words.reduce((acc, w) => acc + this.doc.getTextWidth(w), 0);
+    const space = (width - wordsWidth) / (words.length - 1);
+    let cursor = x;
+    words.forEach(word => {
+      this.doc.text(word, cursor, this.y);
+      cursor += this.doc.getTextWidth(word) + space;
+    });
+  }
+
+  private bodyFont(bold = false) {
     this.doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(10).setTextColor(20, 20, 20);
+  }
+
+  paragraph(text: string, bold = false, justify = true) {
     text.split(/\n\s*\n/).forEach(block => {
-      this.doc.splitTextToSize(block.replace(/\n/g, ' ').trim(), this.contentW - indent).forEach((line: string) => {
+      this.bodyFont(bold);
+      const lines = this.doc.splitTextToSize(block.replace(/\n/g, ' ').trim(), this.contentW) as string[];
+      lines.forEach((line, idx) => {
         this.ensureSpace(LINE_H + 1);
-        this.doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(10).setTextColor(20, 20, 20);
-        this.doc.text(line, MARGIN + indent, this.y);
+        this.bodyFont(bold);
+        this.justifiedLine(line, MARGIN, this.contentW, justify && idx < lines.length - 1);
         this.y += LINE_H;
       });
       this.y += 2.5;
     });
   }
 
-  /** Viñeta con título en negrita opcional ("Título: detalle"). */
+  /** Viñeta justificada, con título en negrita opcional ("Título: detalle"). */
   bullet(detail: string, title?: string) {
     const indent = 7;
-    const lines = this.doc.splitTextToSize(title ? `${title}: ${detail}` : detail, this.contentW - indent) as string[];
+    const width = this.contentW - indent;
+    const head = title ? `${title}: ` : '';
+    this.bodyFont(true);
+    const headW = head ? this.doc.getTextWidth(head) : 0;
+    this.bodyFont();
+    const words = detail.split(/\s+/).filter(Boolean);
+
+    // La primera línea comparte renglón con el título; el resto usa el ancho completo.
+    const lines: { text: string; width: number }[] = [];
+    let current = '';
+    let currentWidth = width - headW;
+    words.forEach(word => {
+      const candidate = current ? `${current} ${word}` : word;
+      if (this.doc.getTextWidth(candidate) <= currentWidth || !current) {
+        current = candidate;
+      } else {
+        lines.push({ text: current, width: currentWidth });
+        current = word;
+        currentWidth = width;
+      }
+    });
+    if (current) lines.push({ text: current, width: currentWidth });
+
     lines.forEach((line, idx) => {
       this.ensureSpace(LINE_H + 1);
-      this.doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(20, 20, 20);
+      this.bodyFont();
       if (idx === 0) this.doc.text('•', MARGIN + 2.5, this.y);
-      if (title && idx === 0) {
-        const head = `${title}:`;
-        this.doc.setFont('helvetica', 'bold').text(head, MARGIN + indent, this.y);
-        const headW = this.doc.getTextWidth(head + ' ');
-        this.doc.setFont('helvetica', 'normal').text(line.slice(head.length).trimStart(), MARGIN + indent + headW, this.y);
-      } else {
-        this.doc.text(line, MARGIN + indent, this.y);
+      const x = MARGIN + indent + (idx === 0 ? headW : 0);
+      if (idx === 0 && head) {
+        this.bodyFont(true);
+        this.doc.text(head, MARGIN + indent, this.y);
+        this.bodyFont();
       }
+      this.justifiedLine(line.text, x, line.width, idx < lines.length - 1);
       this.y += LINE_H;
     });
     this.y += 1.5;
@@ -232,16 +244,17 @@ class ReportWriter {
     this.doc.setFont('helvetica', 'normal').setFontSize(10);
     this.doc.text('Nombre:', x + 1.5, this.y + 10.5).text('Cargo:', x + 1.5, this.y + 16.5);
     this.doc.text(name, x + labelW + (w - labelW) / 2, this.y + 10.5, { align: 'center' });
-    this.doc.text(role || '—', x + labelW + (w - labelW) / 2, this.y + 16.5, { align: 'center' });
+    this.doc.text(role, x + labelW + (w - labelW) / 2, this.y + 16.5, { align: 'center' });
     this.y += 20;
   }
 }
 
-export async function buildSupplierClaimPdf(claim: SupplierClaim): Promise<jsPDF> {
-  const [logo, etiquetas, defectos] = await Promise.all([
+export async function buildSupplierClaimPdf(rawClaim: SupplierClaim): Promise<jsPDF> {
+  const claim = cleanClaimForExport(rawClaim);
+  const [logo, etiquetaImgs, defectoImgs] = await Promise.all([
     loadLogoDataUrl(),
-    Promise.all(claim.fotoEtiquetaPaths.map(loadClaimImage)),
-    Promise.all(claim.fotoDefectoPaths.map(loadClaimImage))
+    loadClaimImages(claim.fotoEtiquetaPaths),
+    loadClaimImages(claim.fotoDefectoPaths)
   ]);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -257,23 +270,22 @@ export async function buildSupplierClaimPdf(claim: SupplierClaim): Promise<jsPDF
   w.paragraph(INTRO);
 
   w.sectionBar('TRAZABILIDAD');
-  const etiquetaImgs = etiquetas.filter((i): i is LoadedImage => i !== null);
   w.paragraph(etiquetaImgs.length > 0 ? 'Adjunto imágenes de la etiqueta del material recibido.' : 'No se adjuntó imagen de la etiqueta del material recibido.');
   w.images(etiquetaImgs);
 
   w.sectionBar('DESCRIPCIÓN DE LA NO CONFORMIDAD O ANOMALÍA');
-  w.paragraph(`Reporte de No Conformidad — Defecto: ${claim.defectoTitulo || 'Novedad en recepción'}`, true);
+  w.paragraph(defectLine(claim), true, false);
   w.paragraph(claim.descripcionNc || claim.observacionInspector);
   if (claim.observacionesTecnicas.length > 0) {
-    w.paragraph('Observaciones técnicas:', true);
+    w.paragraph('Observaciones técnicas:', true, false);
     claim.observacionesTecnicas.forEach(o => w.bullet(o));
   }
-  w.images(defectos.filter((i): i is LoadedImage => i !== null));
+  w.images(defectoImgs);
 
   if (claim.rechazoItems.length > 0) {
     const total = claim.rechazoItems.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
     w.sectionBar('ACCIONES INMEDIATAS');
-    w.paragraph(`Rechazo del lote: ${total} unidades en total (detalle en tabla adjunta). Las cuales deben ser regresadas al proveedor.`);
+    w.paragraph(rejectIntro(total));
     w.rejectTable(claim.rechazoItems);
   }
 
@@ -292,6 +304,5 @@ export async function buildSupplierClaimPdf(claim: SupplierClaim): Promise<jsPDF
 
 export async function exportSupplierClaimToPDF(claim: SupplierClaim): Promise<void> {
   const doc = await buildSupplierClaimPdf(claim);
-  const safe = (text: string) => text.replace(/[^\w-]+/g, '-').replace(/-+/g, '-');
-  doc.save(`Informe-NC-${safe(claim.proveedor)}-${safe(claim.referencias)}-${claim.fechaInforme}.pdf`);
+  doc.save(safeFileName(claim, 'pdf'));
 }

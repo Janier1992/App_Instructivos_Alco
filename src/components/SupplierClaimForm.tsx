@@ -190,7 +190,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className={LABEL}>Proveedor *</label><input className={INPUT} value={proveedor} onChange={e => setProveedor(e.target.value)} placeholder="Ej: ALUMTEK S.A.S." /></div>
         <div><label className={LABEL}>Fecha del informe *</label><input type="date" className={INPUT} value={fecha} onChange={e => setFecha(e.target.value)} /></div>
-        <div><label className={LABEL}>Materia prima / insumo *</label><input className={INPUT} value={materiaPrima} onChange={e => setMateriaPrima(e.target.value)} placeholder="Ej: ALUMINIO — Perfil Ángulo" /></div>
+        <div><label className={LABEL}>Materia prima / insumo *</label><input className={INPUT} value={materiaPrima} onChange={e => setMateriaPrima(e.target.value)} placeholder="Ej: ALUMINIO, Perfil Ángulo" /></div>
         <div><label className={LABEL}>Referencia(s) *</label><input className={INPUT} value={referencias} onChange={e => setReferencias(e.target.value)} placeholder="Ej: A-0046" /></div>
         <div className="sm:col-span-2"><label className={LABEL}>Número(s) de lote</label><input className={INPUT} value={lotes} onChange={e => setLotes(e.target.value)} placeholder="Ej: N° 15135-1" /></div>
       </div>

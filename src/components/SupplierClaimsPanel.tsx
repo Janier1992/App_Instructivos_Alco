@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { FileWarning, RefreshCw, Plus, X, Eye, Pencil, Trash2, FileText, Search } from 'lucide-react';
+import { FileWarning, RefreshCw, Plus, X, Eye, Pencil, Trash2, FileText, FileType2, Search } from 'lucide-react';
 import { SupplierClaimForm } from './SupplierClaimForm';
 import { SupplierClaimViewModal } from './SupplierClaimViewModal';
 import type { SupplierClaim } from '@/src/lib/supplierClaimsStore';
 import { exportSupplierClaimToPDF } from '@/src/lib/supplierClaimPdfExport';
+import { exportSupplierClaimToWord } from '@/src/lib/supplierClaimWordExport';
 
 const API_BASE = '/api/supplier-claims';
 
@@ -20,7 +21,7 @@ export const SupplierClaimsPanel: React.FC<{ processSlug: string }> = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierClaim | null>(null);
   const [viewing, setViewing] = useState<SupplierClaim | null>(null);
-  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportingKey, setExportingKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -63,12 +64,14 @@ export const SupplierClaimsPanel: React.FC<{ processSlug: string }> = () => {
     await load();
   };
 
-  const handleExport = async (claim: SupplierClaim) => {
-    setExportingId(claim.id);
+  const handleExport = async (claim: SupplierClaim, format: 'word' | 'pdf') => {
+    setExportingKey(`${claim.id}-${format}`);
     try {
-      await exportSupplierClaimToPDF(claim);
+      await (format === 'word' ? exportSupplierClaimToWord(claim) : exportSupplierClaimToPDF(claim));
+    } catch {
+      window.alert('No se pudo generar el documento. Intenta de nuevo.');
     } finally {
-      setExportingId(null);
+      setExportingKey(null);
     }
   };
 
@@ -119,7 +122,8 @@ export const SupplierClaimsPanel: React.FC<{ processSlug: string }> = () => {
                     <div className="flex items-center gap-3 whitespace-nowrap">
                       <button onClick={() => setViewing(c)} className="text-[#003366] hover:underline flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> Ver</button>
                       <button onClick={() => { setEditing(c); setFormOpen(true); }} className="text-[#003366] hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5" /> Editar</button>
-                      <button onClick={() => handleExport(c)} disabled={exportingId === c.id} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><FileText className="w-3.5 h-3.5" /> {exportingId === c.id ? 'Generando...' : 'PDF'}</button>
+                      <button onClick={() => handleExport(c, 'word')} disabled={exportingKey === `${c.id}-word`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><FileType2 className="w-3.5 h-3.5" /> {exportingKey === `${c.id}-word` ? 'Generando...' : 'Word'}</button>
+                      <button onClick={() => handleExport(c, 'pdf')} disabled={exportingKey === `${c.id}-pdf`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><FileText className="w-3.5 h-3.5" /> {exportingKey === `${c.id}-pdf` ? 'Generando...' : 'PDF'}</button>
                       <button onClick={() => handleDelete(c)} className="text-rose-600 hover:underline flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Eliminar</button>
                     </div>
                   </td>

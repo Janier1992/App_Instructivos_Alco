@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.112.3",
     "@tailwindcss/postcss": "^4.3.3",
     "bcryptjs": "^3.0.3",
+    "docx": "^9.13.0",
     "dotenv": "^17.2.3",
     "jose": "^6.2.8",
     "jspdf": "^4.2.1",
