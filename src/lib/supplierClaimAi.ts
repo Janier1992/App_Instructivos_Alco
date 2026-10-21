@@ -1,3 +1,4 @@
+import { MediaResolution, ThinkingLevel } from '@google/genai';
 import { getGeminiClient } from './geminiClient';
 import type { SupplierClaimAction } from './supplierClaimsStore';
 import { stripDashes } from './supplierClaimShared';
@@ -111,14 +112,28 @@ export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput)
 
   try {
     const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
-    const response = await withTimeout(
-      getGeminiClient().models.generateContent({
-        model: MODEL,
-        contents: [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }],
-        config: { responseMimeType: 'application/json' }
-      }),
-      AI_TIMEOUT_MS
-    );
+    const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
+    const call = (fast: boolean) =>
+      withTimeout(
+        getGeminiClient().models.generateContent({
+          model: MODEL,
+          contents,
+          // Modo rápido: poco razonamiento interno y fotos en resolución baja. Redactar un informe no requiere más y reduce la espera.
+          config: fast
+            ? { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW }
+            : { responseMimeType: 'application/json' }
+        }),
+        AI_TIMEOUT_MS
+      );
+
+    let response;
+    try {
+      response = await call(true);
+    } catch (err: any) {
+      // Si el modelo rechaza la configuración rápida (no por tiempo agotado), reintenta con la configuración estándar.
+      if (/no respondió/.test(String(err?.message))) throw err;
+      response = await call(false);
+    }
 
     const parsed = parseJson(response.text);
     if (!parsed || typeof parsed.descripcionNc !== 'string') return buildFallbackDraft(input);

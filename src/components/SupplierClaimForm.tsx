@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Sparkles, Camera, X, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Sparkles, Camera, ImagePlus, X, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { PhotoCaptureModal } from './PhotoCaptureModal';
 import { compressImageFile } from '@/src/lib/imageCompression';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 import type { SupplierClaim, SupplierClaimInput, SupplierClaimRejectItem, SupplierClaimAction } from '@/src/lib/supplierClaimsStore';
@@ -57,41 +58,39 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
   const [error, setError] = useState<string | null>(null);
   const busy = status !== null;
 
-  const addPhotos = async (files: FileList | null, group: PhotoItem[], setGroup: (p: PhotoItem[]) => void) => {
-    if (!files) return;
+  const addPhotos = async (files: File[], setGroup: React.Dispatch<React.SetStateAction<PhotoItem[]>>) => {
     const added: PhotoItem[] = [];
-    for (const file of Array.from(files).slice(0, MAX_PHOTOS_PER_GROUP - group.length)) {
+    for (const file of files) {
       const compressed = await compressImageFile(file);
       const blob = await (await fetch(compressed.previewUrl)).blob();
       const jpeg = new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
       added.push({ key: `${Date.now()}-${Math.random()}`, file: jpeg, previewUrl: compressed.previewUrl });
     }
-    setGroup([...group, ...added]);
+    setGroup(prev => [...prev, ...added].slice(0, MAX_PHOTOS_PER_GROUP));
   };
 
   /** Sube las fotos nuevas a Storage y devuelve los paths finales del grupo. */
-  const uploadGroup = async (group: PhotoItem[]): Promise<string[]> => {
+  const uploadPhoto = async (photo: PhotoItem): Promise<string | null> => {
+    if (photo.path) return photo.path;
+    if (!photo.file) return null;
     const supabase = getSupabaseBrowserClient();
-    const paths: string[] = [];
-    for (const photo of group) {
-      if (photo.path) {
-        paths.push(photo.path);
-        continue;
-      }
-      if (!photo.file) continue;
-      if (!supabase) throw new Error('Carga de fotos no disponible: falta configuración del servidor.');
-      const urlRes = await fetch('/api/supplier-claims/upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: photo.file.name })
-      });
-      const urlData = await parseJson(urlRes);
-      if (!urlRes.ok || !urlData.success) throw new Error(urlData.error || 'No se pudo iniciar la carga de la foto.');
-      const { error: upErr } = await supabase.storage.from(PHOTO_BUCKET).uploadToSignedUrl(urlData.storagePath, urlData.token, photo.file, { contentType: 'image/jpeg' });
-      if (upErr) throw new Error(upErr.message);
-      paths.push(urlData.storagePath);
-    }
-    return paths;
+    if (!supabase) throw new Error('Carga de fotos no disponible: falta configuración del servidor.');
+    const urlRes = await fetch('/api/supplier-claims/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: photo.file.name })
+    });
+    const urlData = await parseJson(urlRes);
+    if (!urlRes.ok || !urlData.success) throw new Error(urlData.error || 'No se pudo iniciar la carga de la foto.');
+    const { error: upErr } = await supabase.storage.from(PHOTO_BUCKET).uploadToSignedUrl(urlData.storagePath, urlData.token, photo.file, { contentType: 'image/jpeg' });
+    if (upErr) throw new Error(upErr.message);
+    return urlData.storagePath;
+  };
+
+  /** Sube las fotos nuevas a Storage en paralelo y devuelve los paths finales del grupo. */
+  const uploadGroup = async (group: PhotoItem[]): Promise<string[]> => {
+    const paths = await Promise.all(group.map(uploadPhoto));
+    return paths.filter((p): p is string => p !== null);
   };
 
   const requestDraft = async (defectoPaths: string[]) => {
@@ -141,8 +140,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
 
     try {
       setStatus('Subiendo fotos...');
-      const etiquetaPaths = await uploadGroup(etiquetas);
-      const defectoPaths = await uploadGroup(defectos);
+      const [etiquetaPaths, defectoPaths] = await Promise.all([uploadGroup(etiquetas), uploadGroup(defectos)]);
 
       let draft = { defectoTitulo, descripcionNc, observacionesTecnicas: observaciones.split('\n').map(o => o.trim()).filter(Boolean), accionesCorrectivas: acciones };
       let aiFailed = false;
@@ -202,8 +200,8 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
         <div className="sm:col-span-2"><label className={LABEL}>Número(s) de lote</label><input className={INPUT} value={lotes} onChange={e => setLotes(e.target.value)} placeholder="Ej: N° 15135-1" /></div>
       </div>
 
-      <PhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotos(f, etiquetas, setEtiquetas)} onRemove={k => setEtiquetas(etiquetas.filter(p => p.key !== k))} />
-      <PhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotos(f, defectos, setDefectos)} onRemove={k => setDefectos(defectos.filter(p => p.key !== k))} />
+      <PhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotos(f, setEtiquetas)} onRemove={k => setEtiquetas(etiquetas.filter(p => p.key !== k))} />
+      <PhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotos(f, setDefectos)} onRemove={k => setDefectos(defectos.filter(p => p.key !== k))} />
 
       <div>
         <label className={LABEL}>Novedad encontrada / tu análisis *</label>
@@ -261,8 +259,11 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
   );
 };
 
-const PhotoGroup: React.FC<{ title: string; photos: PhotoItem[]; disabled: boolean; onAdd: (files: FileList | null) => void; onRemove: (key: string) => void }> = ({ title, photos, disabled, onAdd, onRemove }) => {
+const PhotoGroup: React.FC<{ title: string; photos: PhotoItem[]; disabled: boolean; onAdd: (files: File[]) => void; onRemove: (key: string) => void }> = ({ title, photos, disabled, onAdd, onRemove }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const addButton = 'h-20 px-3 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:text-[#003366] hover:border-[#003366] flex flex-col items-center justify-center gap-1 text-[10px] font-bold disabled:opacity-50';
+
   return (
     <div>
       <label className={LABEL}>{title}</label>
@@ -275,12 +276,25 @@ const PhotoGroup: React.FC<{ title: string; photos: PhotoItem[]; disabled: boole
           </div>
         ))}
         {photos.length < MAX_PHOTOS_PER_GROUP && (
-          <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:text-[#003366] hover:border-[#003366] flex flex-col items-center justify-center gap-1 text-[10px] font-bold">
-            <Camera className="w-5 h-5" /> Agregar
-          </button>
+          <>
+            <button type="button" disabled={disabled} onClick={() => setCameraOpen(true)} className={addButton}>
+              <Camera className="w-5 h-5" /> Tomar foto
+            </button>
+            <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className={addButton}>
+              <ImagePlus className="w-5 h-5" /> Subir archivo
+            </button>
+          </>
         )}
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { onAdd(e.target.files); e.target.value = ''; }} />
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { onAdd(Array.from(e.target.files || [])); e.target.value = ''; }} />
+      {cameraOpen && (
+        <PhotoCaptureModal
+          remaining={MAX_PHOTOS_PER_GROUP - photos.length}
+          onCapture={file => onAdd([file])}
+          onClose={() => setCameraOpen(false)}
+          onUseFiles={() => { setCameraOpen(false); inputRef.current?.click(); }}
+        />
+      )}
     </div>
   );
 };
