@@ -6,7 +6,7 @@ import { generateSupplierClaimDraft } from '@/src/lib/supplierClaimAi';
 export const maxDuration = 60;
 
 const PATH_PATTERN = /^claim-[\w-]+\.(jpe?g|png|webp)$/;
-const MAX_IMAGES_FOR_AI = 4;
+const MAX_IMAGES_FOR_AI = 3;
 
 function mimeFromPath(path: string): string {
   if (path.endsWith('.png')) return 'image/png';
@@ -22,16 +22,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Se requiere proveedor, materia prima, referencia y la novedad encontrada.' }, { status: 400 });
     }
 
-    const images: { buffer: Buffer; mimeType: string }[] = [];
     const supabase = getSupabaseClient();
     const paths: string[] = Array.isArray(fotoDefectoPaths) ? fotoDefectoPaths.filter((p: unknown) => typeof p === 'string' && PATH_PATTERN.test(p)) : [];
 
-    if (supabase) {
-      for (const path of paths.slice(0, MAX_IMAGES_FOR_AI)) {
-        const { data } = await supabase.storage.from(SUPPLIER_CLAIM_PHOTO_BUCKET).download(path);
-        if (data) images.push({ buffer: Buffer.from(await data.arrayBuffer()), mimeType: mimeFromPath(path) });
-      }
-    }
+    const downloaded = supabase
+      ? await Promise.all(
+          paths.slice(0, MAX_IMAGES_FOR_AI).map(async path => {
+            const { data } = await supabase.storage.from(SUPPLIER_CLAIM_PHOTO_BUCKET).download(path);
+            return data ? { buffer: Buffer.from(await data.arrayBuffer()), mimeType: mimeFromPath(path) } : null;
+          })
+        )
+      : [];
+    const images = downloaded.filter((img): img is { buffer: Buffer; mimeType: string } => img !== null);
 
     const draft = await generateSupplierClaimDraft({ proveedor, materiaPrima, referencias, lotes: lotes || '', observacionInspector, images });
     return NextResponse.json({ success: true, draft });

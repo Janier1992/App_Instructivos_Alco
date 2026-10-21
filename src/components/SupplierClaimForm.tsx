@@ -145,9 +145,15 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       const defectoPaths = await uploadGroup(defectos);
 
       let draft = { defectoTitulo, descripcionNc, observacionesTecnicas: observaciones.split('\n').map(o => o.trim()).filter(Boolean), accionesCorrectivas: acciones };
+      let aiFailed = false;
       if (!descripcionNc.trim()) {
         setStatus('Redactando informe con IA...');
-        draft = await requestDraft(defectoPaths);
+        try {
+          draft = await requestDraft(defectoPaths);
+        } catch {
+          // El informe no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
+          aiFailed = true;
+        }
       }
 
       setStatus('Guardando informe...');
@@ -175,6 +181,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       });
       const data = await parseJson(res);
       if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo guardar el informe.');
+      if (aiFailed) window.alert('El informe se guardó, pero la IA no alcanzó a redactar el texto. Ábrelo con "Editar" y pulsa "Generar texto con IA" para completarlo.');
       await onSaved();
     } catch (err: any) {
       setError(err.message);

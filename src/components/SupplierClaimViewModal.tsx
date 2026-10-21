@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { X, FileText, FileType2, Pencil, Trash2 } from 'lucide-react';
+import { X, Pencil, Trash2 } from 'lucide-react';
 import type { SupplierClaim } from '@/src/lib/supplierClaimsStore';
+import { WordIcon, PdfIcon } from './ExportFormatIcons';
 import { exportSupplierClaimToPDF } from '@/src/lib/supplierClaimPdfExport';
 import { exportSupplierClaimToWord } from '@/src/lib/supplierClaimWordExport';
 
@@ -69,8 +70,8 @@ export const SupplierClaimViewModal: React.FC<Props> = ({ claim, onClose, onEdit
       <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-100">
         <button onClick={onDelete} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-rose-700 border border-rose-200 hover:bg-rose-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /> Eliminar</button>
         <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 border border-slate-300 hover:bg-slate-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /> Editar</button>
-        <button onClick={() => exportSupplierClaimToPDF(claim)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#003366] border border-[#003366] hover:bg-blue-50 rounded-lg"><FileText className="w-3.5 h-3.5" /> Exportar PDF</button>
-        <button onClick={() => exportSupplierClaimToWord(claim)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-[#003366] hover:bg-blue-900 rounded-lg"><FileType2 className="w-3.5 h-3.5" /> Exportar Word</button>
+        <button onClick={() => exportSupplierClaimToPDF(claim)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#003366] border border-[#003366] hover:bg-blue-50 rounded-lg"><PdfIcon className="w-4 h-4" /> Exportar PDF</button>
+        <button onClick={() => exportSupplierClaimToWord(claim)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-[#003366] hover:bg-blue-900 rounded-lg"><span className="bg-white rounded-md p-0.5"><WordIcon className="w-4 h-4" /></span> Exportar Word</button>
       </div>
     </div>
   </div>

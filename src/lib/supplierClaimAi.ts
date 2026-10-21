@@ -10,6 +10,8 @@ import { stripDashes } from './supplierClaimShared';
  */
 
 const MODEL = 'gemini-3.6-flash';
+// La función serverless de la ruta vive 60 s: si Gemini tarda más, se entrega el texto base en vez de dejar caer la petición (504).
+const AI_TIMEOUT_MS = 40000;
 
 export interface SupplierClaimDraftInput {
   proveedor: string;
@@ -75,6 +77,16 @@ function parseJson(text: string | undefined): any | null {
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Gemini no respondió en ${ms / 1000} s.`)), ms);
+    promise.then(
+      value => { clearTimeout(timer); resolve(value); },
+      err => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 /** Texto base cuando la IA no está disponible: el informe se puede generar igual y editar después. */
 export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClaimDraft {
   return {
@@ -99,11 +111,14 @@ export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput)
 
   try {
     const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
-    const response = await getGeminiClient().models.generateContent({
-      model: MODEL,
-      contents: [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }],
-      config: { responseMimeType: 'application/json' }
-    });
+    const response = await withTimeout(
+      getGeminiClient().models.generateContent({
+        model: MODEL,
+        contents: [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }],
+        config: { responseMimeType: 'application/json' }
+      }),
+      AI_TIMEOUT_MS
+    );
 
     const parsed = parseJson(response.text);
     if (!parsed || typeof parsed.descripcionNc !== 'string') return buildFallbackDraft(input);
