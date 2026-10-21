@@ -26,7 +26,8 @@ import {
   LayoutGrid,
   Ruler,
   Wrench,
-  Gem
+  Gem,
+  FileWarning
 } from 'lucide-react';
 import { ProcessDocumentsPanel } from './ProcessDocumentsPanel';
 import { GlassAcceptanceCriteriaPanel } from './GlassAcceptanceCriteriaPanel';
@@ -41,6 +42,7 @@ import { ProcessTasksBoard } from './ProcessTasksBoard';
 import { ProcessMatrixValidationPanel } from './ProcessMatrixValidationPanel';
 import { ProcessFieldInspectionsPanel } from './ProcessFieldInspectionsPanel';
 import { MetrologyProPanel } from './MetrologyProPanel';
+import { SupplierClaimsPanel } from './SupplierClaimsPanel';
 import { ProcessHealthBadge, ProcessHealthStats } from './ProcessHealthBadge';
 
 interface ProcessDetailProps {
@@ -55,7 +57,7 @@ const SHOW_PROCESS_VIDEOS_SECTION = true;
 export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   slug
 }) => {
-  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones' | 'metrologia' | 'criterios-vidrio'>('principal');
+  const [activeTab, setActiveTab] = useState<'principal' | 'autonomia' | 'documentos' | 'formularios' | 'tareas' | 'matriz' | 'inspecciones' | 'metrologia' | 'reclamos' | 'criterios-vidrio'>('principal');
   const [loading, setLoading] = useState(true);
   const [ragDocsCount, setRagDocsCount] = useState(0);
   const [healthStats, setHealthStats] = useState<ProcessHealthStats | undefined>(undefined);
@@ -142,6 +144,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
   const showMatrixValidationTab = process.showMatrixValidationTab === true;
   const showFieldInspectionsTab = process.showFieldInspectionsTab === true;
   const showMetrologyDeliveryTab = process.showMetrologyDeliveryTab === true;
+  const showSupplierClaimsTab = process.showSupplierClaimsTab === true;
   const showGlassCriteriaTab = process.showGlassCriteriaTab === true;
 
   return (
@@ -295,6 +298,21 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
           </button>
         )}
 
+        {showSupplierClaimsTab && (
+          <button
+            onClick={() => setActiveTab('reclamos')}
+            id="tab-reclamos"
+            className={`flex items-center gap-2 px-3.5 sm:px-5 py-3 text-xs sm:text-sm font-bold whitespace-nowrap rounded-t-xl transition-colors border-b-2 min-h-[44px] ${
+              activeTab === 'reclamos'
+                ? 'border-[#003366] text-[#003366] bg-blue-50/80 shadow-xs font-extrabold'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <FileWarning className="w-4 h-4 text-[#003366] shrink-0" />
+            <span>Reclamos a Proveedores</span>
+          </button>
+        )}
+
         {showTasksTab && (
           <button
             onClick={() => setActiveTab('tareas')}
@@ -421,6 +439,8 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       {activeTab === 'inspecciones' && showFieldInspectionsTab && <ProcessFieldInspectionsPanel processSlug={slug} />}
 
       {activeTab === 'metrologia' && showMetrologyDeliveryTab && <MetrologyProPanel processSlug={slug} />}
+
+      {activeTab === 'reclamos' && showSupplierClaimsTab && <SupplierClaimsPanel processSlug={slug} />}
 
       {/* MODULO: TAREAS (tablero Kanban del equipo de Calidad) */}
       {activeTab === 'tareas' && showTasksTab && <ProcessTasksBoard processSlug={slug} />}
