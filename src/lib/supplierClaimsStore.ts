@@ -4,6 +4,8 @@ import type { PhotoMeta } from './photoMarks';
 export const SUPPLIER_CLAIM_PHOTO_BUCKET = 'supplier-claim-photos';
 
 export interface SupplierClaimRejectItem {
+  /** Opcional: los informes anteriores a esta columna no la tienen. */
+  referencia?: string;
   cantidad: number;
   acabado: string;
   medidaMm: string;

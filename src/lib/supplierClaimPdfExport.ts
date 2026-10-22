@@ -228,8 +228,8 @@ class ReportWriter {
     autoTable(this.doc, {
       startY: this.y,
       margin: { left: MARGIN, right: MARGIN },
-      head: [['Cantidad de perfiles', 'Acabado', 'Medida (mm)']],
-      body: items.map(i => [String(i.cantidad), i.acabado, i.medidaMm]),
+      head: [['Referencia', 'Cantidad de perfiles', 'Acabado', 'Medida (mm)']],
+      body: items.map(i => [i.referencia ?? '', String(i.cantidad), i.acabado, i.medidaMm]),
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 2, textColor: [20, 20, 20], lineColor: [190, 190, 190] },
       headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold' }

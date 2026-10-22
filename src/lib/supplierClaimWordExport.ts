@@ -150,14 +150,15 @@ function infoTable(rows: [string, string][]): Table {
 }
 
 function rejectTable(items: SupplierClaim['rechazoItems']): Table {
-  const widths = [Math.round(PAGE_CONTENT_DXA / 3), Math.round(PAGE_CONTENT_DXA / 3), PAGE_CONTENT_DXA - 2 * Math.round(PAGE_CONTENT_DXA / 3)];
-  const head = ['Cantidad de perfiles', 'Acabado', 'Medida (mm)'];
+  const colW = Math.round(PAGE_CONTENT_DXA / 4);
+  const widths = [colW, colW, colW, PAGE_CONTENT_DXA - 3 * colW];
+  const head = ['Referencia', 'Cantidad de perfiles', 'Acabado', 'Medida (mm)'];
   return new Table({
     width: { size: PAGE_CONTENT_DXA, type: WidthType.DXA },
     columnWidths: widths,
     rows: [
       new TableRow({ tableHeader: true, children: head.map((h, i) => cell([cellText(h, { bold: true, color: 'FFFFFF' })], widths[i], { fill: NAVY_HEX })) }),
-      ...items.map(item => new TableRow({ children: [String(item.cantidad), item.acabado, item.medidaMm].map((v, i) => cell([cellText(v)], widths[i])) }))
+      ...items.map(item => new TableRow({ children: [item.referencia ?? '', String(item.cantidad), item.acabado, item.medidaMm].map((v, i) => cell([cellText(v)], widths[i])) }))
     ]
   });
 }
