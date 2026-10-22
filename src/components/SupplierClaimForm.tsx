@@ -224,14 +224,15 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className={LABEL + ' mb-0'}>Acciones inmediatas — unidades rechazadas</label>
-          <button type="button" onClick={() => setRechazo([...rechazo, { cantidad: 0, acabado: '', medidaMm: '' }])} className="text-[11px] font-bold text-[#003366] flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar fila</button>
+          <button type="button" onClick={() => setRechazo([...rechazo, { referencia: '', cantidad: 0, acabado: '', medidaMm: '' }])} className="text-[11px] font-bold text-[#003366] flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar fila</button>
         </div>
         {rechazo.map((r, idx) => (
-          <div key={idx} className="grid grid-cols-[80px_1fr_100px_28px] gap-2">
+          <div key={idx} className="grid grid-cols-2 sm:grid-cols-[120px_80px_1fr_100px_28px] gap-2">
+            <input className={INPUT} value={r.referencia ?? ''} onChange={e => updateReject(idx, { referencia: e.target.value })} placeholder="Referencia" />
             <input type="number" min={0} className={INPUT} value={r.cantidad || ''} onChange={e => updateReject(idx, { cantidad: Number(e.target.value) })} placeholder="Cant." />
             <input className={INPUT} value={r.acabado} onChange={e => updateReject(idx, { acabado: e.target.value })} placeholder="Acabado (Crudo, Pintura bronce...)" />
             <input className={INPUT} value={r.medidaMm} onChange={e => updateReject(idx, { medidaMm: e.target.value })} placeholder="Medida mm" />
-            <button type="button" onClick={() => setRechazo(rechazo.filter((_, i) => i !== idx))} aria-label="Quitar fila"><Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-600" /></button>
+            <button type="button" className="col-span-2 sm:col-span-1 justify-self-end" onClick={() => setRechazo(rechazo.filter((_, i) => i !== idx))} aria-label="Quitar fila"><Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-600" /></button>
           </div>
         ))}
       </div>

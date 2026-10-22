@@ -45,7 +45,7 @@ export const SupplierClaimViewModal: React.FC<Props> = ({ claim, onClose, onEdit
 
       {claim.rechazoItems.length > 0 && (
         <Section title="Unidades rechazadas">
-          <ul className="space-y-0.5">{claim.rechazoItems.map((r, i) => <li key={i}>{r.cantidad} × {r.acabado || '—'} — {r.medidaMm || '—'} mm</li>)}</ul>
+          <ul className="space-y-0.5">{claim.rechazoItems.map((r, i) => <li key={i}>{r.referencia ? `${r.referencia} — ` : ''}{r.cantidad} × {r.acabado || '—'} — {r.medidaMm || '—'} mm</li>)}</ul>
         </Section>
       )}
 
