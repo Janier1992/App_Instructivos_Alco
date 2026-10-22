@@ -105,7 +105,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     const res = await fetch('/api/supplier-claims/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proveedor, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths, comentariosFotos: defectos.map(d => d.comment.trim()).filter(Boolean) })
+      body: JSON.stringify({ proveedor, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths, comentariosFotos: defectos.map(d => d.comment.trim()).filter(Boolean), rechazoItems: rechazo.filter(r => Number(r.cantidad) > 0) })
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el informe.');

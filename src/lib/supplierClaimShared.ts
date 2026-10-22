@@ -29,6 +29,14 @@ export function stripDashes(text: string): string {
   return text.replace(/\s*[—–]\s*/g, ', ').replace(/,\s*,/g, ',');
 }
 
+/** Pulido mínimo de un texto redactado: espacios limpios, mayúscula inicial y punto final (sin tocar títulos). */
+export function polishText(text: string): string {
+  const clean = text.replace(/[ \t]+/g, ' ').replace(/ +([,.;:])/g, '$1').trim();
+  if (!clean) return clean;
+  const capitalized = clean.charAt(0).toUpperCase() + clean.slice(1);
+  return /[.!?:)]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+}
+
 export function formatLongDate(isoDate: string): string {
   const [y, m, d] = isoDate.split('-').map(Number);
   if (!y || !m || !d) return isoDate;
