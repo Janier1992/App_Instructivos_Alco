@@ -8,6 +8,12 @@
 // margen extra para no cortarlo a mitad de generación en horas de más carga.
 const OPENROUTER_TIMEOUT_MS = 22000;
 
+// Si OpenRouter responde 404 (modelo retirado o ya no gratuito, como pasó con
+// los ":free" anteriores), reintentar en cada pregunta solo suma una llamada
+// inútil: se desactiva por un rato y se avisa en el log con la causa.
+const MODEL_UNAVAILABLE_COOLDOWN_MS = 30 * 60 * 1000;
+let openRouterDisabledUntilMs = 0;
+
 /**
  * Cliente para OpenRouter (https://openrouter.ai) — API compatible con OpenAI,
  * usado como respaldo con IA real cuando Gemini no está disponible (cuota
@@ -17,14 +23,17 @@ const OPENROUTER_TIMEOUT_MS = 22000;
 export async function callOpenRouterModel(
   systemInstruction: string,
   userPrompt: string,
-  historyMessages: { role: 'user' | 'assistant'; content: string }[] = []
+  historyMessages: { role: 'user' | 'assistant'; content: string }[] = [],
+  /** Tope de espera para esta llamada (lo que quede del presupuesto de la consulta). */
+  maxWaitMs: number = OPENROUTER_TIMEOUT_MS
 ): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || Date.now() < openRouterDisabledUntilMs) return null;
+  const timeoutMs = Math.min(OPENROUTER_TIMEOUT_MS, maxWaitMs);
 
   const model = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-20b:free';
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -50,6 +59,10 @@ export async function callOpenRouterModel(
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       console.warn(`⚠️ OpenRouter respondió ${res.status}: ${errText.slice(0, 300)}`);
+      if (res.status === 404) {
+        openRouterDisabledUntilMs = Date.now() + MODEL_UNAVAILABLE_COOLDOWN_MS;
+        console.warn(`⚠️ El modelo de OpenRouter "${model}" no está disponible; se omite por ${MODEL_UNAVAILABLE_COOLDOWN_MS / 60000} min. Actualiza OPENROUTER_MODEL.`);
+      }
       return null;
     }
 
@@ -58,7 +71,7 @@ export async function callOpenRouterModel(
     return typeof text === 'string' && text.trim() ? text : null;
   } catch (err: any) {
     if (err?.name === 'AbortError') {
-      console.warn(`⚠️ OpenRouter (${model}) tardó más de ${OPENROUTER_TIMEOUT_MS / 1000}s, se cancela y se usa el respaldo determinístico.`);
+      console.warn(`⚠️ OpenRouter (${model}) tardó más de ${timeoutMs / 1000}s, se cancela y se usa el respaldo determinístico.`);
     } else {
       console.warn('⚠️ Error de red llamando a OpenRouter:', err?.message || err);
     }

@@ -246,16 +246,18 @@ export interface RetrievedChunk {
 
 /**
  * Embebe la pregunta del usuario y busca los fragmentos más relevantes,
- * aislados estrictamente al proceso actual (la función SQL solo compara
- * contra fragmentos con ese `process_slug` exacto — sin fallback a
- * documentos "general" de otros procesos). Devuelve null si no se pudo
- * buscar (sin Supabase, sin embeddings, error) — quien llama debe caer al
- * comportamiento de respaldo en ese caso.
+ * aislados al proceso actual (la función SQL solo compara contra fragmentos
+ * con ese `process_slug` exacto — nunca documentos de otros procesos). Con
+ * `alsoSearchSlugs` se consultan además esos destinos (ej. 'general', los
+ * instructivos principales válidos para todas las áreas) y se mezclan por
+ * similitud. Devuelve null si no se pudo buscar (sin Supabase, sin
+ * embeddings, error) — quien llama debe caer al comportamiento de respaldo.
  */
 export async function searchRelevantChunks(
   processSlug: string,
   question: string,
-  matchCount: number = 5
+  matchCount: number = 5,
+  alsoSearchSlugs: string[] = []
 ): Promise<RetrievedChunk[] | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -264,23 +266,34 @@ export async function searchRelevantChunks(
     const [queryEmbedding] = await embedTexts([question], 'RETRIEVAL_QUERY');
     if (!queryEmbedding) return null;
 
-    const { data, error } = await supabase.rpc('match_document_chunks', {
-      query_embedding: queryEmbedding,
-      target_process_slug: processSlug,
-      match_count: matchCount
-    });
+    const slugs = Array.from(new Set([processSlug, ...alsoSearchSlugs]));
+    const results = await Promise.all(
+      slugs.map(slug =>
+        supabase.rpc('match_document_chunks', {
+          query_embedding: queryEmbedding,
+          target_process_slug: slug,
+          match_count: matchCount
+        })
+      )
+    );
 
-    if (error) {
-      console.warn('⚠️ Error buscando fragmentos relevantes en Supabase:', error.message);
+    // El proceso actual es obligatorio: si su búsqueda falla se devuelve null
+    // (respaldo a texto completo). Si solo falla un destino extra, se ignora.
+    if (results[0].error) {
+      console.warn('⚠️ Error buscando fragmentos relevantes en Supabase:', results[0].error.message);
       return null;
     }
 
-    return (data || []).map((row: any) => ({
-      documentTitle: row.document_title,
-      documentCode: row.document_code,
-      content: row.content,
-      similarity: row.similarity
-    }));
+    return results
+      .flatMap(r => r.data || [])
+      .map((row: any) => ({
+        documentTitle: row.document_title,
+        documentCode: row.document_code,
+        content: row.content,
+        similarity: row.similarity
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, matchCount);
   } catch (err: any) {
     console.warn('⚠️ Error en búsqueda semántica:', err?.message || err);
     return null;
