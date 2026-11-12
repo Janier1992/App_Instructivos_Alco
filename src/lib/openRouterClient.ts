@@ -1,40 +1,47 @@
-// Los modelos gratuitos de OpenRouter pueden congestionarse en horas pico.
-// Se corta la espera pasado este tiempo para no dejar al usuario esperando
-// y pasar de inmediato al respaldo determinístico.
-// Los modelos gratuitos anteriores (openai/gpt-oss-20b:free, luego
-// nvidia/nemotron-3-nano-30b-a3b:free) quedaron descontinuados por OpenRouter.
-// Con el respaldo vigente (nvidia/nemotron-3-super-120b-a12b:free) se midió
-// en vivo 10-16s bajo el contexto RAG completo real de esta app — se deja
-// margen extra para no cortarlo a mitad de generación en horas de más carga.
+// Los modelos gratuitos de OpenRouter pueden congestionarse en horas pico o ser
+// retirados sin aviso (ya pasó con varios ":free"). Por eso OPENROUTER_MODEL
+// acepta una lista separada por comas que se prueba en orden: si un modelo da
+// 404 (retirado), 429 (saturado), error del servidor, timeout o respuesta
+// vacía, se pasa al siguiente. Un 401/402 (clave inválida o sin saldo) afecta a
+// todos los modelos, así que se corta de inmediato.
 const OPENROUTER_TIMEOUT_MS = 22000;
+// Tope por modelo cuando hay varios, para que uno colgado no consuma todo el presupuesto.
+const PER_MODEL_TIMEOUT_MS = 11000;
+const DEFAULT_MODELS = 'google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free,google/gemma-4-26b-a4b-it:free';
 
-// Si OpenRouter responde 404 (modelo retirado o ya no gratuito, como pasó con
-// los ":free" anteriores), reintentar en cada pregunta solo suma una llamada
-// inútil: se desactiva por un rato y se avisa en el log con la causa.
+// Un modelo que responde 404 se omite un rato para no sumar una llamada inútil por pregunta.
 const MODEL_UNAVAILABLE_COOLDOWN_MS = 30 * 60 * 1000;
-let openRouterDisabledUntilMs = 0;
+const modelDisabledUntilMs = new Map<string, number>();
 
-/**
- * Cliente para OpenRouter (https://openrouter.ai) — API compatible con OpenAI,
- * usado como respaldo con IA real cuando Gemini no está disponible (cuota
- * agotada, error de red, etc.). Modelo configurable vía OPENROUTER_MODEL;
- * por defecto uno gratuito ("):free") de buen desempeño general.
- */
-export async function callOpenRouterModel(
-  systemInstruction: string,
-  userPrompt: string,
-  historyMessages: { role: 'user' | 'assistant'; content: string }[] = [],
-  /** Tope de espera para esta llamada (lo que quede del presupuesto de la consulta). */
-  maxWaitMs: number = OPENROUTER_TIMEOUT_MS
-): Promise<string | null> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey || Date.now() < openRouterDisabledUntilMs) return null;
-  const timeoutMs = Math.min(OPENROUTER_TIMEOUT_MS, maxWaitMs);
+type AttemptResult =
+  | { kind: 'ok'; text: string }
+  | { kind: 'next'; status?: number; reason: string }
+  | { kind: 'stop'; status: number; reason: string };
 
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-20b:free';
+export function getOpenRouterModels(): string[] {
+  return (process.env.OPENROUTER_MODEL || DEFAULT_MODELS)
+    .split(',')
+    .map(m => m.trim())
+    .filter(Boolean);
+}
+
+function explainStatus(status: number): string {
+  if (status === 401) return 'La clave fue rechazada (inválida o eliminada).';
+  if (status === 402) return 'Sin saldo: el modelo requiere créditos en OpenRouter.';
+  if (status === 404) return 'El modelo no existe o fue retirado.';
+  if (status === 429) return 'Modelo saturado o límite de solicitudes alcanzado.';
+  return 'OpenRouter devolvió un error.';
+}
+
+async function attemptModel(
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  timeoutMs: number,
+  maxTokens?: number
+): Promise<AttemptResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -45,71 +52,99 @@ export async function callOpenRouterModel(
         'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
         'X-Title': 'Control de Calidad Alco S.A.S.'
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemInstruction },
-          ...historyMessages,
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.1
-      })
+      body: JSON.stringify({ model, messages, temperature: 0.1, ...(maxTokens ? { max_tokens: maxTokens } : {}) })
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.warn(`⚠️ OpenRouter respondió ${res.status}: ${errText.slice(0, 300)}`);
-      if (res.status === 404) {
-        openRouterDisabledUntilMs = Date.now() + MODEL_UNAVAILABLE_COOLDOWN_MS;
-        console.warn(`⚠️ El modelo de OpenRouter "${model}" no está disponible; se omite por ${MODEL_UNAVAILABLE_COOLDOWN_MS / 60000} min. Actualiza OPENROUTER_MODEL.`);
-      }
-      return null;
+      console.warn(`⚠️ OpenRouter (${model}) respondió ${res.status}: ${errText.slice(0, 300)}`);
+      if (res.status === 401 || res.status === 402) return { kind: 'stop', status: res.status, reason: explainStatus(res.status) };
+      if (res.status === 404) modelDisabledUntilMs.set(model, Date.now() + MODEL_UNAVAILABLE_COOLDOWN_MS);
+      return { kind: 'next', status: res.status, reason: explainStatus(res.status) };
     }
 
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
-    return typeof text === 'string' && text.trim() ? text : null;
+    if (typeof text === 'string' && text.trim()) return { kind: 'ok', text };
+    return { kind: 'next', status: res.status, reason: 'El modelo respondió vacío.' };
   } catch (err: any) {
     if (err?.name === 'AbortError') {
-      console.warn(`⚠️ OpenRouter (${model}) tardó más de ${timeoutMs / 1000}s, se cancela y se usa el respaldo determinístico.`);
-    } else {
-      console.warn('⚠️ Error de red llamando a OpenRouter:', err?.message || err);
+      console.warn(`⚠️ OpenRouter (${model}) tardó más de ${timeoutMs / 1000}s.`);
+      return { kind: 'next', reason: `No respondió en ${timeoutMs / 1000} s.` };
     }
-    return null;
+    console.warn('⚠️ Error de red llamando a OpenRouter:', err?.message || err);
+    return { kind: 'next', reason: 'Error de red llamando a OpenRouter.' };
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Cliente para OpenRouter (https://openrouter.ai) — API compatible con OpenAI,
+ * usado como respaldo con IA real cuando Gemini no está disponible. Prueba en
+ * orden los modelos de OPENROUTER_MODEL (lista separada por comas).
+ */
+export async function callOpenRouterModel(
+  systemInstruction: string,
+  userPrompt: string,
+  historyMessages: { role: 'user' | 'assistant'; content: string }[] = [],
+  /** Tope de espera total (lo que quede del presupuesto de la consulta). */
+  maxWaitMs: number = OPENROUTER_TIMEOUT_MS
+): Promise<string | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  const messages = [
+    { role: 'system', content: systemInstruction },
+    ...historyMessages,
+    { role: 'user', content: userPrompt }
+  ];
+  const models = getOpenRouterModels().filter(m => Date.now() >= (modelDisabledUntilMs.get(m) ?? 0));
+  const deadline = Date.now() + Math.min(OPENROUTER_TIMEOUT_MS, maxWaitMs);
+
+  for (let i = 0; i < models.length; i++) {
+    const remaining = deadline - Date.now();
+    if (remaining < 1500) break;
+    const timeoutMs = models.length > 1 && i < models.length - 1 ? Math.min(PER_MODEL_TIMEOUT_MS, remaining) : remaining;
+    const result = await attemptModel(apiKey, models[i], messages, timeoutMs);
+    if (result.kind === 'ok') return result.text;
+    if (result.kind === 'stop') return null;
+  }
+  return null;
 }
 
 export function isOpenRouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
+export interface OpenRouterModelTest {
+  model: string;
+  ok: boolean;
+  status?: number;
+  detail: string;
+}
+
 /**
- * Prueba real contra OpenRouter (1 token de salida) para verificar que la clave
- * y el modelo configurados funcionan. Nunca devuelve la clave.
+ * Prueba real (8 tokens de salida como máximo) de cada modelo configurado, para
+ * verificar clave y modelos. Nunca devuelve la clave.
  */
-export async function testOpenRouterConnection(): Promise<{ ok: boolean; model: string; status?: number; detail: string }> {
+export async function testOpenRouterConnection(): Promise<{ ok: boolean; models: OpenRouterModelTest[]; detail: string }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-20b:free';
-  if (!apiKey) return { ok: false, model, detail: 'OPENROUTER_API_KEY no está configurada.' };
+  if (!apiKey) return { ok: false, models: [], detail: 'OPENROUTER_API_KEY no está configurada.' };
 
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      signal: AbortSignal.timeout(20000),
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Responde: ok' }], max_tokens: 8 })
-    });
-    if (res.ok) return { ok: true, model, status: res.status, detail: 'Clave y modelo funcionan correctamente.' };
-
-    const hint =
-      res.status === 401 ? 'La clave fue rechazada (inválida o eliminada).' :
-      res.status === 402 ? 'Sin saldo: el modelo de pago requiere créditos en OpenRouter.' :
-      res.status === 404 ? 'El modelo no existe o ya no está disponible. Revisa OPENROUTER_MODEL.' :
-      'OpenRouter devolvió un error.';
-    return { ok: false, model, status: res.status, detail: hint };
-  } catch (err: any) {
-    return { ok: false, model, detail: err?.name === 'TimeoutError' ? 'OpenRouter no respondió en 20 s.' : 'Error de red llamando a OpenRouter.' };
-  }
+  // En paralelo para no pasar el límite de tiempo de la función serverless.
+  const models: OpenRouterModelTest[] = await Promise.all(
+    getOpenRouterModels().map(async (model): Promise<OpenRouterModelTest> => {
+      const r = await attemptModel(apiKey, model, [{ role: 'user', content: 'Responde: ok' }], 15000, 8);
+      return r.kind === 'ok'
+        ? { model, ok: true, detail: 'Funciona correctamente.' }
+        : { model, ok: false, status: r.status, detail: r.reason };
+    })
+  );
+  const working = models.filter(m => m.ok).length;
+  return {
+    ok: working > 0,
+    models,
+    detail: working > 0 ? `${working} de ${models.length} modelos responden.` : 'Ningún modelo respondió.'
+  };
 }
