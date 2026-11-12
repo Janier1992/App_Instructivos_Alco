@@ -84,3 +84,32 @@ export async function callOpenRouterModel(
 export function isOpenRouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
+
+/**
+ * Prueba real contra OpenRouter (1 token de salida) para verificar que la clave
+ * y el modelo configurados funcionan. Nunca devuelve la clave.
+ */
+export async function testOpenRouterConnection(): Promise<{ ok: boolean; model: string; status?: number; detail: string }> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-oss-20b:free';
+  if (!apiKey) return { ok: false, model, detail: 'OPENROUTER_API_KEY no está configurada.' };
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: AbortSignal.timeout(20000),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Responde: ok' }], max_tokens: 8 })
+    });
+    if (res.ok) return { ok: true, model, status: res.status, detail: 'Clave y modelo funcionan correctamente.' };
+
+    const hint =
+      res.status === 401 ? 'La clave fue rechazada (inválida o eliminada).' :
+      res.status === 402 ? 'Sin saldo: el modelo de pago requiere créditos en OpenRouter.' :
+      res.status === 404 ? 'El modelo no existe o ya no está disponible. Revisa OPENROUTER_MODEL.' :
+      'OpenRouter devolvió un error.';
+    return { ok: false, model, status: res.status, detail: hint };
+  } catch (err: any) {
+    return { ok: false, model, detail: err?.name === 'TimeoutError' ? 'OpenRouter no respondió en 20 s.' : 'Error de red llamando a OpenRouter.' };
+  }
+}
