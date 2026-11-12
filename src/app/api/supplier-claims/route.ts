@@ -5,8 +5,13 @@ import { getSupplierClaims, createSupplierClaim, validateClaimInput, SupplierCla
 /** Pública — lista de informes de reclamo a proveedores, desde el módulo de Control Calidad. */
 export async function GET() {
   await ensureHydrated();
-  const claims = await getSupplierClaims();
-  return NextResponse.json({ success: true, claims });
+  try {
+    const claims = await getSupplierClaims();
+    return NextResponse.json({ success: true, claims }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (err: any) {
+    console.error('Error listando informes de reclamo a proveedores:', err);
+    return NextResponse.json({ error: err?.message || 'No se pudieron cargar los informes.' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {

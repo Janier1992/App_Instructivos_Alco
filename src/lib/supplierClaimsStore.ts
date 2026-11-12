@@ -114,16 +114,30 @@ function toDbRow(input: SupplierClaimInput) {
   };
 }
 
-export async function getSupplierClaims(limit = 200): Promise<SupplierClaim[]> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return [];
+const PAGE_SIZE = 1000;
 
-  const { data, error } = await supabase.from('supplier_claims').select('*').order('created_at', { ascending: false }).limit(limit);
-  if (error) {
-    console.warn('⚠️ No se pudieron cargar los reclamos a proveedores (¿corriste db/migrate_add_supplier_claims.sql?):', error.message);
-    return [];
+/**
+ * Todos los informes, de cualquier colaborador y dispositivo, del más reciente
+ * al más antiguo. Supabase devuelve máximo 1000 filas por consulta, así que se
+ * pagina hasta traerlos todos. Si falla la consulta lanza el error, para que la
+ * pantalla avise en vez de mostrar una lista vacía como si no hubiera informes.
+ */
+export async function getSupplierClaims(): Promise<SupplierClaim[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase no está configurado.');
+
+  const claims: SupplierClaim[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('supplier_claims')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`No se pudieron cargar los informes: ${error.message}`);
+    claims.push(...(data || []).map(mapRow));
+    if (!data || data.length < PAGE_SIZE) break;
   }
-  return (data || []).map(mapRow);
+  return claims;
 }
 
 export async function createSupplierClaim(input: SupplierClaimInput): Promise<{ success: boolean; claim?: SupplierClaim; error?: string }> {

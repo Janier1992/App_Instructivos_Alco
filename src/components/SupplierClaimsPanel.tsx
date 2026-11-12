@@ -24,18 +24,32 @@ export const SupplierClaimsPanel: React.FC<{ processSlug: string }> = () => {
   const [viewing, setViewing] = useState<SupplierClaim | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     try {
-      const res = await fetch(API_BASE);
+      const res = await fetch(API_BASE, { cache: 'no-store' });
       const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'No se pudieron cargar los informes.');
       setClaims(data.claims || []);
-    } catch {
-      setClaims([]);
+      setLoadError(null);
+    } catch (err: any) {
+      // Si ya había una lista, se conserva en pantalla y solo se avisa del fallo.
+      setLoadError(err?.message || 'No se pudieron cargar los informes.');
+      setClaims(prev => prev ?? []);
     }
   }, []);
 
   useEffect(() => {
     load();
+    // Los informes los crea todo el equipo: se vuelve a consultar al volver a la pestaña y cada minuto.
+    const onVisible = () => document.visibilityState === 'visible' && load();
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(onVisible, 60000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -97,6 +111,12 @@ export const SupplierClaimsPanel: React.FC<{ processSlug: string }> = () => {
           <button onClick={() => setFormOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#003366] hover:bg-blue-900 rounded-lg transition"><Plus className="w-3.5 h-3.5" /> Nuevo informe</button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">
+          {loadError} La lista puede estar incompleta; pulsa Actualizar para reintentar.
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-2">
