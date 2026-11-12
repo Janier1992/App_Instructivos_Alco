@@ -38,7 +38,9 @@ async function attemptModel(
   model: string,
   messages: { role: string; content: string }[],
   timeoutMs: number,
-  maxTokens?: number
+  maxTokens?: number,
+  /** En la prueba, un 200 sin texto (modelo de razonamiento sin tokens) cuenta como éxito. */
+  acceptEmpty = false
 ): Promise<AttemptResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -66,6 +68,7 @@ async function attemptModel(
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text === 'string' && text.trim()) return { kind: 'ok', text };
+    if (acceptEmpty) return { kind: 'ok', text: '' };
     return { kind: 'next', status: res.status, reason: 'El modelo respondió vacío.' };
   } catch (err: any) {
     if (err?.name === 'AbortError') {
@@ -135,7 +138,7 @@ export async function testOpenRouterConnection(): Promise<{ ok: boolean; models:
   // En paralelo para no pasar el límite de tiempo de la función serverless.
   const models: OpenRouterModelTest[] = await Promise.all(
     getOpenRouterModels().map(async (model): Promise<OpenRouterModelTest> => {
-      const r = await attemptModel(apiKey, model, [{ role: 'user', content: 'Responde: ok' }], 15000, 8);
+      const r = await attemptModel(apiKey, model, [{ role: 'user', content: 'Responde: ok' }], 15000, 8, true);
       return r.kind === 'ok'
         ? { model, ok: true, detail: 'Funciona correctamente.' }
         : { model, ok: false, status: r.status, detail: r.reason };
