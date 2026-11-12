@@ -2,10 +2,20 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardList, Eye, Loader2, Folder, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { ClipboardList, ArrowDownAZ, ArrowUpZA, Eye, Loader2, Folder, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { ProcessItem } from '@/src/types';
 import { CustomRagDocument, GENERAL_DOCS_SLUG } from '../lib/ragDocumentTypes';
 import { PdfPreviewModal } from './PdfPreviewModal';
+
+type TitleSort = 'asc' | 'desc';
+
+// Orden natural por título: "2." antes de "10." y sin distinguir mayúsculas ni
+// tildes, para que los instructivos sigan la numeración que lleven en el nombre.
+const sortByTitle = (docs: CustomRagDocument[], dir: TitleSort) =>
+  [...docs].sort((a, b) => {
+    const cmp = a.title.localeCompare(b.title, 'es', { numeric: true, sensitivity: 'base' });
+    return dir === 'asc' ? cmp : -cmp;
+  });
 
 const isMobileDevice = () =>
   typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -85,6 +95,7 @@ export const InstructivosView: React.FC = () => {
   const [docs, setDocs] = useState<CustomRagDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewingDoc, setPreviewingDoc] = useState<CustomRagDocument | null>(null);
+  const [sortDir, setSortDir] = useState<TitleSort>('asc');
   const [openKeys, setOpenKeys] = useState<Set<string>>(
     () => new Set(['general', 'areas', ...(focusSlug ? [`area:${focusSlug}`] : [])])
   );
@@ -110,13 +121,16 @@ export const InstructivosView: React.FC = () => {
       return next;
     });
 
-  const generalDocs = useMemo(() => docs.filter(d => d.processSlug === GENERAL_DOCS_SLUG), [docs]);
+  const generalDocs = useMemo(
+    () => sortByTitle(docs.filter(d => d.processSlug === GENERAL_DOCS_SLUG), sortDir),
+    [docs, sortDir]
+  );
   const areaGroups = useMemo(
     () =>
       processes
-        .map(p => ({ process: p, docs: docs.filter(d => d.processSlug === p.slug) }))
+        .map(p => ({ process: p, docs: sortByTitle(docs.filter(d => d.processSlug === p.slug), sortDir) }))
         .filter(g => g.docs.length > 0),
-    [processes, docs]
+    [processes, docs, sortDir]
   );
   const areaTotal = areaGroups.reduce((sum, g) => sum + g.docs.length, 0);
 
@@ -131,14 +145,25 @@ export const InstructivosView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
-          <ClipboardList className="w-6 h-6" />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+            <ClipboardList className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Instructivos de Control</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Instructivos de control de procesos, organizados por carpetas.</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Instructivos de Control</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Instructivos de control de procesos, organizados por carpetas.</p>
-        </div>
+
+        <button
+          onClick={() => setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+          title="Cambiar orden alfabético / numérico"
+        >
+          {sortDir === 'asc' ? <ArrowDownAZ className="w-3.5 h-3.5" /> : <ArrowUpZA className="w-3.5 h-3.5" />}
+          <span>{sortDir === 'asc' ? 'Orden A-Z' : 'Orden Z-A'}</span>
+        </button>
       </div>
 
       {loading ? (
