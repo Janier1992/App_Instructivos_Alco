@@ -113,18 +113,6 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProce
             </Link>
           )}
 
-          <Link
-            href="/dashboard"
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
-              isDashboard
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4 text-blue-300" />
-            <span>Dashboard</span>
-          </Link>
-
           {/* Desde el QR de un proceso se abre ya filtrado en su instructivo. */}
           <Link
             href={instructivosHref}
@@ -136,6 +124,18 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProce
           >
             <ClipboardList className="w-4 h-4 text-purple-300" />
             <span>Instructivos de Control</span>
+          </Link>
+
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
+              isDashboard
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4 text-blue-300" />
+            <span>Dashboard</span>
           </Link>
         </div>
       </div>
