@@ -15,7 +15,8 @@ import {
   CustomRagDocument,
   RagDocumentType,
   RAG_DOCUMENT_TYPE_LABELS,
-  RAG_DOCUMENT_TYPE_ORDER
+  RAG_DOCUMENT_TYPE_ORDER,
+  GENERAL_DOCS_SLUG
 } from '@/src/lib/ragDocumentTypes';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 import { ProcessPicker } from './ProcessPicker';
@@ -198,7 +199,7 @@ export const CrmDocumentsManager: React.FC<CrmDocumentsManagerProps> = ({ fixedT
               : 'Sube o elimina PDFs indexados por el motor RAG, por proceso.'}
           </p>
         </div>
-        <ProcessPicker value={processSlug} onChange={setProcessSlug} />
+        <ProcessPicker value={processSlug} onChange={setProcessSlug} includeGeneral={isFixed} defaultSlug={isFixed ? GENERAL_DOCS_SLUG : undefined} />
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-sm">
@@ -210,7 +211,7 @@ export const CrmDocumentsManager: React.FC<CrmDocumentsManagerProps> = ({ fixedT
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900">
-                  {isFixed ? 'Instructivos de este Proceso' : 'Documentación PDF de este Proceso'}
+                  {isFixed ? 'Instructivos de esta carpeta' : 'Documentación PDF de este Proceso'}
                 </h3>
                 <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-purple-600" />
@@ -235,14 +236,18 @@ export const CrmDocumentsManager: React.FC<CrmDocumentsManagerProps> = ({ fixedT
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Sección / Proceso de destino:</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{isFixed ? 'Carpeta de destino:' : 'Sección / Proceso de destino:'}</label>
                 <ProcessPicker
                   value={processSlug}
                   onChange={setProcessSlug}
+                  includeGeneral={isFixed}
+                  defaultSlug={isFixed ? GENERAL_DOCS_SLUG : undefined}
                   className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-sm font-bold text-[#003366] focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Este documento solo se mostrará y será consultado por el agente IA en esta sección — no en las demás.
+                  {isFixed
+                    ? 'Elige "Instructivos Generales" para los instructivos principales, o un área para su carpeta en el módulo Instructivos de Control.'
+                    : 'Este documento solo se mostrará y será consultado por el agente IA en esta sección — no en las demás.'}
                 </p>
               </div>
 
@@ -343,7 +348,7 @@ export const CrmDocumentsManager: React.FC<CrmDocumentsManagerProps> = ({ fixedT
             {ragDocs.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-xs font-semibold text-slate-600">{isFixed ? 'No hay instructivos cargados todavía para este proceso.' : 'No hay archivos PDF cargados todavía para este proceso.'}</p>
+                <p className="text-xs font-semibold text-slate-600">{isFixed ? 'No hay instructivos cargados todavía en esta carpeta.' : 'No hay archivos PDF cargados todavía para este proceso.'}</p>
               </div>
             ) : (
               <RagDocumentFolders

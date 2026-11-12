@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ProcessItem } from '@/src/types';
+import { GENERAL_DOCS_SLUG, GENERAL_DOCS_LABEL } from '@/src/lib/ragDocumentTypes';
 
 interface ProcessPickerProps {
   value: string;
@@ -11,10 +12,12 @@ interface ProcessPickerProps {
   allowAll?: boolean;
   /** Slug a autoseleccionar en vez del primer proceso de la lista (ej. "control-calidad" en la página de Formularios de Inspección, para que no queden guardados bajo el proceso equivocado por defecto). */
   defaultSlug?: string;
+  /** Agrega la opción de documentos generales (sin proceso), ej. instructivos principales. */
+  includeGeneral?: boolean;
 }
 
 /** Selector de proceso reutilizado por los administradores del CRM (Documentos, Videos, Autonomía). */
-export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className, allowAll, defaultSlug }) => {
+export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, className, allowAll, defaultSlug, includeGeneral }) => {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
 
   useEffect(() => {
@@ -24,7 +27,7 @@ export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, c
         if (data.processes) {
           setProcesses(data.processes);
           if (!allowAll && !value && data.processes.length > 0) {
-            const preferred = defaultSlug && data.processes.some((p: ProcessItem) => p.slug === defaultSlug)
+            const preferred = defaultSlug && ((includeGeneral && defaultSlug === GENERAL_DOCS_SLUG) || data.processes.some((p: ProcessItem) => p.slug === defaultSlug))
               ? defaultSlug
               : data.processes[0].slug;
             onChange(preferred);
@@ -45,6 +48,7 @@ export const ProcessPicker: React.FC<ProcessPickerProps> = ({ value, onChange, c
       }
     >
       {allowAll && <option value="">Todos los procesos</option>}
+      {includeGeneral && <option value={GENERAL_DOCS_SLUG}>{GENERAL_DOCS_LABEL}</option>}
       {processes.map(p => (
         <option key={p.slug} value={p.slug}>
           {p.name}
