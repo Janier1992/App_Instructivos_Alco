@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, ListFilter, LayoutDashboard, Settings } from 'lucide-react';
+import { LogOut, ListFilter, LayoutDashboard, ClipboardList, Settings } from 'lucide-react';
 import { AlcoLogo } from './AlcoLogo';
 import { PwaInstallButton } from './PwaInstallButton';
 
@@ -16,12 +16,15 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProce
   const pathname = usePathname();
   const router = useRouter();
   const isDashboard = pathname === '/dashboard';
+  const isInstructivos = pathname === '/instructivos';
   // Cada proceso se accede escaneando el QR de su propia tarjeta — el
   // botón que lleva al listado completo de tarjetas solo se muestra en
   // Control Calidad, para que el resto de secciones no navegue a ver la
   // información de otras áreas.
   const isOnProcessPage = pathname?.startsWith('/procesos/');
   const showModulosDePlanta = !isOnProcessPage || currentProcessSlug === 'control-calidad';
+  const instructivosHref =
+    isOnProcessPage && currentProcessSlug ? `/instructivos?proceso=${encodeURIComponent(currentProcessSlug)}` : '/instructivos';
 
   // Acceso al Portal de Administración: a propósito no se anuncia en la
   // navegación pública. En computador se entra con Ctrl+Q; en celular (donde
@@ -100,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProce
             <Link
               href="/"
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
-                !isDashboard
+                !isDashboard && !isInstructivos
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
@@ -120,6 +123,19 @@ export const Header: React.FC<HeaderProps> = ({ currentProcessName, currentProce
           >
             <LayoutDashboard className="w-4 h-4 text-blue-300" />
             <span>Dashboard</span>
+          </Link>
+
+          {/* Desde el QR de un proceso se abre ya filtrado en su instructivo. */}
+          <Link
+            href={instructivosHref}
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 ${
+              isInstructivos
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-purple-300" />
+            <span>Instructivos de Control</span>
           </Link>
         </div>
       </div>

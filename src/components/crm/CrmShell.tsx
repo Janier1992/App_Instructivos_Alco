@@ -18,7 +18,8 @@ import {
   ClipboardCheck,
   BadgeCheck,
   BookOpen,
-  Wrench
+  Wrench,
+  ScrollText
 } from 'lucide-react';
 import { AlcoLogo } from '../AlcoLogo';
 import { AdminSessionPayload } from '@/src/lib/adminAuth';
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/crm/principal', label: 'Principal', icon: Newspaper },
   { href: '/crm/comentarios', label: 'Comentarios', icon: MessageSquare },
   { href: '/crm/documentos', label: 'Documentos', icon: FileText },
+  { href: '/crm/instructivos', label: 'Instructivos de Control', icon: ScrollText },
   { href: '/crm/base-conocimiento', label: 'Base de Conocimiento', icon: BookOpen },
   { href: '/crm/videos', label: 'Videos', icon: Video },
   { href: '/crm/formularios', label: 'Formularios de Inspección', icon: ClipboardList },

@@ -3,16 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw,
-  FileText,
   UploadCloud,
   FileCheck,
   Trash2,
   BookOpen,
   Sparkles,
   FilePlus,
-  AlertCircle,
-  X,
-  ExternalLink
+  AlertCircle
 } from 'lucide-react';
 import {
   CustomRagDocument,
@@ -24,6 +21,7 @@ import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 import { ProcessPicker } from './ProcessPicker';
 import { useCrmSession } from './CrmSessionContext';
 import { RagDocumentFolders } from '../RagDocumentFolders';
+import { PdfPreviewModal } from '../PdfPreviewModal';
 
 // Por encima de esto, el PDF se sube directo a Supabase Storage desde el
 // navegador en vez de mandarlo en el body del POST — las funciones
@@ -31,23 +29,32 @@ import { RagDocumentFolders } from '../RagDocumentFolders';
 // lleguen al código de la ruta (límite de la plataforma, no configurable).
 const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
-export const CrmDocumentsManager: React.FC = () => {
+interface CrmDocumentsManagerProps {
+  /** Si se indica, el módulo solo gestiona ese tipo de documento: oculta el
+   * selector de tipo, sube siempre con ese tipo y solo lista los de ese tipo
+   * (ej. 'instructivo' para el módulo Instructivos de Control). */
+  fixedType?: RagDocumentType;
+}
+
+export const CrmDocumentsManager: React.FC<CrmDocumentsManagerProps> = ({ fixedType }) => {
   const { role } = useCrmSession();
   const [processSlug, setProcessSlug] = useState('');
   const [ragDocs, setRagDocs] = useState<CustomRagDocument[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadTitleInput, setUploadTitleInput] = useState('');
-  const [documentType, setDocumentType] = useState<RagDocumentType | ''>('');
+  const [selectedType, setSelectedType] = useState<RagDocumentType | ''>('');
+  const documentType = fixedType ?? selectedType;
+  const isFixed = !!fixedType;
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [previewingDoc, setPreviewingDoc] = useState<CustomRagDocument | null>(null);
-  const [showExtractedText, setShowExtractedText] = useState(false);
   const isUploadingRef = useRef(false);
 
   const loadRagDocs = useCallback(async () => {
     if (!processSlug) return;
     try {
-      const res = await fetch(`/api/rag/documents?processSlug=${encodeURIComponent(processSlug)}`);
+      const typeQuery = fixedType ? `&type=${fixedType}` : '';
+      const res = await fetch(`/api/rag/documents?processSlug=${encodeURIComponent(processSlug)}${typeQuery}`);
       const data = await res.json();
       if (data.success) {
         setRagDocs(data.documents || []);
@@ -55,7 +62,7 @@ export const CrmDocumentsManager: React.FC = () => {
     } catch (err) {
       console.error('Error cargando documentos RAG:', err);
     }
-  }, [processSlug]);
+  }, [processSlug, fixedType]);
 
   useEffect(() => {
     loadRagDocs();
@@ -150,7 +157,7 @@ export const CrmDocumentsManager: React.FC = () => {
         }
         setSelectedFile(null);
         setUploadTitleInput('');
-        setDocumentType('');
+        setSelectedType('');
         await loadRagDocs();
       } else {
         setUploadMsg(`❌ Error: ${data.error || 'No se pudo procesar el PDF.'}`);
@@ -182,8 +189,14 @@ export const CrmDocumentsManager: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Administración de Documentos</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Sube o elimina PDFs indexados por el motor RAG, por proceso.</p>
+          <h1 className="text-lg font-bold text-slate-900">
+            {isFixed ? 'Instructivos de Control' : 'Administración de Documentos'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isFixed
+              ? 'Sube o elimina el instructivo de control de cada proceso. Se publica en el módulo "Instructivos de Control" de la app.'
+              : 'Sube o elimina PDFs indexados por el motor RAG, por proceso.'}
+          </p>
         </div>
         <ProcessPicker value={processSlug} onChange={setProcessSlug} />
       </div>
@@ -196,7 +209,9 @@ export const CrmDocumentsManager: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">Documentación PDF de este Proceso</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {isFixed ? 'Instructivos de este Proceso' : 'Documentación PDF de este Proceso'}
+                </h3>
                 <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-purple-600" />
                   Indexación Automática
@@ -215,7 +230,7 @@ export const CrmDocumentsManager: React.FC = () => {
           <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
             <div className="flex items-center gap-2 font-bold text-sm text-slate-800 border-b border-slate-200 pb-2">
               <UploadCloud className="w-4 h-4 text-purple-600" />
-              <span>Subir Nuevo Documento PDF</span>
+              <span>{isFixed ? 'Subir Instructivo de Control (PDF)' : 'Subir Nuevo Documento PDF'}</span>
             </div>
 
             <div className="space-y-3">
@@ -242,22 +257,24 @@ export const CrmDocumentsManager: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Tipo de Documento:</label>
-                <select
-                  value={documentType}
-                  onChange={(e) => setDocumentType(e.target.value as RagDocumentType)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Selecciona un tipo...</option>
-                  {RAG_DOCUMENT_TYPE_ORDER.map(type => (
-                    <option key={type} value={type}>{RAG_DOCUMENT_TYPE_LABELS[type]}</option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Define en qué carpeta aparecerá este documento dentro de la Documentación del Proceso.
-                </p>
-              </div>
+              {!isFixed && (
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Tipo de Documento:</label>
+                  <select
+                    value={documentType}
+                    onChange={(e) => setSelectedType(e.target.value as RagDocumentType)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Selecciona un tipo...</option>
+                    {RAG_DOCUMENT_TYPE_ORDER.map(type => (
+                      <option key={type} value={type}>{RAG_DOCUMENT_TYPE_LABELS[type]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Define en qué carpeta aparecerá este documento dentro de la Documentación del Proceso.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Seleccionar Archivo PDF:</label>
@@ -312,7 +329,7 @@ export const CrmDocumentsManager: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
                 <FileCheck className="w-4 h-4 text-emerald-600" />
-                <span>Documentos PDF Indexados</span>
+                <span>{isFixed ? 'Instructivos Publicados' : 'Documentos PDF Indexados'}</span>
               </div>
               <button
                 onClick={loadRagDocs}
@@ -326,12 +343,12 @@ export const CrmDocumentsManager: React.FC = () => {
             {ragDocs.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <AlertCircle className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-xs font-semibold text-slate-600">No hay archivos PDF cargados todavía para este proceso.</p>
+                <p className="text-xs font-semibold text-slate-600">{isFixed ? 'No hay instructivos cargados todavía para este proceso.' : 'No hay archivos PDF cargados todavía para este proceso.'}</p>
               </div>
             ) : (
               <RagDocumentFolders
                 documents={ragDocs}
-                onView={(doc) => { setPreviewingDoc(doc); setShowExtractedText(false); }}
+                onView={setPreviewingDoc}
                 renderExtraActions={(doc) => role === 'administrador' ? (
                   <button
                     onClick={() => handleDeletePdfDoc(doc.id)}
@@ -347,75 +364,7 @@ export const CrmDocumentsManager: React.FC = () => {
         </div>
       </div>
 
-      {previewingDoc && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full h-[90vh] flex flex-col shadow-2xl border border-slate-200">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-2xl shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="p-2 bg-purple-100 text-purple-700 rounded-lg shrink-0">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-slate-900 text-sm truncate">{previewingDoc.title}</h3>
-                  <p className="text-[11px] text-slate-500 truncate">Archivo: {previewingDoc.fileName}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {previewingDoc.storagePath && (
-                  <>
-                    <a
-                      href={`/api/rag/documents/${previewingDoc.id}/file`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg hover:bg-purple-50 transition whitespace-nowrap"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Abrir en pestaña nueva
-                    </a>
-                    <button
-                      onClick={() => setShowExtractedText(!showExtractedText)}
-                      className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg hover:bg-purple-50 transition whitespace-nowrap"
-                    >
-                      {showExtractedText ? 'Ver PDF' : 'Ver texto indexado'}
-                    </button>
-                  </>
-                )}
-                <button onClick={() => setPreviewingDoc(null)} className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-lg transition">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-hidden bg-slate-100">
-              {!previewingDoc.storagePath ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-2">
-                  <AlertCircle className="w-8 h-8 text-amber-500" />
-                  <p className="text-sm font-semibold text-slate-700">Este documento no tiene el archivo original guardado.</p>
-                </div>
-              ) : showExtractedText ? (
-                <div className="p-5 overflow-y-auto h-full font-mono text-xs text-slate-200 bg-slate-900 whitespace-pre-wrap leading-relaxed">
-                  {previewingDoc.extractedText}
-                </div>
-              ) : (
-                <iframe
-                  src={`/api/rag/documents/${previewingDoc.id}/file`}
-                  title={previewingDoc.title}
-                  className="w-full h-full border-0"
-                />
-              )}
-            </div>
-
-            <div className="p-3.5 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-end shrink-0">
-              <button
-                onClick={() => setPreviewingDoc(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {previewingDoc && <PdfPreviewModal doc={previewingDoc} onClose={() => setPreviewingDoc(null)} />}
     </div>
   );
 };
