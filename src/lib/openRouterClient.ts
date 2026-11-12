@@ -7,7 +7,7 @@
 const OPENROUTER_TIMEOUT_MS = 22000;
 // Tope por modelo cuando hay varios, para que uno colgado no consuma todo el presupuesto.
 const PER_MODEL_TIMEOUT_MS = 11000;
-const DEFAULT_MODELS = 'google/gemma-4-31b-it:free,nvidia/nemotron-3-ultra-550b-a55b:free,google/gemma-4-26b-a4b-it:free';
+const DEFAULT_MODELS = 'google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-3.5-lightning:free,nvidia/nemotron-3-ultra-550b-a55b:free';
 
 // Un modelo que responde 404 se omite un rato para no sumar una llamada inútil por pregunta.
 const MODEL_UNAVAILABLE_COOLDOWN_MS = 30 * 60 * 1000;
