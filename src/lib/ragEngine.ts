@@ -12,9 +12,13 @@ import {
   SourceReference 
 } from '../types';
 import { getCustomRagDocuments } from './customRagStore';
+import { GENERAL_DOCS_SLUG } from './ragDocumentTypes';
 import { searchRelevantChunks, searchKnowledgeChunks } from './ragRetrieval';
 import { getAutonomyAssignments } from './autonomyAssignmentsStore';
 import { getDynamicCriteria } from './dynamicCriteriaStore';
+
+// Tope de caracteres de PDF en el respaldo de texto completo (~15k tokens).
+const MAX_FULLTEXT_FALLBACK_CHARS = 60000;
 
 export interface RAGContextResult {
   process: ProcessItem;
@@ -182,7 +186,12 @@ export async function getRAGContext(processSlug: string, question: string): Prom
   // Primero se intenta búsqueda semántica real (solo los fragmentos relevantes
   // a la pregunta); si no está disponible (sin Supabase, sin embeddings, error),
   // se cae al comportamiento anterior de incluir el texto completo de los PDFs.
-  const customPdfDocs = getCustomRagDocuments(processSlug);
+  // Además de los PDFs del proceso, todos los agentes consultan los
+  // documentos "generales" (instructivos principales válidos para toda la planta).
+  const customPdfDocs = [
+    ...getCustomRagDocuments(processSlug),
+    ...(processSlug === GENERAL_DOCS_SLUG ? [] : getCustomRagDocuments(GENERAL_DOCS_SLUG))
+  ];
   // Fuentes PDF realmente usadas para responder — se agregan a las fuentes
   // oficiales estáticas más abajo, para que el badge "Fuente Oficial" de la UI
   // coincida con lo que el agente cita de verdad en el cuerpo de la respuesta
@@ -205,7 +214,7 @@ export async function getRAGContext(processSlug: string, question: string): Prom
   };
 
   if (customPdfDocs.length > 0) {
-    const relevantChunks = await searchRelevantChunks(processSlug, question);
+    const relevantChunks = await searchRelevantChunks(processSlug, question, 5, [GENERAL_DOCS_SLUG]);
 
     if (relevantChunks && relevantChunks.length > 0) {
       contextText += `\n--- FRAGMENTOS RELEVANTES DE DOCUMENTOS PDF (búsqueda semántica) ---\n`;
@@ -216,16 +225,26 @@ export async function getRAGContext(processSlug: string, question: string): Prom
         const matchedDoc = customPdfDocs.find(d => d.code === chunk.documentCode || d.title === chunk.documentTitle);
         addPdfSourceRef(chunk.documentTitle, chunk.documentCode, matchedDoc?.uploadedAt);
       }
-    } else {
+    } else if (relevantChunks === null) {
+      // La búsqueda semántica no estuvo disponible (sin Supabase, sin
+      // embeddings o error): se vuelca el texto de los PDFs, con tope total —
+      // con los instructivos generales sumados, el texto completo de todos
+      // los PDFs haría el prompt tan grande que el modelo agotaría su tiempo.
       contextText += `\n--- DOCUMENTOS PDF TÉCNICOS ADICIONALES CARGADOS EN MÓDULO RAG ---\n`;
+      let remainingChars = MAX_FULLTEXT_FALLBACK_CHARS;
       for (const pdfDoc of customPdfDocs) {
+        if (remainingChars <= 0) break;
+        const text = pdfDoc.extractedText.slice(0, remainingChars);
+        remainingChars -= text.length;
         contextText += `DOCUMENTO PDF: "${pdfDoc.title}" (Código: ${pdfDoc.code} | Archivo: ${pdfDoc.fileName} | Páginas: ${pdfDoc.pageCount})\n`;
         contextText += `Fecha Carga: ${pdfDoc.uploadedAt}\n`;
-        contextText += `Contenido Extraído:\n${pdfDoc.extractedText}\n`;
+        contextText += `Contenido Extraído:\n${text}\n`;
         contextText += `--------------------------------------------------\n`;
         addPdfSourceRef(pdfDoc.title, pdfDoc.code, pdfDoc.uploadedAt);
       }
     }
+    // relevantChunks vacío = la búsqueda funcionó y ningún PDF es relevante a
+    // la pregunta: no se agrega nada (el agente indicará que no hay criterio).
   }
 
   // BASE DE CONOCIMIENTO: documentos convertidos a Markdown (texto + visión

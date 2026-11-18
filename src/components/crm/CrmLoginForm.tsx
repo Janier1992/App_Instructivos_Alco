@@ -20,8 +20,6 @@ export const CrmLoginForm: React.FC = () => {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [recoveryKey, setRecoveryKey] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,8 +29,6 @@ export const CrmLoginForm: React.FC = () => {
     setError(null);
     setNotice(null);
     setPassword('');
-    setRecoveryKey('');
-    setNewPassword('');
   };
 
   const postJson = async (url: string, body: object) => {
@@ -70,13 +66,13 @@ export const CrmLoginForm: React.FC = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      const { ok, data } = await postJson('/api/crm/auth/reset-password', { email, recoveryKey, newPassword });
+      const { ok, data } = await postJson('/api/crm/auth/forgot-password', { email });
       if (!ok) {
-        setError(data.error || 'No se pudo cambiar la contraseña.');
+        setError(data.error || 'No se pudo enviar el enlace.');
         return;
       }
       switchMode('login');
-      setNotice('Contraseña actualizada. Ya puedes ingresar con la nueva contraseña.');
+      setNotice('Si el correo está registrado, te enviamos un enlace para crear una nueva contraseña. Vence en 30 minutos.');
     } catch {
       setError('Error de conexión. Intenta de nuevo.');
     } finally {
@@ -107,7 +103,7 @@ export const CrmLoginForm: React.FC = () => {
         </div>
         <div className="text-center">
           <h1 className="text-base font-extrabold text-[#003366]">
-            {mode === 'login' ? 'Portal de Administración' : 'Restablecer contraseña'}
+            {mode === 'login' ? 'Portal de Administración' : 'Recuperar contraseña'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">Control de Calidad Alco S.A.S.</p>
         </div>
@@ -141,29 +137,13 @@ export const CrmLoginForm: React.FC = () => {
       ) : (
         <form onSubmit={handleReset} className="space-y-4">
           <p className="text-xs text-slate-500">
-            Escribe tu correo, la clave de recuperación y la nueva contraseña. Usa el ojito para verificar lo que
-            escribes.
+            Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.
           </p>
           {emailField}
-          <PasswordField
-            label="Clave de recuperación"
-            value={recoveryKey}
-            onChange={setRecoveryKey}
-            autoComplete="off"
-            placeholder="Clave de recuperación"
-          />
-          <PasswordField
-            label="Nueva contraseña"
-            value={newPassword}
-            onChange={setNewPassword}
-            autoComplete="new-password"
-            placeholder="Mínimo 8 caracteres"
-            minLength={8}
-          />
           {error && <ErrorBox message={error} />}
           <button type="submit" disabled={isSubmitting} className={SUBMIT_CLASS}>
             <KeyRound className="w-4 h-4" />
-            {isSubmitting ? 'Guardando...' : 'Cambiar contraseña'}
+            {isSubmitting ? 'Enviando...' : 'Enviar enlace'}
           </button>
           <button
             type="button"

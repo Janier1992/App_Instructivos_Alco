@@ -18,6 +18,24 @@ const GEMINI_COOLDOWN_MS = 5 * 60 * 1000;
 // innecesariamente al respaldo de OpenRouter (medido en vivo).
 const GEMINI_TIMEOUT_MS = 18000;
 
+// Cadena de modelos Gemini: si el principal está saturado (503 "high demand")
+// o no responde a tiempo, se prueba el siguiente con la misma clave antes de
+// caer a OpenRouter. Configurable con GEMINI_MODEL (principal) y
+// GEMINI_FALLBACK_MODELS (lista separada por comas).
+const DEFAULT_GEMINI_MODEL = 'gemini-3.6-flash';
+const DEFAULT_GEMINI_FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+// Presupuesto total de la consulta: maxDuration de /api/chat es 50s.
+const TOTAL_BUDGET_MS = 46000;
+const MIN_ATTEMPT_MS = 6000;
+
+function getGeminiModelChain(): string[] {
+  const primary = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const fallbacks = process.env.GEMINI_FALLBACK_MODELS
+    ? process.env.GEMINI_FALLBACK_MODELS.split(',').map(m => m.trim()).filter(Boolean)
+    : DEFAULT_GEMINI_FALLBACK_MODELS;
+  return Array.from(new Set([primary, ...fallbacks]));
+}
+
 // Máximo de turnos previos (usuario+asistente) que se reenvían como contexto
 // conversacional — suficiente para resolver preguntas de seguimiento ("¿y si
 // supera esa tolerancia?") sin inflar el prompt en conversaciones largas.
@@ -72,6 +90,8 @@ export async function processQualityQueryServer(
   escalationRequired: boolean;
   escalationReason?: string;
 }> {
+  const startedAtMs = Date.now();
+  const remainingMs = () => TOTAL_BUDGET_MS - (Date.now() - startedAtMs);
   const ragResult = await getRAGContext(processSlug, userQuestion);
 
   // 1. Manejo inmediato de Intentos de Inyección de Prompt / Manipulación
@@ -147,42 +167,44 @@ REGLAS OBLIGATORIAS DE OPERACIÓN RAG:
     };
   };
 
-  // 1. Intentar Gemini (proveedor principal) — se salta si está en "cooldown" por cuota agotada
-  const geminiInCooldown = Date.now() < geminiCooldownUntilMs;
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey && apiKey !== 'DUMMY_KEY_FOR_FALLBACK' && !geminiInCooldown) {
-      const ai = getGeminiClient();
-      const currentTurnParts: any[] = [{ text: prompt }];
-      if (image) {
-        currentTurnParts.push({ inlineData: { mimeType: image.mimeType, data: image.base64 } });
-      }
-      const contents = [
-        ...historyTurns.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-        { role: 'user', parts: currentTurnParts }
-      ];
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.1, // Temperatura baja para respuestas determinísticas de norma técnica
-          topP: 0.95,
-          httpOptions: { timeout: GEMINI_TIMEOUT_MS }
-        }
-      });
-
-      const responseText = response.text || '';
-      if (responseText) {
-        return buildAiResult(responseText);
-      }
+  // 1. Intentar Gemini (proveedor principal) recorriendo la cadena de modelos
+  // — se salta si está en "cooldown" por cuota agotada (429).
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey !== 'DUMMY_KEY_FOR_FALLBACK' && Date.now() >= geminiCooldownUntilMs) {
+    const currentTurnParts: any[] = [{ text: prompt }];
+    if (image) {
+      currentTurnParts.push({ inlineData: { mimeType: image.mimeType, data: image.base64 } });
     }
-  } catch (error) {
-    if (isQuotaExhaustedError(error)) {
-      geminiCooldownUntilMs = Date.now() + GEMINI_COOLDOWN_MS;
-      console.warn(`⚠️ Cuota de Gemini agotada. Se omitirá por ${GEMINI_COOLDOWN_MS / 60000} min y se usará OpenRouter directamente.`);
-    } else {
-      console.error('❌ Error al invocar la API de Google AI Studio (Gemini):', error);
+    const contents = [
+      ...historyTurns.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+      { role: 'user', parts: currentTurnParts }
+    ];
+
+    for (const model of getGeminiModelChain()) {
+      const attemptTimeoutMs = Math.min(GEMINI_TIMEOUT_MS, remainingMs() - 1000);
+      if (attemptTimeoutMs < MIN_ATTEMPT_MS) break;
+      try {
+        const response = await getGeminiClient().models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.1, // Temperatura baja para respuestas determinísticas de norma técnica
+            topP: 0.95,
+            httpOptions: { timeout: attemptTimeoutMs }
+          }
+        });
+        const responseText = response.text || '';
+        if (responseText) return buildAiResult(responseText);
+        console.warn(`⚠️ Gemini (${model}) devolvió una respuesta vacía; se prueba el siguiente modelo.`);
+      } catch (error) {
+        if (isQuotaExhaustedError(error)) {
+          geminiCooldownUntilMs = Date.now() + GEMINI_COOLDOWN_MS;
+          console.warn(`⚠️ Cuota de Gemini agotada. Se omitirá por ${GEMINI_COOLDOWN_MS / 60000} min y se usará OpenRouter directamente.`);
+          break;
+        }
+        console.warn(`⚠️ Gemini (${model}) falló (${String((error as any)?.status || (error as any)?.name || 'error')}); se prueba el siguiente modelo.`);
+      }
     }
   }
 
@@ -191,9 +213,9 @@ REGLAS OBLIGATORIAS DE OPERACIÓN RAG:
   // es de solo texto y nunca vio la imagen, así que "respondería" sobre algo
   // que no analizó. Eso es exactamente lo que la regla de cero alucinación
   // prohíbe; mejor avisar con claridad que reintente en vez de inventar.
-  if (!image) {
+  if (!image && remainingMs() > MIN_ATTEMPT_MS) {
     try {
-      const openRouterText = await callOpenRouterModel(systemInstruction, prompt, historyTurns);
+      const openRouterText = await callOpenRouterModel(systemInstruction, prompt, historyTurns, remainingMs() - 1000);
       if (openRouterText) {
         return buildAiResult(openRouterText);
       }

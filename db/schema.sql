@@ -200,6 +200,19 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON admin_audit_log(created_at DESC);
 ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
 
+-- Enlaces de un solo uso para restablecer la contraseña del CRM (solo se
+-- guarda el hash del token). Ver db/migrate_add_password_resets.sql.
+CREATE TABLE IF NOT EXISTS admin_password_resets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON admin_password_resets(user_id);
+ALTER TABLE admin_password_resets ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- NOTIFICACIONES PUSH Y COMENTARIOS EN PRINCIPAL
 -- ============================================================

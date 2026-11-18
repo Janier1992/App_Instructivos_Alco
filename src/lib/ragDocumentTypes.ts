@@ -34,6 +34,13 @@ export const RAG_DOCUMENT_TYPE_LABELS: Record<RagDocumentType, string> = {
   otro: 'Otros Documentos'
 };
 
+/**
+ * Slug especial para documentos que no pertenecen a un proceso/área concreto
+ * (ej. los instructivos generales del módulo Instructivos de Control).
+ */
+export const GENERAL_DOCS_SLUG = 'general';
+export const GENERAL_DOCS_LABEL = 'Instructivos Generales (principales)';
+
 export function normalizeDocumentType(value: unknown): RagDocumentType {
   return RAG_DOCUMENT_TYPE_ORDER.includes(value as RagDocumentType) ? (value as RagDocumentType) : 'otro';
 }
