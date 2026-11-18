@@ -11,6 +11,7 @@ import type { SupplierClaim, SupplierClaimInput, SupplierClaimRejectItem, Suppli
 
 const PHOTO_BUCKET = 'supplier-claim-photos';
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
+const AI_FALLBACK_MESSAGE = 'La IA no respondió (Gemini está con alta demanda), así que se usó un texto base sin redactar. Ábrelo con "Editar" y pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
 
 interface Props {
@@ -111,7 +112,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el informe.');
-    return data.draft as { defectoTitulo: string; descripcionNc: string; observacionesTecnicas: string[]; accionesCorrectivas: SupplierClaimAction[] };
+    return data.draft as { defectoTitulo: string; descripcionNc: string; observacionesTecnicas: string[]; accionesCorrectivas: SupplierClaimAction[]; generadoPorIa: boolean };
   };
 
   const validate = (): string | null => {
@@ -135,6 +136,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       setDescripcionNc(draft.descripcionNc);
       setObservaciones(draft.observacionesTecnicas.join('\n'));
       setAcciones(draft.accionesCorrectivas);
+      if (!draft.generadoPorIa) setError(AI_FALLBACK_MESSAGE);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -152,12 +154,14 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       setStatus('Subiendo fotos...');
       const [etiquetaPaths, defectoPaths] = await Promise.all([uploadGroup(etiquetas), uploadGroup(defectos)]);
 
-      let draft = { defectoTitulo, descripcionNc, observacionesTecnicas: observaciones.split('\n').map(o => o.trim()).filter(Boolean), accionesCorrectivas: acciones };
+      let draft = { defectoTitulo, descripcionNc, observacionesTecnicas: observaciones.split('\n').map(o => o.trim()).filter(Boolean), accionesCorrectivas: acciones, generadoPorIa: true };
       let aiFailed = false;
+      let aiFallback = false;
       if (!descripcionNc.trim()) {
         setStatus('Redactando informe con IA...');
         try {
           draft = await requestDraft(defectoPaths);
+          aiFallback = !draft.generadoPorIa;
         } catch {
           // El informe no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
           aiFailed = true;
@@ -191,6 +195,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       });
       const data = await parseJson(res);
       if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo guardar el informe.');
+      if (aiFallback) window.alert(AI_FALLBACK_MESSAGE);
       if (aiFailed) window.alert('El informe se guardó, pero la IA no alcanzó a redactar el texto. Ábrelo con "Editar" y pulsa "Generar texto con IA" para completarlo.');
       await onSaved();
     } catch (err: any) {
