@@ -2,6 +2,7 @@ import { MediaResolution, ThinkingLevel } from '@google/genai';
 import { getGeminiClient } from './geminiClient';
 import type { SupplierClaimAction, SupplierClaimRejectItem } from './supplierClaimsStore';
 import { polishText, stripDashes } from './supplierClaimShared';
+import { MATERIAL_TYPES, normalizeMaterialType, type SupplierClaimMaterialType } from './supplierClaimMaterialType';
 
 /**
  * Redacta el texto del informe de No Conformidad a proveedor (mismo tono y
@@ -16,6 +17,7 @@ const AI_TIMEOUT_MS = 40000;
 
 export interface SupplierClaimDraftInput {
   proveedor: string;
+  tipoMaterial?: SupplierClaimMaterialType;
   materiaPrima: string;
   referencias: string;
   lotes: string;
@@ -42,16 +44,22 @@ function describeRejects(items: SupplierClaimRejectItem[] | undefined): string {
 }
 
 function buildPrompt(input: SupplierClaimDraftInput): string {
-  return `Eres un Asistente de Calidad de ALCO S.A.S. (fabricante de ventanas y puertas de aluminio y vidrio). Redacta el texto de un "Informe de Calidad de Abastecimiento, No Conformidades de Proveedor" a partir de los datos de la inspección de recepción y de las fotos del defecto (si las hay).
+  const type = MATERIAL_TYPES[normalizeMaterialType(input.tipoMaterial)];
+  return `Eres un Asistente de Calidad de ALCO S.A.S. (fabricante de ventanas y puertas de aluminio y vidrio). Redacta el texto de un "Informe de Calidad de Abastecimiento, No Conformidades de Proveedor" a partir de los datos de la inspección de recepción (tipo de material: ${type.noun}) y de las fotos del defecto (si las hay).
 
 DATOS
 - Proveedor: ${input.proveedor}
-- Materia prima / insumo: ${input.materiaPrima}
+- Tipo de material: ${type.label}
+- ${type.label}: ${input.materiaPrima}
 - Referencia(s): ${input.referencias}
 - Lote(s): ${input.lotes || 'No indicado'}
 - Novedad registrada por el inspector: ${input.observacionInspector}
 ${input.comentariosFotos?.length ? `- Comentarios del inspector sobre cada foto: ${input.comentariosFotos.join(' | ')}
 ` : ''}${describeRejects(input.rechazoItems)}
+TIPO DE INFORME: ${type.label.toUpperCase()}
+${type.aiFocus}
+Adapta el vocabulario, el análisis y las solicitudes a este tipo de material. No uses términos de otro tipo (por ejemplo, no hables de extrusión o perfiles si es un accesorio o un insumo).
+
 PROCESO DE REDACCIÓN (hazlo internamente antes de responder)
 1. Interpreta la novedad del inspector: suele venir en lenguaje informal, abreviado o con errores de escritura. Entiende qué defecto describe y reescríbelo en español técnico y formal, sin copiar sus giros coloquiales ni sus errores.
 2. Identifica el defecto y úsalo con el mismo nombre y los mismos términos en todas las secciones (título, descripción, observaciones y acciones). No cambies de término a mitad del informe.
@@ -70,14 +78,14 @@ TONO Y REDACCIÓN
 
 ESTRUCTURA
 - defectoTitulo: nombre corto del defecto, por ejemplo "Desgarre por Extrusión".
-- descripcionNc: 2 párrafos separados por una línea en blanco. El primero describe con claridad lo hallado en la inspección de la referencia y cómo se manifiesta el defecto. El segundo explica con amabilidad que, conforme a los Criterios de Aceptación de ALCO S.A.S., esta novedad se clasifica como NO CONFORME y que afecta la calidad del material (estética, funcional o estructural, según corresponda), con la intención de que se pueda revisar en conjunto.
-- observacionesTecnicas: 3 a 4 frases cortas y objetivas (visibilidad a distancia, extensión del defecto, posible origen en el proceso, evidencia fotográfica adjunta).
-- accionesCorrectivas: exactamente 3 objetos { "titulo", "detalle" } con los títulos "Análisis de causa raíz", "Control de calidad en origen" y "Reposición del material rechazado". Cada detalle es una solicitud amable y específica para este defecto, material y referencia.
+- descripcionNc: 2 párrafos separados por una línea en blanco. El primero describe con claridad lo hallado en la inspección de la referencia y cómo se manifiesta el defecto. El segundo explica con amabilidad que, conforme a los Criterios de Aceptación de ALCO S.A.S., esta novedad se clasifica como NO CONFORME y que afecta la calidad del ${type.noun} (estética, funcional o estructural, según corresponda), con la intención de que se pueda revisar en conjunto.
+- observacionesTecnicas: 3 a 4 frases cortas y objetivas (${type.aiObservations}).
+- accionesCorrectivas: exactamente 3 objetos { "titulo", "detalle" } con los títulos "Análisis de causa raíz", "Control de calidad en origen" y "Reposición del material rechazado". Cada detalle es una solicitud amable y específica para este defecto, material y referencia. Enfoque para este tipo de material: ${type.aiActions}
 
 REGLAS
 - No inventes cantidades, fechas, lotes, medidas, causas confirmadas ni datos que no estén arriba. Si mencionas el origen del defecto, plantéalo como posibilidad ("podría estar relacionado con...").
 - Si hay unidades rechazadas en la tabla, no repitas el detalle de cada fila en el texto: el informe ya la incluye. Solo haz referencia a las referencias afectadas.
-- La reposición del material debe cubrir las referencias y cantidades de la tabla, sin cifras distintas a las indicadas.
+- La reposición debe cubrir las referencias y cantidades de la tabla, sin cifras distintas a las indicadas.
 - Basa el defecto en lo que dice el inspector; usa las fotos solo para confirmarlo o precisar su descripción. No contradigas al inspector.
 
 Responde exclusivamente con un JSON de esta forma, sin texto adicional:
@@ -117,7 +125,7 @@ export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClai
       `Durante el proceso de inspección de la referencia ${input.referencias} (${input.materiaPrima}) observamos la siguiente novedad: ${input.observacionInspector}
 
 ` +
-      'Conforme a los Criterios de Aceptación de ALCO S.A.S., esta novedad se clasifica como NO CONFORME y afecta la calidad del material recibido. Compartimos esta información con el ánimo de revisarla en conjunto y continuar mejorando.',
+      'Conforme a los Criterios de Aceptación de ALCO S.A.S., esta novedad se clasifica como NO CONFORME y afecta la calidad del suministro recibido. Compartimos esta información con el ánimo de revisarla en conjunto y continuar mejorando.',
     observacionesTecnicas: ['Se adjuntan imágenes fotográficas del hallazgo evidenciado durante la inspección.'],
     accionesCorrectivas: [
       { titulo: 'Análisis de causa raíz', detalle: 'Agradecemos su apoyo para identificar y documentar la causa de la novedad en el proceso de fabricación.' },

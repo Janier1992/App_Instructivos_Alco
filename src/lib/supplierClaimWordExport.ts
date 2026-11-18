@@ -16,11 +16,12 @@ import {
   LevelFormat
 } from 'docx';
 import type { SupplierClaim } from './supplierClaimsStore';
+import { MATERIAL_TYPES } from './supplierClaimMaterialType';
 import {
   DOC_DATE,
   DOC_VERSION,
   FOLLOW_UP,
-  INTRO,
+  introFor,
   NAVY_HEX,
   LoadedImage,
   cleanClaimForExport,
@@ -149,10 +150,10 @@ function infoTable(rows: [string, string][]): Table {
   });
 }
 
-function rejectTable(items: SupplierClaim['rechazoItems']): Table {
+function rejectTable(items: SupplierClaim['rechazoItems'], quantityHeader: string): Table {
   const colW = Math.round(PAGE_CONTENT_DXA / 4);
   const widths = [colW, colW, colW, PAGE_CONTENT_DXA - 3 * colW];
-  const head = ['Referencia', 'Cantidad de perfiles', 'Acabado', 'Medida (mm)'];
+  const head = ['Referencia', quantityHeader, 'Acabado', 'Medida (mm)'];
   return new Table({
     width: { size: PAGE_CONTENT_DXA, type: WidthType.DXA },
     columnWidths: widths,
@@ -223,12 +224,12 @@ export async function buildSupplierClaimWord(rawClaim: SupplierClaim): Promise<B
     new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 160 }, children: [run(`Sabaneta, ${formatLongDate(claim.fechaInforme)}`, { bold: true, size: 21 })] }),
     infoTable([
       ['PROVEEDOR:', claim.proveedor],
-      ['MATERIA PRIMA / INSUMO:', claim.materiaPrima],
+      [MATERIAL_TYPES[claim.tipoMaterial].infoLabel, claim.materiaPrima],
       ['REFERENCIA(S):', claim.referencias],
       ['NÚMERO(S) DE LOTE:', claim.lotes || 'No indicado']
     ]),
     spacer(),
-    ...body(INTRO),
+    ...body(introFor(claim)),
     sectionBar('TRAZABILIDAD'),
     ...body(etiquetaImgs.length > 0 ? 'Adjunto imágenes de la etiqueta del material recibido.' : 'No se adjuntó imagen de la etiqueta del material recibido.'),
     ...imageRows(etiquetaImgs),
@@ -244,7 +245,7 @@ export async function buildSupplierClaimWord(rawClaim: SupplierClaim): Promise<B
 
   if (claim.rechazoItems.length > 0) {
     const total = claim.rechazoItems.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
-    children.push(sectionBar('ACCIONES INMEDIATAS'), ...body(rejectIntro(total)), rejectTable(claim.rechazoItems), spacer());
+    children.push(sectionBar('ACCIONES INMEDIATAS'), ...body(rejectIntro(total)), rejectTable(claim.rechazoItems, MATERIAL_TYPES[claim.tipoMaterial].quantityHeader), spacer());
   }
 
   if (claim.accionesCorrectivas.length > 0) {

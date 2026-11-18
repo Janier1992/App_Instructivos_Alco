@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabaseService';
 import type { PhotoMeta } from './photoMarks';
+import { normalizeMaterialType, type SupplierClaimMaterialType } from './supplierClaimMaterialType';
 
 export const SUPPLIER_CLAIM_PHOTO_BUCKET = 'supplier-claim-photos';
 
@@ -21,6 +22,7 @@ export interface SupplierClaim {
   processSlug: string;
   fechaInforme: string;
   proveedor: string;
+  tipoMaterial: SupplierClaimMaterialType;
   materiaPrima: string;
   referencias: string;
   lotes: string | null;
@@ -42,6 +44,8 @@ export interface SupplierClaim {
 export interface SupplierClaimInput {
   fechaInforme: string;
   proveedor: string;
+  /** Si no llega, se toma como materia prima. */
+  tipoMaterial?: SupplierClaimMaterialType;
   materiaPrima: string;
   referencias: string;
   lotes?: string;
@@ -61,7 +65,7 @@ export interface SupplierClaimInput {
 /** Devuelve el mensaje de error de validación, o null si el informe es válido. */
 export function validateClaimInput(body: Partial<SupplierClaimInput>): string | null {
   if (!body.proveedor?.trim() || !body.materiaPrima?.trim() || !body.referencias?.trim()) {
-    return 'Se requiere proveedor, materia prima/insumo y referencia.';
+    return 'Se requiere proveedor, material (materia prima, accesorio o insumo) y referencia.';
   }
   if (!body.observacionInspector?.trim()) return 'Describe la novedad encontrada en la inspección.';
   if (!body.realizadoPor?.trim()) return 'Se requiere el nombre de quien realizó la inspección.';
@@ -74,6 +78,7 @@ function mapRow(row: any): SupplierClaim {
     processSlug: row.process_slug,
     fechaInforme: row.fecha_informe,
     proveedor: row.proveedor,
+    tipoMaterial: normalizeMaterialType(row.tipo_material),
     materiaPrima: row.materia_prima,
     referencias: row.referencias,
     lotes: row.lotes || null,
@@ -97,6 +102,7 @@ function toDbRow(input: SupplierClaimInput) {
     process_slug: 'control-calidad',
     fecha_informe: input.fechaInforme || new Date().toISOString().split('T')[0],
     proveedor: input.proveedor.trim().toUpperCase(),
+    tipo_material: normalizeMaterialType(input.tipoMaterial),
     materia_prima: input.materiaPrima.trim(),
     referencias: input.referencias.trim().toUpperCase(),
     lotes: input.lotes?.trim() || null,

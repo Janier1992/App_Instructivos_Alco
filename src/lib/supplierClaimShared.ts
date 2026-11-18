@@ -1,4 +1,5 @@
 import type { SupplierClaim } from './supplierClaimsStore';
+import { MATERIAL_TYPES } from './supplierClaimMaterialType';
 import { PhotoMeta, PhotoMark, drawMarksOnCanvas } from './photoMarks';
 
 /** Piezas compartidas por la exportación a PDF y a Word del informe de reclamo a proveedor. */
@@ -10,8 +11,8 @@ export const NAVY_RGB: [number, number, number] = [31, 56, 100];
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-export const INTRO =
-  'En el presente informe se detallan las condiciones observadas durante el proceso de recepción de materias primas e insumos, con el fin de documentar posibles incidencias y contribuir al cumplimiento de los estándares de calidad establecidos por ALCO S.A.S.';
+/** Párrafo introductorio y rótulos del documento según el tipo de material del informe. */
+export const introFor = (claim: SupplierClaim): string => MATERIAL_TYPES[claim.tipoMaterial].intro;
 
 export const FOLLOW_UP = (proveedor: string) =>
   `Agradecemos a ${proveedor} su atención a esta comunicación y quedamos atentos a recibir la notificación formal de las acciones adoptadas. Realizaremos el seguimiento correspondiente para confirmar la implementación de las correcciones, con el propósito de seguir fortaleciendo nuestra relación comercial y garantizar la calidad del suministro.`;
