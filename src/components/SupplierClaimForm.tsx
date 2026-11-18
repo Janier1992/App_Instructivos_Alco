@@ -6,6 +6,7 @@ import { SupplierClaimPhotoGroup, PhotoItem, MAX_PHOTOS_PER_GROUP } from './Supp
 import { compressImageFile } from '@/src/lib/imageCompression';
 import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
 import type { PhotoMeta } from '@/src/lib/photoMarks';
+import { MATERIAL_TYPES, MATERIAL_TYPE_ORDER, normalizeMaterialType, type SupplierClaimMaterialType } from '@/src/lib/supplierClaimMaterialType';
 import type { SupplierClaim, SupplierClaimInput, SupplierClaimRejectItem, SupplierClaimAction } from '@/src/lib/supplierClaimsStore';
 
 const PHOTO_BUCKET = 'supplier-claim-photos';
@@ -49,6 +50,7 @@ function buildPhotoMeta(group: PhotoItem[], paths: string[]): Record<string, Pho
 export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved }) => {
   const [fecha, setFecha] = useState(initial?.fechaInforme || new Date().toISOString().split('T')[0]);
   const [proveedor, setProveedor] = useState(initial?.proveedor || '');
+  const [tipoMaterial, setTipoMaterial] = useState<SupplierClaimMaterialType>(normalizeMaterialType(initial?.tipoMaterial));
   const [materiaPrima, setMateriaPrima] = useState(initial?.materiaPrima || '');
   const [referencias, setReferencias] = useState(initial?.referencias || '');
   const [lotes, setLotes] = useState(initial?.lotes || '');
@@ -105,7 +107,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     const res = await fetch('/api/supplier-claims/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proveedor, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths, comentariosFotos: defectos.map(d => d.comment.trim()).filter(Boolean), rechazoItems: rechazo.filter(r => Number(r.cantidad) > 0) })
+      body: JSON.stringify({ proveedor, tipoMaterial, materiaPrima, referencias, lotes, observacionInspector: observacion, fotoDefectoPaths: defectoPaths, comentariosFotos: defectos.map(d => d.comment.trim()).filter(Boolean), rechazoItems: rechazo.filter(r => Number(r.cantidad) > 0) })
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el informe.');
@@ -113,7 +115,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
   };
 
   const validate = (): string | null => {
-    if (!proveedor.trim() || !materiaPrima.trim() || !referencias.trim()) return 'Completa proveedor, materia prima/insumo y referencia.';
+    if (!proveedor.trim() || !materiaPrima.trim() || !referencias.trim()) return `Completa proveedor, ${MATERIAL_TYPES[tipoMaterial].noun} y referencia.`;
     if (!observacion.trim()) return 'Describe la novedad encontrada en la inspección.';
     if (!realizadoPor.trim()) return 'Escribe el nombre de quien realizó la inspección.';
     return null;
@@ -166,6 +168,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
       const body: SupplierClaimInput = {
         fechaInforme: fecha,
         proveedor,
+        tipoMaterial,
         materiaPrima,
         referencias,
         lotes,
@@ -205,10 +208,30 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className={LABEL}>Tipo de informe *</label>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de material">
+          {MATERIAL_TYPE_ORDER.map(type => (
+            <button
+              key={type}
+              type="button"
+              role="radio"
+              aria-checked={tipoMaterial === type}
+              disabled={busy}
+              onClick={() => setTipoMaterial(type)}
+              className={`px-2 py-2 rounded-lg border text-xs font-bold transition ${tipoMaterial === type ? 'bg-[#003366] border-[#003366] text-white' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-[#003366]'}`}
+            >
+              {MATERIAL_TYPES[type].label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-500 mt-1">{MATERIAL_TYPES[tipoMaterial].hint} La IA adapta el texto del informe a este tipo.</p>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className={LABEL}>Proveedor *</label><input className={INPUT} value={proveedor} onChange={e => setProveedor(e.target.value)} placeholder="Ej: ALUMTEK S.A.S." /></div>
         <div><label className={LABEL}>Fecha del informe *</label><input type="date" className={INPUT} value={fecha} onChange={e => setFecha(e.target.value)} /></div>
-        <div><label className={LABEL}>Materia prima / insumo *</label><input className={INPUT} value={materiaPrima} onChange={e => setMateriaPrima(e.target.value)} placeholder="Ej: ALUMINIO, Perfil Ángulo" /></div>
+        <div><label className={LABEL}>{MATERIAL_TYPES[tipoMaterial].fieldLabel}</label><input className={INPUT} value={materiaPrima} onChange={e => setMateriaPrima(e.target.value)} placeholder={MATERIAL_TYPES[tipoMaterial].placeholder} /></div>
         <div><label className={LABEL}>Referencia(s) *</label><input className={INPUT} value={referencias} onChange={e => setReferencias(e.target.value)} placeholder="Ej: A-0046" /></div>
         <div className="sm:col-span-2"><label className={LABEL}>Número(s) de lote</label><input className={INPUT} value={lotes} onChange={e => setLotes(e.target.value)} placeholder="Ej: N° 15135-1" /></div>
       </div>

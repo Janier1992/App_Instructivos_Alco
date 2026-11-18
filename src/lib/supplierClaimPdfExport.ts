@@ -1,12 +1,13 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SupplierClaim } from './supplierClaimsStore';
+import { MATERIAL_TYPES } from './supplierClaimMaterialType';
 import { loadLogoDataUrl } from './metrologyPdfHelpers';
 import {
   DOC_DATE,
   DOC_VERSION,
   FOLLOW_UP,
-  INTRO,
+  introFor,
   NAVY_RGB as NAVY,
   LoadedImage,
   cleanClaimForExport,
@@ -223,12 +224,12 @@ class ReportWriter {
     }
   }
 
-  rejectTable(items: SupplierClaim['rechazoItems']) {
+  rejectTable(items: SupplierClaim['rechazoItems'], quantityHeader: string) {
     this.ensureSpace(14 + items.length * 8);
     autoTable(this.doc, {
       startY: this.y,
       margin: { left: MARGIN, right: MARGIN },
-      head: [['Referencia', 'Cantidad de perfiles', 'Acabado', 'Medida (mm)']],
+      head: [['Referencia', quantityHeader, 'Acabado', 'Medida (mm)']],
       body: items.map(i => [i.referencia ?? '', String(i.cantidad), i.acabado, i.medidaMm]),
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 2, textColor: [20, 20, 20], lineColor: [190, 190, 190] },
@@ -269,11 +270,11 @@ export async function buildSupplierClaimPdf(rawClaim: SupplierClaim): Promise<js
   w.rightAlignedBold(`Sabaneta, ${formatLongDate(claim.fechaInforme)}`);
   w.infoTable([
     ['PROVEEDOR:', claim.proveedor],
-    ['MATERIA PRIMA / INSUMO:', claim.materiaPrima],
+    [MATERIAL_TYPES[claim.tipoMaterial].infoLabel, claim.materiaPrima],
     ['REFERENCIA(S):', claim.referencias],
     ['NÚMERO(S) DE LOTE:', claim.lotes || 'No indicado']
   ]);
-  w.paragraph(INTRO);
+  w.paragraph(introFor(claim));
 
   w.sectionBar('TRAZABILIDAD');
   w.paragraph(etiquetaImgs.length > 0 ? 'Adjunto imágenes de la etiqueta del material recibido.' : 'No se adjuntó imagen de la etiqueta del material recibido.');
@@ -292,7 +293,7 @@ export async function buildSupplierClaimPdf(rawClaim: SupplierClaim): Promise<js
     const total = claim.rechazoItems.reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
     w.sectionBar('ACCIONES INMEDIATAS');
     w.paragraph(rejectIntro(total));
-    w.rejectTable(claim.rechazoItems);
+    w.rejectTable(claim.rechazoItems, MATERIAL_TYPES[claim.tipoMaterial].quantityHeader);
   }
 
   if (claim.accionesCorrectivas.length > 0) {

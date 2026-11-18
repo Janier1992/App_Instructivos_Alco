@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, Pencil, Trash2 } from 'lucide-react';
 import type { SupplierClaim } from '@/src/lib/supplierClaimsStore';
+import { MATERIAL_TYPES } from '@/src/lib/supplierClaimMaterialType';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
 import { MarkedImage } from './MarksOverlay';
 import { exportSupplierClaimToPDF } from '@/src/lib/supplierClaimPdfExport';
@@ -30,7 +31,7 @@ export const SupplierClaimViewModal: React.FC<Props> = ({ claim, onClose, onEdit
         <InfoBox label="Fecha" value={claim.fechaInforme} />
         <InfoBox label="Referencia" value={claim.referencias} />
         <InfoBox label="Lote" value={claim.lotes || '—'} />
-        <InfoBox label="Material" value={claim.materiaPrima} />
+        <InfoBox label={MATERIAL_TYPES[claim.tipoMaterial].label} value={claim.materiaPrima} />
       </div>
 
       <Section title={`Defecto: ${claim.defectoTitulo || 'Novedad en recepción'}`}>
