@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, UserPlus, Trash2, RefreshCw } from 'lucide-react';
+import { X, UserPlus, Trash2, RefreshCw, Link2 } from 'lucide-react';
 import { DivulgacionAttendanceModal } from './DivulgacionAttendanceModal';
+import { DivulgacionLinkModal } from './DivulgacionLinkModal';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
 import type { Divulgacion } from '@/src/lib/divulgacionStore';
 import { COLUMN_FRACTIONS, COLUMN_HEADERS, KIND_LABELS, KIND_ORDER, SHEET_DATE, SHEET_SUBTITLE, SHEET_TITLE, SHEET_VERSION, formatSheetDate, paginateAttendees } from '@/src/lib/divulgacionShared';
@@ -23,6 +24,7 @@ export const DivulgacionSheetModal: React.FC<Props> = ({ divulgacionId, onClose,
   const [d, setD] = useState<Divulgacion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const [exporting, setExporting] = useState<'word' | 'pdf' | null>(null);
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export const DivulgacionSheetModal: React.FC<Props> = ({ divulgacionId, onClose,
           <h3 className="font-bold text-slate-900">Planilla de asistencia</h3>
           <div className="flex items-center gap-2 flex-wrap">
             {d && <button onClick={() => setRegistering(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#003366] hover:bg-blue-900 rounded-lg"><UserPlus className="w-3.5 h-3.5" /> Registrar mi asistencia</button>}
+            {d && <button onClick={() => setLinkOpen(true)} className="flex items-center gap-1 text-xs font-semibold text-[#003366] hover:underline"><Link2 className="w-4 h-4" /> Enlace de registro</button>}
             {d && <button onClick={() => exportAs('word')} disabled={exporting === 'word'} className="flex items-center gap-1 text-xs font-semibold text-[#003366] hover:underline disabled:opacity-50"><WordIcon className="w-4 h-4" /> {exporting === 'word' ? 'Generando...' : 'Word'}</button>}
             {d && <button onClick={() => exportAs('pdf')} disabled={exporting === 'pdf'} className="flex items-center gap-1 text-xs font-semibold text-[#003366] hover:underline disabled:opacity-50"><PdfIcon className="w-4 h-4" /> {exporting === 'pdf' ? 'Generando...' : 'PDF'}</button>}
             <button onClick={onClose} aria-label="Cerrar"><X className="w-4 h-4 text-slate-400" /></button>
@@ -154,6 +157,7 @@ export const DivulgacionSheetModal: React.FC<Props> = ({ divulgacionId, onClose,
         {d && <p className="text-[10px] text-slate-500">{d.asistentes.length} {d.asistentes.length === 1 ? 'persona registrada' : 'personas registradas'}. Para quitar un registro con datos equivocados, usa el ícono de basura al final de su fila.</p>}
       </div>
 
+      {linkOpen && d && <DivulgacionLinkModal tema={d.tema} registroToken={d.registroToken} onClose={() => setLinkOpen(false)} />}
       {registering && d && <DivulgacionAttendanceModal divulgacion={d} onClose={() => setRegistering(false)} onRegistered={apply} />}
     </div>
   );
