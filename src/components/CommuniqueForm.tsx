@@ -4,10 +4,11 @@ import React, { useRef, useState } from 'react';
 import { Sparkles, Plus, Trash2, RefreshCw, Paperclip, FileText, PenLine } from 'lucide-react';
 import { SupplierClaimPhotoGroup, PhotoItem } from './SupplierClaimPhotoGroup';
 import { VoiceDictationButton } from './VoiceDictationButton';
+import { DocumentTypeTiles, type DocumentType } from './DocumentTypeTiles';
 import { CommuniqueSignModal } from './CommuniqueSignModal';
 import { parseJson, photosFromPaths, buildPhotoMeta, addPhotosToGroup, uploadPhotoGroup, uploadFileToStorage } from './supplierClaimPhotoHelpers';
 import { Communique, CommuniqueInput, CommuniqueKind, CommuniqueSigner, CommuniqueStep } from '@/src/lib/communiqueStore';
-import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, KIND_ORDER, MAX_REFERENCE_DOCUMENTS, REFERENCE_ROLES, ReferenceRole } from '@/src/lib/communiqueShared';
+import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, MAX_REFERENCE_DOCUMENTS, REFERENCE_ROLES, ReferenceRole } from '@/src/lib/communiqueShared';
 
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
@@ -53,6 +54,8 @@ interface Props {
   initial?: Communique;
   onCancel: () => void;
   onSaved: () => Promise<void>;
+  /** Cambia el tipo de documento dentro del mismo módulo (por ejemplo, a Divulgación). */
+  onSelectType: (type: DocumentType) => void;
 }
 
 /** Huella de todo lo que el colaborador puede cambiar: si difiere de la última redacción de la IA, al guardar la IA vuelve a ajustar el documento. */
@@ -60,7 +63,7 @@ const snapshotOf = (v: { tipo: string; de: string; para: string; asunto: string;
 
 const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
 
-export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) => {
+export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved, onSelectType }) => {
   const docInputRef = useRef<HTMLInputElement>(null);
   const [tipo, setTipo] = useState<CommuniqueKind>(initial?.tipo || 'comunicado');
   const [fecha, setFecha] = useState(initial?.fecha || new Date().toISOString().split('T')[0]);
@@ -242,29 +245,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className={LABEL}>Tipo de documento *</label>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de documento">
-          {KIND_ORDER.map(kind => {
-            const cfg = KIND_CONFIG[kind];
-            return (
-              <button
-                key={kind}
-                type="button"
-                role="radio"
-                aria-checked={tipo === kind}
-                disabled={busy || !cfg.available}
-                onClick={() => setTipo(kind)}
-                className={`px-2 py-2 rounded-lg border text-xs font-bold transition disabled:cursor-not-allowed ${tipo === kind ? 'bg-[#003366] border-[#003366] text-white' : cfg.available ? 'bg-slate-50 border-slate-300 text-slate-600 hover:border-[#003366]' : 'bg-slate-100 border-slate-200 text-slate-400'}`}
-              >
-                {cfg.label}
-                {!cfg.available && <span className="block text-[9px] font-semibold">Próximamente</span>}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-[10px] text-slate-500 mt-1">{KIND_CONFIG[tipo].hint} La IA redacta el texto con la plantilla oficial.</p>
-      </div>
+      <DocumentTypeTiles active={tipo} onSelect={type => (type === 'divulgacion' ? onSelectType(type) : setTipo(type))} disabled={busy} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className={LABEL}>De *</label><input className={INPUT} value={de} onChange={e => setDe(e.target.value)} /></div>

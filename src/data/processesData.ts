@@ -29,8 +29,7 @@ export const PROCESSES: ProcessItem[] = [
     showFieldInspectionsTab: true,
     showMetrologyDeliveryTab: true,
     showSupplierClaimsTab: true,
-    showCommuniquesTab: true,
-    showDivulgacionesTab: true
+    showCommuniquesTab: true
   },
   {
     id: 'proc-corte-perfileria',

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Megaphone, RefreshCw, Plus, X, Pencil, Trash2, Search, PenLine } from 'lucide-react';
 import { CommuniqueForm } from './CommuniqueForm';
 import { CommuniqueSignModal } from './CommuniqueSignModal';
+import type { DocumentType } from './DocumentTypeTiles';
 import type { Communique } from '@/src/lib/communiqueStore';
 import { KIND_CONFIG } from '@/src/lib/communiqueShared';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
@@ -18,10 +19,10 @@ const API_BASE = '/api/communiques';
  * documento con la plantilla oficial y se puede editar, eliminar o exportar
  * a Word y PDF para divulgarlo a los procesos interesados.
  */
-export const CommuniquesPanel: React.FC = () => {
+export const CommuniquesPanel: React.FC<{ initialFormOpen?: boolean; onSelectType: (type: DocumentType) => void }> = ({ initialFormOpen = false, onSelectType }) => {
   const [communiques, setCommuniques] = useState<Communique[] | null>(null);
   const [search, setSearch] = useState('');
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(initialFormOpen);
   const [editing, setEditing] = useState<Communique | null>(null);
   const [signing, setSigning] = useState<Communique | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
@@ -169,7 +170,7 @@ export const CommuniquesPanel: React.FC = () => {
               <h3 className="font-bold text-slate-900">{editing ? 'Editar documento' : 'Nuevo comunicado o procedimiento'}</h3>
               <button onClick={closeForm} aria-label="Cerrar"><X className="w-4 h-4 text-slate-400" /></button>
             </div>
-            <CommuniqueForm initial={editing || undefined} onCancel={closeForm} onSaved={handleSaved} />
+            <CommuniqueForm initial={editing || undefined} onCancel={closeForm} onSaved={handleSaved} onSelectType={onSelectType} />
           </div>
         </div>
       )}
