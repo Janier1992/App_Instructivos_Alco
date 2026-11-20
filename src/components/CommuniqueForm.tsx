@@ -80,6 +80,12 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const busy = status !== null;
 
   const currentSnapshot = () => snapshotOf({ tipo, de, para, asunto, contexto, intro, pasos, cierre, pies: fotos.map(f => f.comment.trim()), docs: documentos.map(d => `${d.nombre}:${d.rol}`) });
+  /** Huella del contenido que avalan las firmas (todo lo visible en el documento); si cambia en un comunicado firmado, las firmas se descartan. */
+  const contentKey = (text: { asunto: string; intro: string; pasos: CommuniqueStep[]; cierre: string }) =>
+    JSON.stringify([fecha, de, para, text, firmantes.map(f => [f.nombre, f.cargo]), fotos.map(f => [f.path ?? f.key, f.comment.trim(), f.marks])]);
+  const initialContentKey = useRef<string | null>(null);
+  if (initialContentKey.current === null) initialContentKey.current = contentKey({ asunto, intro, pasos, cierre });
+  const hadSignatures = (initial?.firmantes || []).some(f => f.firma);
   const aiSnapshot = useRef<string | null>(null);
   if (aiSnapshot.current === null) aiSnapshot.current = currentSnapshot();
 
@@ -190,8 +196,14 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
       if (!text.intro.trim() && text.pasos.length === 0) throw new Error('La IA no pudo redactar el documento a partir del borrador adjunto, así que no se guardó. Intenta de nuevo en unos minutos.');
 
+      // Si el comunicado ya estaba firmado y su contenido cambió, las firmas dejan de avalarlo: se descartan, con confirmación.
+      const resetFirmas = hadSignatures && contentKey(text) !== initialContentKey.current;
+      if (resetFirmas && !window.confirm('Cambiaste el contenido de un comunicado que ya tiene firmas. Si continúas, las firmas se eliminarán y cada responsable tendrá que firmar de nuevo. ¿Guardar de todos modos?')) {
+        throw new Error('No se guardaron los cambios. Las firmas se conservan.');
+      }
+
       setStatus('Guardando...');
-      const body: CommuniqueInput = { tipo, fecha, de, para, ...text, contexto, firmantes, fotoPaths, fotoMeta: buildPhotoMeta(fotos, fotoPaths) };
+      const body: CommuniqueInput = { tipo, fecha, de, para, ...text, contexto, firmantes: firmantes.map(({ nombre, cargo }) => ({ nombre, cargo })), fotoPaths, fotoMeta: buildPhotoMeta(fotos, fotoPaths), resetFirmas };
       const res = await fetch(initial ? `/api/communiques/${initial.id}` : '/api/communiques', {
         method: initial ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -276,7 +288,16 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
         ))}
       </div>
 
-      <SupplierClaimPhotoGroup title="Imágenes del comunicado (el comentario de cada una es su pie de foto)" photos={fotos} disabled={busy} onAdd={f => addPhotosToGroup(f, setFotos)} onRemove={removePhoto} onUpdate={updatePhoto} />
+      <SupplierClaimPhotoGroup
+        title="Imágenes del comunicado (ponles un título y señala lo importante con círculo, recuadro, flecha o etiqueta)"
+        markLabel="Señalar detalle"
+        commentPlaceholder="Título de la imagen"
+        photos={fotos}
+        disabled={busy}
+        onAdd={f => addPhotosToGroup(f, setFotos)}
+        onRemove={removePhoto}
+        onUpdate={updatePhoto}
+      />
 
       <details className="border border-slate-200 rounded-xl p-3 bg-slate-50" open={textOpen} onToggle={e => setTextOpen(e.currentTarget.open)}>
         <summary className="text-xs font-bold text-slate-700 cursor-pointer">Texto del documento (lo redacta la IA; puedes ajustarlo)</summary>
@@ -304,12 +325,16 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
               <button type="button" onClick={() => setFirmantes([...firmantes, { nombre: '', cargo: '' }])} className="text-[11px] font-bold text-[#003366] flex items-center gap-1"><Plus className="w-3 h-3" /> Agregar firma</button>
             </div>
             {firmantes.map((f, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr_1fr_28px] gap-2">
-                <input className={INPUT} value={f.nombre} onChange={e => updateSigner(idx, { nombre: e.target.value })} placeholder="Nombre" />
-                <input className={INPUT} value={f.cargo} onChange={e => updateSigner(idx, { cargo: e.target.value })} placeholder="Cargo" />
-                <button type="button" onClick={() => setFirmantes(firmantes.filter((_, i) => i !== idx))} aria-label="Quitar firma"><Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-600" /></button>
+              <div key={idx} className="space-y-0.5">
+                <div className="grid grid-cols-[1fr_1fr_28px] gap-2">
+                  <input className={INPUT} value={f.nombre} onChange={e => updateSigner(idx, { nombre: e.target.value })} placeholder="Nombre" />
+                  <input className={INPUT} value={f.cargo} onChange={e => updateSigner(idx, { cargo: e.target.value })} placeholder="Cargo" />
+                  <button type="button" onClick={() => setFirmantes(firmantes.filter((_, i) => i !== idx))} aria-label="Quitar firma"><Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-600" /></button>
+                </div>
+                {f.firma && <p className="text-[10px] font-semibold text-emerald-700">Firmado en la app</p>}
               </div>
             ))}
+            <p className="text-[10px] text-slate-500">Cada responsable firma desde la lista con el botón "Firmar", una vez guardado el comunicado. Si cambias el contenido de uno ya firmado, las firmas se eliminan para que no avalen un texto distinto.</p>
           </div>
         </div>
       </details>

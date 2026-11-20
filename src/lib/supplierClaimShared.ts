@@ -97,7 +97,7 @@ async function blobToLoadedImage(blob: Blob): Promise<LoadedImage> {
   return { dataUrl, bytes: new Uint8Array(await blob.arrayBuffer()), ...dims, format: blob.type === 'image/png' ? 'PNG' : 'JPEG' };
 }
 
-function dataUrlToBytes(dataUrl: string): Uint8Array {
+export function dataUrlToBytes(dataUrl: string): Uint8Array {
   const binary = atob(dataUrl.split(',')[1] || '');
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

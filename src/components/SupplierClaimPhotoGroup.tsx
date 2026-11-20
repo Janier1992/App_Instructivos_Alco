@@ -26,13 +26,17 @@ interface Props {
   onAdd: (files: File[]) => void;
   onRemove: (key: string) => void;
   onUpdate: (key: string, patch: Partial<PhotoItem>) => void;
+  /** Texto del botón de marcas (por defecto "Señalar defecto"). */
+  markLabel?: string;
+  /** Texto de ayuda del campo de comentario de cada foto. */
+  commentPlaceholder?: string;
 }
 
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
 const ADD_BUTTON = 'h-24 w-24 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:text-[#003366] hover:border-[#003366] flex flex-col items-center justify-center gap-1 text-[10px] font-bold disabled:opacity-50';
 
 /** Grupo de fotos del informe: tomar foto o subir archivo, comentario debajo de cada una y marcas sobre el defecto. */
-export const SupplierClaimPhotoGroup: React.FC<Props> = ({ title, photos, disabled, onAdd, onRemove, onUpdate }) => {
+export const SupplierClaimPhotoGroup: React.FC<Props> = ({ title, photos, disabled, onAdd, onRemove, onUpdate, markLabel = 'Señalar defecto', commentPlaceholder = 'Comentario de la foto' }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [markingKey, setMarkingKey] = useState<string | null>(null);
@@ -54,14 +58,14 @@ export const SupplierClaimPhotoGroup: React.FC<Props> = ({ title, photos, disabl
               disabled={disabled}
               className="w-full flex items-center justify-center gap-1 py-1 text-[10px] font-bold text-[#003366] border border-[#003366]/40 rounded-md hover:bg-blue-50 disabled:opacity-50"
             >
-              <Pencil className="w-3 h-3" /> {photo.marks.length > 0 ? `Marcas (${photo.marks.length})` : 'Señalar defecto'}
+              <Pencil className="w-3 h-3" /> {photo.marks.length > 0 ? `Marcas (${photo.marks.length})` : markLabel}
             </button>
             <textarea
               value={photo.comment}
               onChange={e => onUpdate(photo.key, { comment: e.target.value })}
               disabled={disabled}
               rows={2}
-              placeholder="Comentario de la foto"
+              placeholder={commentPlaceholder}
               className="w-full bg-slate-50 border border-slate-300 rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#003366]"
             />
           </div>

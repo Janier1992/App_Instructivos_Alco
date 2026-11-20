@@ -12,6 +12,9 @@ export interface CommuniqueStep {
 export interface CommuniqueSigner {
   nombre: string;
   cargo: string;
+  /** Firma dibujada en la app (imagen PNG en data URL). Solo se cambia con la acción de firmar, no al editar el comunicado. */
+  firma?: string;
+  firmadoEn?: string;
 }
 
 export interface Communique {
@@ -46,6 +49,8 @@ export interface CommuniqueInput {
   firmantes?: CommuniqueSigner[];
   fotoPaths?: string[];
   fotoMeta?: Record<string, PhotoMeta>;
+  /** true cuando el contenido cambió después de firmar: se descartan las firmas para que no avalen un texto distinto. */
+  resetFirmas?: boolean;
 }
 
 export function normalizeKind(value: unknown): CommuniqueKind {
@@ -116,12 +121,53 @@ export async function createCommunique(input: CommuniqueInput): Promise<Result> 
   return { success: true, communique: mapRow(data) };
 }
 
+/** Conserva las firmas ya registradas (por nombre y cargo) en la lista de firmantes que llega del formulario. */
+function keepSignatures(incoming: CommuniqueSigner[], saved: CommuniqueSigner[]): CommuniqueSigner[] {
+  return incoming.map(({ nombre, cargo }) => {
+    const match = saved.find(s => s.firma && s.nombre === nombre && s.cargo === cargo);
+    return match ? { nombre, cargo, firma: match.firma, firmadoEn: match.firmadoEn } : { nombre, cargo };
+  });
+}
+
 export async function updateCommunique(id: string, input: CommuniqueInput): Promise<Result> {
   const supabase = getSupabaseClient();
   if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
-  const patch = { ...toDbRow(input), updated_at: new Date().toISOString() };
+
+  // Las firmas no se aceptan desde el formulario: se conservan las guardadas, salvo que el contenido haya cambiado.
+  const { data: current } = await supabase.from('communiques').select('firmantes').eq('id', id).maybeSingle();
+  const saved: CommuniqueSigner[] = Array.isArray(current?.firmantes) ? current.firmantes : [];
+  const firmantes = input.resetFirmas ? (input.firmantes || []).map(({ nombre, cargo }) => ({ nombre, cargo })) : keepSignatures(input.firmantes || [], saved);
+  const patch = { ...toDbRow({ ...input, firmantes }), updated_at: new Date().toISOString() };
   const { data, error } = await supabase.from('communiques').update(patch).eq('id', id).select().single();
   if (error || !data) return { success: false, error: error?.message || 'No se pudo actualizar el comunicado.' };
+  return { success: true, communique: mapRow(data) };
+}
+
+const SIGNATURE_PATTERN = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+// Una firma dibujada pesa pocos KB; el tope evita que se guarde una imagen cualquiera en la base de datos.
+export const MAX_SIGNATURE_CHARS = 60000;
+
+export function validateSignature(firma: unknown): string | null {
+  if (firma === null) return null;
+  if (typeof firma !== 'string' || !SIGNATURE_PATTERN.test(firma)) return 'La firma no es válida.';
+  return firma.length > MAX_SIGNATURE_CHARS ? 'La firma es demasiado grande.' : null;
+}
+
+/** Registra (o quita, con null) la firma de un solo firmante sin tocar el resto del comunicado ni las firmas de los demás. */
+export async function signCommunique(id: string, index: number, firma: string | null): Promise<Result> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, error: 'Supabase no está configurado.' };
+
+  const { data: row } = await supabase.from('communiques').select('*').eq('id', id).maybeSingle();
+  if (!row) return { success: false, error: 'No se encontró el comunicado.' };
+  const firmantes: CommuniqueSigner[] = Array.isArray(row.firmantes) ? [...row.firmantes] : [];
+  if (!Number.isInteger(index) || index < 0 || index >= firmantes.length) return { success: false, error: 'No se encontró al firmante.' };
+
+  const { firma: _anterior, firmadoEn: _fecha, ...signer } = firmantes[index];
+  firmantes[index] = firma ? { ...signer, firma, firmadoEn: new Date().toISOString() } : signer;
+
+  const { data, error } = await supabase.from('communiques').update({ firmantes, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error || !data) return { success: false, error: error?.message || 'No se pudo guardar la firma.' };
   return { success: true, communique: mapRow(data) };
 }
 

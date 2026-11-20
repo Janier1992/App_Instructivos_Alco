@@ -93,8 +93,26 @@ export function cleanCommuniqueForExport(c: Communique): Communique {
     intro: c.intro ? stripDashes(c.intro) : null,
     pasos: c.pasos.map(p => ({ titulo: stripDashes(p.titulo), detalle: stripDashes(p.detalle) })),
     cierre: c.cierre ? stripDashes(c.cierre) : null,
-    firmantes: c.firmantes.map(f => ({ nombre: stripDashes(f.nombre), cargo: stripDashes(f.cargo) }))
+    firmantes: c.firmantes.map(f => ({ ...f, nombre: stripDashes(f.nombre), cargo: stripDashes(f.cargo) }))
   };
+}
+
+/** Firma lista para insertar en un documento: bytes, dimensiones del PNG y fecha de firma. */
+export interface SignatureImage {
+  dataUrl: string;
+  bytes: Uint8Array;
+  w: number;
+  h: number;
+}
+
+/** Ancho y alto de un PNG leídos de su cabecera (IHDR), sin necesidad de decodificar la imagen. */
+export function pngSize(bytes: Uint8Array): { w: number; h: number } {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { w: view.getUint32(16), h: view.getUint32(20) };
+}
+
+export function signatureDateLabel(iso?: string): string {
+  return iso ? `Firmado el ${new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : '';
 }
 
 export function communiqueFileName(c: Communique, extension: string): string {

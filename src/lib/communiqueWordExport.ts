@@ -16,8 +16,8 @@ import {
   WidthType
 } from 'docx';
 import type { Communique } from './communiqueStore';
-import { COMMUNIQUE_FOOTER, COMMUNIQUE_SUBTITLE, DEFAULT_CLOSING, KIND_CONFIG, cleanCommuniqueForExport, communiqueFileName, splitBold } from './communiqueShared';
-import { LoadedImage, formatLongDate, loadClaimImages, loadLogoImage } from './supplierClaimShared';
+import { COMMUNIQUE_FOOTER, COMMUNIQUE_SUBTITLE, DEFAULT_CLOSING, KIND_CONFIG, cleanCommuniqueForExport, communiqueFileName, pngSize, signatureDateLabel, splitBold } from './communiqueShared';
+import { LoadedImage, dataUrlToBytes, formatLongDate, loadClaimImages, loadLogoImage } from './supplierClaimShared';
 
 /**
  * Genera el comunicado o procedimiento en Word (.docx) con la plantilla
@@ -41,6 +41,8 @@ const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: 
 const TABLE_NO_BORDERS = { ...NO_BORDERS, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
 const MAX_IMAGE_WIDTH_PX = 400;
 const MAX_IMAGE_HEIGHT_PX = 300;
+const MAX_SIGNATURE_WIDTH_PX = 170;
+const MAX_SIGNATURE_HEIGHT_PX = 55;
 
 const run = (text: string, opts: { bold?: boolean; italics?: boolean; size?: number } = {}) =>
   new TextRun({ text, font: FONT, size: opts.size ?? BODY_SIZE, bold: opts.bold, italics: opts.italics });
@@ -127,7 +129,16 @@ function stepParagraphs(c: Communique): Paragraph[] {
   ];
 }
 
-/** Firmas en filas de 2, con la línea de firma (X) y debajo nombre y cargo. */
+/** Contenido de la línea de firma: la firma dibujada en la app o, si aún no firmó, la X de la plantilla. */
+function signatureMark(signer: Communique['firmantes'][number]): TextRun | ImageRun {
+  if (!signer.firma) return run('X', { size: 32 });
+  const bytes = dataUrlToBytes(signer.firma);
+  const { w, h } = pngSize(bytes);
+  const scale = Math.min(MAX_SIGNATURE_WIDTH_PX / w, MAX_SIGNATURE_HEIGHT_PX / h, 1);
+  return new ImageRun({ type: 'png', data: bytes, transformation: { width: Math.round(w * scale), height: Math.round(h * scale) } });
+}
+
+/** Firmas en filas de 2, con la línea de firma (la firma o una X) y debajo nombre, cargo y fecha de firma. */
 function signatureTable(c: Communique): Table | null {
   if (c.firmantes.length === 0) return null;
   const colW = Math.floor(PAGE_CONTENT_DXA / 2);
@@ -138,9 +149,10 @@ function signatureTable(c: Communique): Table | null {
       margins: { top: 200, bottom: 60, left: 100, right: 500 },
       children: signer
         ? [
-            new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, children: [run('X', { size: 32 })] }),
+            new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, children: [signatureMark(signer)] }),
             new Paragraph({ children: [run(signer.nombre, { size: 16 })] }),
-            new Paragraph({ children: [run(signer.cargo, { size: 16 })] })
+            new Paragraph({ children: [run(signer.cargo, { size: 16 })] }),
+            ...(signer.firma ? [new Paragraph({ children: [run(signatureDateLabel(signer.firmadoEn), { size: 14, italics: true })] })] : [])
           ]
         : [new Paragraph({})]
     });
