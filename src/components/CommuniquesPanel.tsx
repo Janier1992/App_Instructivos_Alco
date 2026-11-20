@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Megaphone, RefreshCw, Plus, X, Pencil, Trash2, Search } from 'lucide-react';
+import { Megaphone, RefreshCw, Plus, X, Pencil, Trash2, Search, PenLine } from 'lucide-react';
 import { CommuniqueForm } from './CommuniqueForm';
+import { CommuniqueSignModal } from './CommuniqueSignModal';
 import type { Communique } from '@/src/lib/communiqueStore';
 import { KIND_CONFIG } from '@/src/lib/communiqueShared';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
@@ -22,6 +23,7 @@ export const CommuniquesPanel: React.FC = () => {
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Communique | null>(null);
+  const [signing, setSigning] = useState<Communique | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -65,6 +67,12 @@ export const CommuniquesPanel: React.FC = () => {
   const handleSaved = async () => {
     closeForm();
     await load();
+  };
+
+  /** Refresca en la lista (y en la ventana de firmas) el comunicado que acaba de firmarse. */
+  const handleSignatureChanged = (updated: Communique) => {
+    setCommuniques(prev => (prev ? prev.map(c => (c.id === updated.id ? updated : c)) : prev));
+    setSigning(updated);
   };
 
   const handleDelete = async (c: Communique) => {
@@ -138,6 +146,7 @@ export const CommuniquesPanel: React.FC = () => {
                   <td className="p-2">{c.para}</td>
                   <td className="p-2">
                     <div className="flex items-center gap-3 whitespace-nowrap">
+                      <button onClick={() => setSigning(c)} className="text-[#003366] hover:underline flex items-center gap-1"><PenLine className="w-3.5 h-3.5" /> Firmar ({c.firmantes.filter(f => f.firma).length}/{c.firmantes.length})</button>
                       <button onClick={() => { setEditing(c); setFormOpen(true); }} className="text-[#003366] hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5" /> Editar</button>
                       <button onClick={() => handleExport(c, 'word')} disabled={exportingKey === `${c.id}-word`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><WordIcon className="w-4 h-4" /> {exportingKey === `${c.id}-word` ? 'Generando...' : 'Word'}</button>
                       <button onClick={() => handleExport(c, 'pdf')} disabled={exportingKey === `${c.id}-pdf`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><PdfIcon className="w-4 h-4" /> {exportingKey === `${c.id}-pdf` ? 'Generando...' : 'PDF'}</button>
@@ -150,6 +159,8 @@ export const CommuniquesPanel: React.FC = () => {
           </table>
         </div>
       )}
+
+      {signing && <CommuniqueSignModal communique={signing} onClose={() => setSigning(null)} onChanged={handleSignatureChanged} />}
 
       {formOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">

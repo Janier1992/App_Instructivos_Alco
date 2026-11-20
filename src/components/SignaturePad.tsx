@@ -19,6 +19,8 @@ export const SignaturePad: React.FC<Props> = ({ label, initialValue, onChange, a
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  // Punto medio del tramo anterior: cada curva arranca ahí, así el trazo queda continuo y sin huecos.
+  const lastMid = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!initialValue) return;
@@ -76,10 +78,11 @@ export const SignaturePad: React.FC<Props> = ({ label, initialValue, onChange, a
     ctx.shadowColor = 'rgba(2, 6, 23, 0.15)';
     ctx.shadowBlur = 1.5;
     lastPoint.current = { x, y };
+    lastMid.current = { x, y };
   };
 
   const draw = (e: React.PointerEvent) => {
-    if (!isDrawing || !lastPoint.current) return;
+    if (!isDrawing || !lastPoint.current || !lastMid.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
@@ -88,15 +91,26 @@ export const SignaturePad: React.FC<Props> = ({ label, initialValue, onChange, a
     const midX = (last.x + x) / 2;
     const midY = (last.y + y) / 2;
     ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
+    ctx.moveTo(lastMid.current.x, lastMid.current.y);
     ctx.quadraticCurveTo(last.x, last.y, midX, midY);
     ctx.lineWidth = e.pressure > 0 ? 3.5 + e.pressure * 2.5 : 3.5;
     ctx.stroke();
     lastPoint.current = { x, y };
+    lastMid.current = { x: midX, y: midY };
   };
 
   const stopDrawing = () => {
-    if (isDrawing) emitChange();
+    if (isDrawing) {
+      // Cierra el último tramo hasta el punto final (y marca un punto si solo se tocó el lienzo).
+      const ctx = canvasRef.current?.getContext('2d');
+      if (ctx && lastMid.current && lastPoint.current) {
+        ctx.beginPath();
+        ctx.moveTo(lastMid.current.x, lastMid.current.y);
+        ctx.lineTo(lastPoint.current.x, lastPoint.current.y);
+        ctx.stroke();
+      }
+      emitChange();
+    }
     setIsDrawing(false);
   };
 
