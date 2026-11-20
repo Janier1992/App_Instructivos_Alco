@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabaseService';
 import { validateSignature } from './communiqueStore';
+import { DEFAULT_SESSION, objectiveFromCommunique } from './divulgacionShared';
 
 export type DivulgacionKind = 'capacitacion' | 'divulgacion' | 'charla';
 
@@ -36,18 +37,20 @@ export interface Divulgacion {
   createdAt: string;
 }
 
-/** Lo único que ve quien abre el enlace público: el tema de cada divulgación reciente, sin datos de ningún asistente. */
+/** Lo único que ve quien abre el enlace público: el tema de cada divulgación o comunicado reciente, sin datos de ningún asistente. */
 export interface DivulgacionPublic {
-  /** Código de la divulgación: es lo que el enlace público usa para identificarla (nunca su id interno). */
+  /** Identifica la opción en el enlace público (nunca el id interno de la divulgación): el código de una divulgación ya creada, o `comunicado:<id>` si todavía no tiene planilla. */
   token: string;
+  procesoArea: string;
   tema: string;
   fecha: string;
   tipo: DivulgacionKind;
   responsable: string;
 }
 
-/** Días hacia atrás en los que una divulgación sigue apareciendo en el enlace público de registro. */
-export const REGISTRATION_WINDOW_DAYS = 30;
+/** Días hacia atrás en los que una divulgación o un comunicado siguen apareciendo en el enlace público de registro. */
+export const REGISTRATION_WINDOW_DAYS = 60;
+const COMMUNIQUE_PREFIX = 'comunicado:';
 
 export interface DivulgacionInput {
   fecha: string;
@@ -160,20 +163,71 @@ export async function getDivulgacion(id: string): Promise<Divulgacion | null> {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const toPublic = (row: any): DivulgacionPublic => ({ token: row.registro_token, tema: row.tema, fecha: row.fecha, tipo: normalizeKind(row.tipo), responsable: row.responsable });
+const toPublic = (row: any): DivulgacionPublic => ({ token: row.registro_token, procesoArea: row.proceso_area || '', tema: row.tema, fecha: row.fecha, tipo: normalizeKind(row.tipo), responsable: row.responsable });
 
-/** Divulgaciones recientes para el enlace público de registro, de la más reciente a la más antigua (solo tema, fecha y responsable). */
+const windowStart = () => new Date(Date.now() - REGISTRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+/** Comunicado reciente que aún no tiene planilla: se ofrece igual, y la planilla se crea sola con el primer registro. */
+const communiqueToPublic = (row: any): DivulgacionPublic => ({
+  token: `${COMMUNIQUE_PREFIX}${row.id}`,
+  procesoArea: DEFAULT_SESSION.procesoArea,
+  tema: row.asunto,
+  fecha: row.fecha,
+  tipo: DEFAULT_SESSION.tipo,
+  responsable: DEFAULT_SESSION.responsable
+});
+
+/**
+ * Opciones del enlace público de registro, de la más reciente a la más antigua: las divulgaciones recientes (puede haber
+ * varias planillas de un mismo comunicado, por ejemplo una por proceso) y los comunicados recientes que todavía no tienen
+ * planilla. Solo tema, fecha y responsable; nunca datos de los asistentes.
+ */
 export async function getRecentDivulgacionesPublic(): Promise<DivulgacionPublic[]> {
-  const since = new Date(Date.now() - REGISTRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const { data, error } = await client().from('divulgaciones').select('*').gte('fecha', since).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(20);
-  if (error) throw new Error(`No se pudieron cargar las divulgaciones: ${error.message}`);
-  return (data || []).filter(row => row.registro_token).map(toPublic);
+  const since = windowStart();
+  const supabase = client();
+  const [sessions, communiques, linked] = await Promise.all([
+    supabase.from('divulgaciones').select('*').gte('fecha', since).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(40),
+    supabase.from('communiques').select('id, asunto, fecha, created_at').gte('fecha', since).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(40),
+    supabase.from('divulgaciones').select('comunicado_id').not('comunicado_id', 'is', null)
+  ]);
+  if (sessions.error) throw new Error(`No se pudieron cargar las divulgaciones: ${sessions.error.message}`);
+  if (communiques.error) throw new Error(`No se pudieron cargar los comunicados: ${communiques.error.message}`);
+
+  const withSheet = new Set((linked.data || []).map(row => row.comunicado_id));
+  const fromSheets = (sessions.data || []).filter(row => row.registro_token).map(toPublic);
+  const fromCommuniques = (communiques.data || []).filter(row => !withSheet.has(row.id)).map(communiqueToPublic);
+  return [...fromSheets, ...fromCommuniques].sort((a, b) => b.fecha.localeCompare(a.fecha));
 }
 
-/** Id interno de la divulgación a la que pertenece un código del enlace público; null si el código no existe. */
-export async function getDivulgacionIdByToken(token: string): Promise<string | null> {
+/** Planilla más antigua de un comunicado, si ya tiene alguna. */
+async function firstDivulgacionOfCommunique(supabase: Supabase, communiqueId: string): Promise<string | null> {
+  const { data } = await supabase.from('divulgaciones').select('id').eq('comunicado_id', communiqueId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+  return data?.id ?? null;
+}
+
+/** Crea la planilla de un comunicado con los datos predefinidos (tema, objetivo, responsable, proceso, duración). */
+async function createDivulgacionFromCommunique(supabase: Supabase, communiqueId: string): Promise<string | null> {
+  const { data: c } = await supabase.from('communiques').select('id, asunto, intro').eq('id', communiqueId).maybeSingle();
+  if (!c) return null;
+  const input: DivulgacionInput = { fecha: new Date().toISOString().split('T')[0], tema: c.asunto, objetivo: objectiveFromCommunique(c.intro), ...DEFAULT_SESSION, comunicadoId: c.id };
+  const { data, error } = await supabase.from('divulgaciones').insert(toDbRow(input)).select('id').single();
+  if (error || !data) return null;
+  // Si dos personas fueron las primeras al mismo tiempo, se queda una sola planilla: la más antigua.
+  const winner = (await firstDivulgacionOfCommunique(supabase, communiqueId)) ?? data.id;
+  if (winner !== data.id) await supabase.from('divulgaciones').delete().eq('id', data.id);
+  return winner;
+}
+
+/** Id interno de la planilla a la que pertenece una opción del enlace público; si es un comunicado sin planilla, la crea. Null si no existe. */
+export async function resolveDivulgacionId(token: string): Promise<string | null> {
+  const supabase = client();
+  if (token.startsWith(COMMUNIQUE_PREFIX)) {
+    const communiqueId = token.slice(COMMUNIQUE_PREFIX.length);
+    if (!UUID_PATTERN.test(communiqueId)) return null;
+    return (await firstDivulgacionOfCommunique(supabase, communiqueId)) ?? (await createDivulgacionFromCommunique(supabase, communiqueId));
+  }
   if (!UUID_PATTERN.test(token)) return null;
-  const { data } = await client().from('divulgaciones').select('id').eq('registro_token', token).maybeSingle();
+  const { data } = await supabase.from('divulgaciones').select('id').eq('registro_token', token).maybeSingle();
   return data?.id ?? null;
 }
 

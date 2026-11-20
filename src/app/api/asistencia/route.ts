@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addAsistente, getDivulgacionIdByToken, getRecentDivulgacionesPublic, validateAsistenteInput, AsistenteInput } from '@/src/lib/divulgacionStore';
+import { addAsistente, resolveDivulgacionId, getRecentDivulgacionesPublic, validateAsistenteInput, AsistenteInput } from '@/src/lib/divulgacionStore';
 import { getClientKey, isRateLimited } from '@/src/lib/rateLimit';
 
 // Una persona que registra a varios compañeros desde un mismo equipo no debería toparse con el límite.
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: AsistenteInput & { token?: string } = await request.json();
-    const divulgacionId = await getDivulgacionIdByToken(String(body.token || ''));
+    const divulgacionId = await resolveDivulgacionId(String(body.token || ''));
     if (!divulgacionId) return NextResponse.json({ error: 'Elige la divulgación a la que asististe.' }, { status: 404 });
 
     const input: AsistenteInput = { nombre: body.nombre, procesoSeccion: body.procesoSeccion, firma: body.firma, cedula: String(body.cedula || '').replace(/\D/g, '') };

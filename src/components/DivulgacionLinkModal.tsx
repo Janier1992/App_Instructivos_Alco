@@ -63,7 +63,7 @@ export const DivulgacionLinkModal: React.FC<Props> = ({ tema, registroToken, onC
           </div>
         ) : (
           <>
-            <p className="text-xs text-slate-600">Este es el mismo enlace para todos los colaboradores y para todas las divulgaciones: lo abren en su celular, eligen la divulgación (aparecen las de los últimos 30 días en un menú desplegable) y registran su nombre, cédula, proceso o sección y firma, sin entrar a la aplicación. Solo ven el tema de las divulgaciones, no a los asistentes.</p>
+            <p className="text-xs text-slate-600">Este es el mismo enlace para todos los colaboradores y para todas las divulgaciones: lo abren en su celular, eligen el comunicado o la divulgación en un menú desplegable (aparecen los de los últimos 60 días, sin tener que crear antes la planilla; esta se crea sola con el primer registro) y registran su nombre, cédula, proceso o sección y firma, sin entrar a la aplicación. Solo ven el tema, no a los asistentes.</p>
             <div className="flex items-center gap-2">
               <input readOnly value={link} onFocus={e => e.currentTarget.select()} aria-label="Enlace de registro" className="flex-1 min-w-0 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs" />
               <button type="button" onClick={copy} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-white bg-[#003366] rounded-lg">{copied ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}</button>

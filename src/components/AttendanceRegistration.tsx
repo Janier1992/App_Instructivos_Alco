@@ -46,6 +46,8 @@ export const AttendanceRegistration: React.FC = () => {
   }, []);
 
   const info = sessions?.find(s => s.token === token) ?? null;
+  /** Cuando un mismo tema tiene varias planillas (por ejemplo una por proceso), se distinguen por el proceso o área. */
+  const optionLabel = (s: DivulgacionPublic) => `${formatSheetDate(s.fecha)} · ${s.tema}${s.procesoArea && (sessions ?? []).filter(o => o.tema === s.tema).length > 1 ? ` · ${s.procesoArea}` : ''}`;
   const visible = (sessions ?? []).filter(s => s.token === token || `${s.tema} ${s.responsable}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   const submit = async (e: React.FormEvent) => {
@@ -105,7 +107,7 @@ export const AttendanceRegistration: React.FC = () => {
         {!sessions && !loadError && <div className="flex items-center justify-center gap-2 text-slate-400 py-10"><RefreshCw className="w-5 h-5 animate-spin" /><span className="text-sm">Cargando...</span></div>}
 
         {sessions && sessions.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-600">Por ahora no hay divulgaciones abiertas para registrar asistencia. Pídele a quien dicta la divulgación que la cree en la aplicación.</div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-600">Por ahora no hay comunicados ni divulgaciones recientes para registrar asistencia. Pídele a quien dicta la divulgación que cree el comunicado en la aplicación.</div>
         )}
 
         {sessions && sessions.length > 0 && (
@@ -115,7 +117,7 @@ export const AttendanceRegistration: React.FC = () => {
               {sessions.length > SEARCH_FROM && <input className={`${INPUT} mb-2`} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por tema o responsable" aria-label="Buscar divulgación" />}
               <select className={INPUT} value={token} onChange={e => setToken(e.target.value)} aria-label="Divulgación">
                 <option value="">Elige la divulgación</option>
-                {visible.map(s => <option key={s.token} value={s.token}>{formatSheetDate(s.fecha)} · {s.tema}</option>)}
+                {visible.map(s => <option key={s.token} value={s.token}>{optionLabel(s)}</option>)}
               </select>
             </div>
             {info && (
