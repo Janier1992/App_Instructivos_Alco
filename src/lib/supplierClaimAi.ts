@@ -1,5 +1,4 @@
-import { MediaResolution, ThinkingLevel } from '@google/genai';
-import { getGeminiClient, getGeminiModelChain } from './geminiClient';
+import { generateJsonWithFallback } from './geminiJson';
 import type { SupplierClaimAction, SupplierClaimRejectItem } from './supplierClaimsStore';
 import { polishText, stripDashes } from './supplierClaimShared';
 import { MATERIAL_TYPES, normalizeMaterialType, type SupplierClaimMaterialType } from './supplierClaimMaterialType';
@@ -10,12 +9,6 @@ import { MATERIAL_TYPES, normalizeMaterialType, type SupplierClaimMaterialType }
  * inspector: su análisis y las fotos del defecto. Mismo patrón de las demás
  * visiones de la app: modo JSON nativo de Gemini.
  */
-
-// La función serverless de la ruta vive 60 s. Se prueba la cadena de modelos de la app (el principal y sus respaldos)
-// dentro de este presupuesto: si Gemini está saturado (503) o tarda, el siguiente modelo responde antes de caer al texto base.
-const TOTAL_BUDGET_MS = 52000;
-const ATTEMPT_TIMEOUT_MS = 22000;
-const MIN_ATTEMPT_MS = 6000;
 
 export interface SupplierClaimDraftInput {
   proveedor: string;
@@ -99,26 +92,6 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 }`;
 }
 
-function parseJson(text: string | undefined): any | null {
-  if (!text) return null;
-  const cleaned = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Gemini no respondió en ${ms / 1000} s.`)), ms);
-    promise.then(
-      value => { clearTimeout(timer); resolve(value); },
-      err => { clearTimeout(timer); reject(err); }
-    );
-  });
-}
-
 /** Texto base cuando la IA no está disponible: el informe se puede generar igual y editar después. */
 export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClaimDraft {
   return {
@@ -152,36 +125,9 @@ function draftFromParsed(parsed: any): SupplierClaimDraft {
   };
 }
 
-/** Una llamada a Gemini con el modelo indicado. Fotos en resolución baja y poco razonamiento interno: redactar el informe no requiere más y reduce la espera. */
-async function callGemini(model: string, contents: any[], timeoutMs: number) {
-  const response = await withTimeout(
-    getGeminiClient().models.generateContent({
-      model,
-      contents,
-      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }, mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW }
-    }),
-    timeoutMs
-  );
-  return parseJson(response.text);
-}
-
 export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput): Promise<SupplierClaimDraft> {
-  if (!process.env.GEMINI_API_KEY) return buildFallbackDraft(input);
-
-  const startedAt = Date.now();
   const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
   const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
-
-  for (const model of getGeminiModelChain()) {
-    const attemptMs = Math.min(ATTEMPT_TIMEOUT_MS, TOTAL_BUDGET_MS - (Date.now() - startedAt));
-    if (attemptMs < MIN_ATTEMPT_MS) break;
-    try {
-      const parsed = await callGemini(model, contents, attemptMs);
-      if (parsed && typeof parsed.descripcionNc === 'string') return draftFromParsed(parsed);
-      console.warn(`⚠️ Gemini (${model}) devolvió un informe sin el formato esperado; se prueba el siguiente modelo.`);
-    } catch (err: any) {
-      console.warn(`⚠️ Error generando informe de reclamo a proveedor con IA (${model}):`, err?.message || err);
-    }
-  }
-  return buildFallbackDraft(input);
+  const parsed = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor');
+  return parsed ? draftFromParsed(parsed) : buildFallbackDraft(input);
 }

@@ -40,6 +40,8 @@ export interface ProcessItem {
   showMetrologyDeliveryTab?: boolean;
   /** true muestra la pestaña "Reclamos a Proveedores" (informes de No Conformidad de abastecimiento con IA y PDF). Por defecto false. */
   showSupplierClaimsTab?: boolean;
+  /** true muestra la pestaña "Comunicados y Procedimientos" (comunicados de Calidad Producción con IA, Word y PDF). Por defecto false. */
+  showCommuniquesTab?: boolean;
   /** true muestra la pestaña "Criterios NTC 1909" (tabla de aceptación/rechazo de defectos de vidrio). Por defecto false. */
   showGlassCriteriaTab?: boolean;
 }

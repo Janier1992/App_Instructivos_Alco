@@ -2,14 +2,11 @@
 
 import React, { useState } from 'react';
 import { Sparkles, Plus, Trash2, RefreshCw } from 'lucide-react';
-import { SupplierClaimPhotoGroup, PhotoItem, MAX_PHOTOS_PER_GROUP } from './SupplierClaimPhotoGroup';
-import { compressImageFile } from '@/src/lib/imageCompression';
-import { getSupabaseBrowserClient } from '@/src/lib/supabaseBrowserClient';
-import type { PhotoMeta } from '@/src/lib/photoMarks';
+import { SupplierClaimPhotoGroup, PhotoItem } from './SupplierClaimPhotoGroup';
+import { parseJson, photosFromPaths, buildPhotoMeta, addPhotosToGroup, uploadPhotoGroup } from './supplierClaimPhotoHelpers';
 import { MATERIAL_TYPES, MATERIAL_TYPE_ORDER, normalizeMaterialType, type SupplierClaimMaterialType } from '@/src/lib/supplierClaimMaterialType';
 import type { SupplierClaim, SupplierClaimInput, SupplierClaimRejectItem, SupplierClaimAction } from '@/src/lib/supplierClaimsStore';
 
-const PHOTO_BUCKET = 'supplier-claim-photos';
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const AI_FALLBACK_MESSAGE = 'La IA no respondió (Gemini está con alta demanda), así que se usó un texto base sin redactar. Ábrelo con "Editar" y pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
@@ -18,34 +15,6 @@ interface Props {
   initial?: SupplierClaim;
   onCancel: () => void;
   onSaved: () => Promise<void>;
-}
-
-async function parseJson(res: Response) {
-  try {
-    return await res.json();
-  } catch {
-    throw new Error('El servidor no respondió correctamente. Intenta de nuevo.');
-  }
-}
-
-function photosFromPaths(paths: string[], meta: Record<string, PhotoMeta> = {}): PhotoItem[] {
-  return paths.map(p => ({
-    key: p,
-    path: p,
-    previewUrl: `/api/supplier-claims/photo?path=${encodeURIComponent(p)}`,
-    comment: meta[p]?.comentario || '',
-    marks: meta[p]?.marcas || []
-  }));
-}
-
-/** Comentario y marcas de cada foto, indexados por la ruta final que tuvo en Storage. */
-function buildPhotoMeta(group: PhotoItem[], paths: string[]): Record<string, PhotoMeta> {
-  const meta: Record<string, PhotoMeta> = {};
-  group.forEach((photo, i) => {
-    const comentario = photo.comment.trim();
-    if (paths[i] && (comentario || photo.marks.length > 0)) meta[paths[i]] = { comentario, marcas: photo.marks };
-  });
-  return meta;
 }
 
 export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved }) => {
@@ -68,41 +37,6 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busy = status !== null;
-
-  const addPhotos = async (files: File[], setGroup: React.Dispatch<React.SetStateAction<PhotoItem[]>>) => {
-    const added: PhotoItem[] = [];
-    for (const file of files) {
-      const compressed = await compressImageFile(file);
-      const blob = await (await fetch(compressed.previewUrl)).blob();
-      const jpeg = new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
-      added.push({ key: `${Date.now()}-${Math.random()}`, file: jpeg, previewUrl: compressed.previewUrl, comment: '', marks: [] });
-    }
-    setGroup(prev => [...prev, ...added].slice(0, MAX_PHOTOS_PER_GROUP));
-  };
-
-  /** Sube las fotos nuevas a Storage y devuelve los paths finales del grupo. */
-  const uploadPhoto = async (photo: PhotoItem): Promise<string | null> => {
-    if (photo.path) return photo.path;
-    if (!photo.file) return null;
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) throw new Error('Carga de fotos no disponible: falta configuración del servidor.');
-    const urlRes = await fetch('/api/supplier-claims/upload-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: photo.file.name })
-    });
-    const urlData = await parseJson(urlRes);
-    if (!urlRes.ok || !urlData.success) throw new Error(urlData.error || 'No se pudo iniciar la carga de la foto.');
-    const { error: upErr } = await supabase.storage.from(PHOTO_BUCKET).uploadToSignedUrl(urlData.storagePath, urlData.token, photo.file, { contentType: 'image/jpeg' });
-    if (upErr) throw new Error(upErr.message);
-    return urlData.storagePath;
-  };
-
-  /** Sube las fotos nuevas a Storage en paralelo y devuelve los paths finales del grupo. */
-  const uploadGroup = async (group: PhotoItem[]): Promise<string[]> => {
-    const paths = await Promise.all(group.map(uploadPhoto));
-    return paths.filter((p): p is string => p !== null);
-  };
 
   const requestDraft = async (defectoPaths: string[]) => {
     const res = await fetch('/api/supplier-claims/generate', {
@@ -128,7 +62,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
     setError(null);
     try {
       setStatus('Subiendo fotos...');
-      const uploaded = await uploadGroup(defectos);
+      const uploaded = await uploadPhotoGroup(defectos);
       setDefectos(prev => prev.map((p, i) => ({ ...p, path: uploaded[i], file: undefined })));
       setStatus('Redactando informe con IA...');
       const draft = await requestDraft(uploaded);
@@ -152,7 +86,7 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
 
     try {
       setStatus('Subiendo fotos...');
-      const [etiquetaPaths, defectoPaths] = await Promise.all([uploadGroup(etiquetas), uploadGroup(defectos)]);
+      const [etiquetaPaths, defectoPaths] = await Promise.all([uploadPhotoGroup(etiquetas), uploadPhotoGroup(defectos)]);
 
       let draft = { defectoTitulo, descripcionNc, observacionesTecnicas: observaciones.split('\n').map(o => o.trim()).filter(Boolean), accionesCorrectivas: acciones, generadoPorIa: true };
       let aiFailed = false;
@@ -241,8 +175,8 @@ export const SupplierClaimForm: React.FC<Props> = ({ initial, onCancel, onSaved 
         <div className="sm:col-span-2"><label className={LABEL}>Número(s) de lote</label><input className={INPUT} value={lotes} onChange={e => setLotes(e.target.value)} placeholder="Ej: N° 15135-1" /></div>
       </div>
 
-      <SupplierClaimPhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotos(f, setEtiquetas)} onRemove={removePhoto(setEtiquetas)} onUpdate={updatePhoto(setEtiquetas)} />
-      <SupplierClaimPhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotos(f, setDefectos)} onRemove={removePhoto(setDefectos)} onUpdate={updatePhoto(setDefectos)} />
+      <SupplierClaimPhotoGroup title="Fotos de la etiqueta del material (trazabilidad)" photos={etiquetas} disabled={busy} onAdd={f => addPhotosToGroup(f, setEtiquetas)} onRemove={removePhoto(setEtiquetas)} onUpdate={updatePhoto(setEtiquetas)} />
+      <SupplierClaimPhotoGroup title="Fotos del defecto *" photos={defectos} disabled={busy} onAdd={f => addPhotosToGroup(f, setDefectos)} onRemove={removePhoto(setDefectos)} onUpdate={updatePhoto(setDefectos)} />
 
       <div>
         <label className={LABEL}>Novedad encontrada / tu análisis *</label>
