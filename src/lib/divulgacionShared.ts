@@ -36,6 +36,14 @@ export const PROCESS_SECTIONS = [
   'ENSAMBLE. BOGOTÁ'
 ];
 
+/** Datos que casi siempre son los mismos en la planilla (los de la planilla original); el formulario los trae preestablecidos y se pueden cambiar. */
+export const DEFAULT_SESSION = {
+  responsable: 'Edwin Bedoya',
+  procesoArea: 'Calidad',
+  duracion: '20 Minutos',
+  tipo: 'divulgacion' as DivulgacionKind
+};
+
 export const KIND_LABELS: Record<DivulgacionKind, string> = {
   capacitacion: 'Capacitación',
   divulgacion: 'Divulgación',
@@ -69,8 +77,7 @@ export function objectiveFromCommunique(intro: string | null): string {
   return firstSentence ? firstSentence.charAt(0).toUpperCase() + firstSentence.slice(1) : '';
 }
 
-/** Datos de la planilla que se pueden tomar de un comunicado ya creado. */
-export function fieldsFromCommunique(c: Communique): { tema: string; objetivo: string; responsable: string; procesoArea: string } {
-  const quality = c.firmantes.find(f => /calidad/i.test(f.cargo));
-  return { tema: c.asunto, objetivo: objectiveFromCommunique(c.intro), responsable: (quality || c.firmantes[0])?.nombre || '', procesoArea: c.para };
+/** Datos de la planilla que se toman de un comunicado ya creado: el tema y el objetivo (el responsable, el proceso y la duración se conservan). */
+export function fieldsFromCommunique(c: Communique): { tema: string; objetivo: string } {
+  return { tema: c.asunto, objetivo: objectiveFromCommunique(c.intro) };
 }

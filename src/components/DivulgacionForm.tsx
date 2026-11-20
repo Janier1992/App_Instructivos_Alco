@@ -6,7 +6,7 @@ import { DocumentTypeTiles, type DocumentType } from './DocumentTypeTiles';
 import { SignatureDialog } from './SignatureDialog';
 import type { Communique } from '@/src/lib/communiqueStore';
 import type { Divulgacion, DivulgacionInput, DivulgacionKind } from '@/src/lib/divulgacionStore';
-import { KIND_LABELS, KIND_ORDER, PROCESS_SECTIONS, fieldsFromCommunique } from '@/src/lib/divulgacionShared';
+import { DEFAULT_SESSION, KIND_LABELS, KIND_ORDER, PROCESS_SECTIONS, fieldsFromCommunique } from '@/src/lib/divulgacionShared';
 
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
@@ -37,13 +37,13 @@ const isBlank = (r: AttendeeRow) => !r.nombre.trim() && !r.cedula.trim() && !r.p
 
 /** Planilla de asistencia: datos de la sesión (que se pueden tomar de un comunicado ya creado) y la lista de colaboradores con su cédula, proceso o sección y firma. */
 export const DivulgacionForm: React.FC<Props> = ({ initial, onCancel, onSaved, onSelectType }) => {
-  const [tipo, setTipo] = useState<DivulgacionKind>(initial?.tipo || 'divulgacion');
+  const [tipo, setTipo] = useState<DivulgacionKind>(initial?.tipo || DEFAULT_SESSION.tipo);
   const [fecha, setFecha] = useState(initial?.fecha || new Date().toISOString().split('T')[0]);
   const [tema, setTema] = useState(initial?.tema || '');
   const [objetivo, setObjetivo] = useState(initial?.objetivo || '');
-  const [responsable, setResponsable] = useState(initial?.responsable || '');
-  const [procesoArea, setProcesoArea] = useState(initial?.procesoArea || '');
-  const [duracion, setDuracion] = useState(initial?.duracion || '');
+  const [responsable, setResponsable] = useState(initial?.responsable || DEFAULT_SESSION.responsable);
+  const [procesoArea, setProcesoArea] = useState(initial?.procesoArea || DEFAULT_SESSION.procesoArea);
+  const [duracion, setDuracion] = useState(initial?.duracion || DEFAULT_SESSION.duracion);
   const [evaluacionDias, setEvaluacionDias] = useState(initial?.evaluacionDias || '');
   const [evaluador, setEvaluador] = useState(initial?.evaluador || '');
   const [resultados, setResultados] = useState(initial?.resultados || '');
@@ -86,8 +86,6 @@ export const DivulgacionForm: React.FC<Props> = ({ initial, onCancel, onSaved, o
     const fields = fieldsFromCommunique(c);
     setTema(fields.tema);
     setObjetivo(fields.objetivo);
-    setResponsable(fields.responsable);
-    setProcesoArea(fields.procesoArea);
     setComunicado({ id: c.id, asunto: c.asunto });
     setPickerOpen(false);
     setSearch('');
@@ -190,30 +188,40 @@ export const DivulgacionForm: React.FC<Props> = ({ initial, onCancel, onSaved, o
             <button type="button" onClick={() => setPickerOpen(false)} className="text-[11px] font-semibold text-slate-500 hover:underline">Cerrar búsqueda</button>
           </div>
         )}
-        <p className="text-[10px] text-slate-500">Al elegirlo se llenan el tema, el objetivo, el responsable y el proceso. Puedes ajustarlos.</p>
-      </div>
-
-      <div>
-        <label className={LABEL}>Tipo de sesión *</label>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de sesión">
-          {KIND_ORDER.map(kind => (
-            <button key={kind} type="button" role="radio" aria-checked={tipo === kind} onClick={() => setTipo(kind)} className={`px-2 py-2 rounded-lg border text-xs font-bold transition ${tipo === kind ? 'bg-[#003366] border-[#003366] text-white' : 'bg-slate-50 border-slate-300 text-slate-600 hover:border-[#003366]'}`}>{KIND_LABELS[kind]}</button>
-          ))}
-        </div>
+        <p className="text-[10px] text-slate-500">Al elegirlo se llenan el tema y el objetivo. Puedes ajustarlos.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className={LABEL}>Fecha *</label><input type="date" className={INPUT} value={fecha} onChange={e => setFecha(e.target.value)} /></div>
-        <div><label className={LABEL}>Duración</label><input className={INPUT} value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="Ej: 20 Minutos" /></div>
         <div className="sm:col-span-2"><label className={LABEL}>Tema *</label><input className={INPUT} value={tema} onChange={e => setTema(e.target.value)} placeholder="Ej: Marco del vidrio para exportación" /></div>
         <div className="sm:col-span-2"><label className={LABEL}>Objetivo</label><textarea className={INPUT} rows={2} value={objetivo} onChange={e => setObjetivo(e.target.value)} placeholder="Ej: Estandarizar la marcación en el canto del vidrio que se va a exportar" /></div>
-        <div><label className={LABEL}>Responsable del tema *</label><input className={INPUT} value={responsable} onChange={e => setResponsable(e.target.value)} /></div>
-        <div>
-          <label className={LABEL}>Proceso/área</label>
-          <input className={INPUT} list="divulgacion-procesos" value={procesoArea} onChange={e => setProcesoArea(e.target.value)} placeholder="Elige de la lista o escribe" />
-          <datalist id="divulgacion-procesos">{PROCESS_SECTIONS.map(p => <option key={p} value={p} />)}</datalist>
-        </div>
       </div>
+
+      <details className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+        <summary className="text-xs font-bold text-slate-700 cursor-pointer">
+          Datos de la planilla: {KIND_LABELS[tipo]} · {responsable || 'sin responsable'} · {procesoArea || 'sin proceso'} · {duracion || 'sin duración'}
+          <span className="block text-[10px] font-normal text-slate-500">Vienen preestablecidos; ábrelos solo si necesitas cambiarlos.</span>
+        </summary>
+        <div className="mt-3 space-y-3">
+          <div>
+            <label className={LABEL}>Tipo de sesión *</label>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de sesión">
+              {KIND_ORDER.map(kind => (
+                <button key={kind} type="button" role="radio" aria-checked={tipo === kind} onClick={() => setTipo(kind)} className={`px-2 py-2 rounded-lg border text-xs font-bold transition ${tipo === kind ? 'bg-[#003366] border-[#003366] text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-[#003366]'}`}>{KIND_LABELS[kind]}</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label className={LABEL}>Responsable del tema *</label><input className={INPUT} value={responsable} onChange={e => setResponsable(e.target.value)} /></div>
+            <div>
+              <label className={LABEL}>Proceso/área</label>
+              <input className={INPUT} list="divulgacion-procesos" value={procesoArea} onChange={e => setProcesoArea(e.target.value)} placeholder="Elige de la lista o escribe" />
+              <datalist id="divulgacion-procesos">{PROCESS_SECTIONS.map(p => <option key={p} value={p} />)}</datalist>
+            </div>
+            <div><label className={LABEL}>Duración</label><input className={INPUT} value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="Ej: 20 Minutos" /></div>
+          </div>
+        </div>
+      </details>
 
       <section className="space-y-2" aria-label="Asistencia">
         <div className="flex items-center justify-between">
