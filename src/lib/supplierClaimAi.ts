@@ -29,6 +29,8 @@ export interface SupplierClaimDraft {
   observacionesTecnicas: string[];
   accionesCorrectivas: SupplierClaimAction[];
   generadoPorIa: boolean;
+  /** Por qué se usó el texto base, cuando la IA no respondió. */
+  motivo?: string;
 }
 
 function describeRejects(items: SupplierClaimRejectItem[] | undefined): string {
@@ -93,7 +95,7 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 }
 
 /** Texto base cuando la IA no está disponible: el informe se puede generar igual y editar después. */
-export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClaimDraft {
+export function buildFallbackDraft(input: SupplierClaimDraftInput, motivo?: string): SupplierClaimDraft {
   return {
     defectoTitulo: '',
     descripcionNc:
@@ -107,7 +109,8 @@ export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClai
       { titulo: 'Control de calidad en origen', detalle: `Solicitamos amablemente considerar una inspección previa al despacho de la referencia ${input.referencias}.` },
       { titulo: 'Reposición del material rechazado', detalle: 'Agradecemos el envío de unidades sin la novedad reportada, con previa verificación de calidad.' }
     ],
-    generadoPorIa: false
+    generadoPorIa: false,
+    motivo
   };
 }
 
@@ -128,6 +131,6 @@ function draftFromParsed(parsed: any): SupplierClaimDraft {
 export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput): Promise<SupplierClaimDraft> {
   const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
   const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
-  const parsed = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor');
-  return parsed ? draftFromParsed(parsed) : buildFallbackDraft(input);
+  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor');
+  return data ? draftFromParsed(data) : buildFallbackDraft(input, motivo);
 }

@@ -12,7 +12,7 @@ const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
 const MAX_DOCUMENT_MB = 8;
 const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.txt';
 const DOCUMENT_MIME: Record<string, string> = { pdf: 'application/pdf', txt: 'text/plain', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
-const AI_FALLBACK_MESSAGE = 'La IA no respondió (Gemini está con alta demanda), así que se usó un texto base sin redactar. Pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.';
+const fallbackMessage = (motivo?: string) => `La IA no pudo redactar el documento${motivo ? ` (${motivo})` : ''}, así que se usó un texto base. Pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.`;
 
 /** Documento de referencia del formulario: ya guardado (path en Storage) o recién elegido (archivo pendiente de subir). */
 interface DocItem {
@@ -30,6 +30,14 @@ interface Draft {
   cierre: string;
   sugerencias: string[];
   generadoPorIa: boolean;
+  motivo?: string;
+}
+
+/** Qué fuentes leyó la IA: documentos de referencia, los que no pudo leer y cantidad de imágenes. */
+interface Sources {
+  documentosLeidos: string[];
+  documentosOmitidos: string[];
+  imagenes: number;
 }
 
 interface Props {
@@ -82,7 +90,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     return uploaded.filter(d => d.path).map(d => ({ path: d.path as string, nombre: d.nombre }));
   };
 
-  const requestDraft = async (fotoPaths: string[], docs: CommuniqueDocument[]): Promise<Draft> => {
+  const requestDraft = async (fotoPaths: string[], docs: CommuniqueDocument[]): Promise<{ draft: Draft; fuentes: Sources }> => {
     const res = await fetch('/api/communiques/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -90,16 +98,26 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el comunicado.');
-    return data.draft as Draft;
+    return { draft: data.draft as Draft, fuentes: data.fuentes as Sources };
   };
 
-  const applyDraft = (draft: Draft) => {
+  /** Aviso con lo que la IA usó como fuente y lo que sugiere para mejorar el documento. */
+  const buildNotice = (draft: Draft, fuentes: Sources): string | null => {
+    const parts: string[] = [];
+    if (fuentes.documentosLeidos.length) parts.push(`La IA leyó: ${fuentes.documentosLeidos.join(', ')}.`);
+    if (fuentes.documentosOmitidos.length) parts.push(`No pudo usar: ${fuentes.documentosOmitidos.join(', ')}.`);
+    if (fuentes.imagenes) parts.push(`Revisó ${fuentes.imagenes} imagen${fuentes.imagenes > 1 ? 'es' : ''}.`);
+    if (draft.sugerencias.length) parts.push(`Para mejorar el documento: ${draft.sugerencias.join(' ')}`);
+    return parts.length ? parts.join(' ') : null;
+  };
+
+  const applyDraft = (draft: Draft, fuentes: Sources) => {
     setAsunto(draft.asunto || asunto);
     setIntro(draft.intro);
     setPasos(draft.pasos);
     setCierre(draft.cierre);
     setTextOpen(true);
-    setNotice(draft.sugerencias.length ? `Para mejorar el documento: ${draft.sugerencias.join(' ')}` : null);
+    setNotice(buildNotice(draft, fuentes));
     setFotos(prev => prev.map((f, i) => ({ ...f, comment: f.comment.trim() || draft.pies[i] || '' })));
   };
 
@@ -124,9 +142,9 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     try {
       const { fotoPaths, docs } = await uploadAll();
       setStatus('Redactando con IA...');
-      const draft = await requestDraft(fotoPaths, docs);
-      applyDraft(draft);
-      if (!draft.generadoPorIa) setError(AI_FALLBACK_MESSAGE);
+      const { draft, fuentes } = await requestDraft(fotoPaths, docs);
+      applyDraft(draft, fuentes);
+      if (!draft.generadoPorIa) setError(fallbackMessage(draft.motivo));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -147,10 +165,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       if (pasos.length === 0) {
         setStatus('Redactando con IA...');
         try {
-          const draft = await requestDraft(fotoPaths, docs);
+          const { draft, fuentes } = await requestDraft(fotoPaths, docs);
           text = { asunto: draft.asunto || asunto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre };
-          if (!draft.generadoPorIa) aiNote = AI_FALLBACK_MESSAGE;
-          else if (draft.sugerencias.length) aiNote = `El documento se guardó. Para mejorarlo: ${draft.sugerencias.join(' ')} Ábrelo con "Editar" y pulsa "Regenerar con IA" cuando lo tengas.`;
+          if (!draft.generadoPorIa) aiNote = fallbackMessage(draft.motivo);
+          else aiNote = buildNotice(draft, fuentes) && `El documento se guardó. ${buildNotice(draft, fuentes)}`;
         } catch {
           // El comunicado no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
           aiNote = 'El comunicado se guardó, pero la IA no alcanzó a redactar el texto. Ábrelo con "Editar" y pulsa "Generar texto con IA" para completarlo.';

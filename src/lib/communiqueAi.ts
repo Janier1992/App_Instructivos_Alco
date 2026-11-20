@@ -34,6 +34,8 @@ export interface CommuniqueDraft {
   /** Avisos para el colaborador (qué adjuntar o precisar); no van dentro del documento. */
   sugerencias: string[];
   generadoPorIa: boolean;
+  /** Por qué se usó el texto base, cuando la IA no respondió. */
+  motivo?: string;
 }
 
 function describeDraft(borrador: CommuniqueDraftInput['borrador']): string {
@@ -91,7 +93,7 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 }
 
 /** Texto base cuando la IA no está disponible: el comunicado se puede generar igual y editar después. */
-export function buildFallbackDraft(input: CommuniqueDraftInput): CommuniqueDraft {
+export function buildFallbackDraft(input: CommuniqueDraftInput, motivo?: string): CommuniqueDraft {
   return {
     asunto: input.asunto,
     intro: `${KIND_CONFIG[input.tipo].opening} ${input.contexto.trim()}`,
@@ -99,7 +101,8 @@ export function buildFallbackDraft(input: CommuniqueDraftInput): CommuniqueDraft
     pies: input.piesFotos,
     cierre: DEFAULT_CLOSING,
     sugerencias: [],
-    generadoPorIa: false
+    generadoPorIa: false,
+    motivo
   };
 }
 
@@ -130,6 +133,6 @@ function buildParts(input: CommuniqueDraftInput): any[] {
 
 export async function generateCommuniqueDraft(input: CommuniqueDraftInput): Promise<CommuniqueDraft> {
   const contents = [{ role: 'user', parts: buildParts(input) }];
-  const parsed = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado');
-  return parsed ? draftFromParsed(parsed, input) : buildFallbackDraft(input);
+  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado');
+  return data ? draftFromParsed(data, input) : buildFallbackDraft(input, motivo);
 }

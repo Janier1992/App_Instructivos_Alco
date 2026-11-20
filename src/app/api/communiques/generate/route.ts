@@ -58,17 +58,23 @@ export async function POST(request: NextRequest) {
     const images = supabase
       ? (await Promise.all(photoPaths.map(async path => ({ buffer: await download(supabase, path), mimeType: mimeFromPath(path) })))).filter((i): i is { buffer: Buffer; mimeType: string } => i.buffer !== null)
       : [];
-    const documents = supabase
-      ? (await Promise.all(docList.map(async d => ({ buffer: await download(supabase, d.path), mimeType: mimeFromPath(d.path), nombre: d.nombre }))))
-          .filter((d): d is { buffer: Buffer; mimeType: string; nombre: string } => d.buffer !== null && d.buffer.length <= MAX_DOCUMENT_BYTES)
-      : [];
+    const downloadedDocs = supabase ? await Promise.all(docList.map(async d => ({ buffer: await download(supabase, d.path), mimeType: mimeFromPath(d.path), nombre: d.nombre }))) : [];
+    const documents = downloadedDocs.filter((d): d is { buffer: Buffer; mimeType: string; nombre: string } => d.buffer !== null && d.buffer.length <= MAX_DOCUMENT_BYTES);
+    // Qué fuentes leyó realmente la IA: se muestra en el formulario para que el colaborador sepa si su adjunto se tuvo en cuenta.
+    const fuentes = {
+      documentosLeidos: documents.map(d => d.nombre),
+      documentosOmitidos: downloadedDocs
+        .filter(d => !documents.includes(d as (typeof documents)[number]))
+        .map(d => `${d.nombre} (${d.buffer ? `pesa más de ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB` : 'no se pudo leer'})`),
+      imagenes: images.length
+    };
 
     const draft = await generateCommuniqueDraft({
       tipo: normalizeKind(tipo), de, para, asunto, contexto,
       piesFotos: photoPaths.map((_, i) => pies[i] || ''),
       images, documents, borrador: cleanDraft(borrador)
     });
-    return NextResponse.json({ success: true, draft });
+    return NextResponse.json({ success: true, draft, fuentes });
   } catch (err: any) {
     console.error('Error generando comunicado:', err);
     return NextResponse.json({ error: err?.message || 'Error interno del servidor.' }, { status: 500 });
