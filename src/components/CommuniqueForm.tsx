@@ -28,6 +28,7 @@ interface Draft {
   pasos: CommuniqueStep[];
   pies: string[];
   cierre: string;
+  sugerencias: string[];
   generadoPorIa: boolean;
 }
 
@@ -56,6 +57,8 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [firmantes, setFirmantes] = useState<CommuniqueSigner[]>(initial?.firmantes || DEFAULT_SIGNERS);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [textOpen, setTextOpen] = useState(Boolean(initial));
   const busy = status !== null;
 
   const addDocuments = (files: FileList | null) => {
@@ -83,7 +86,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     const res = await fetch('/api/communiques/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, de, para, asunto, contexto, fotoPaths, piesFotos: fotos.map(f => f.comment.trim()), documentos: docs })
+      body: JSON.stringify({ tipo, de, para, asunto, contexto, fotoPaths, piesFotos: fotos.map(f => f.comment.trim()), documentos: docs, borrador: { intro, pasos, cierre } })
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el comunicado.');
@@ -95,6 +98,8 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     setIntro(draft.intro);
     setPasos(draft.pasos);
     setCierre(draft.cierre);
+    setTextOpen(true);
+    setNotice(draft.sugerencias.length ? `Para mejorar el documento: ${draft.sugerencias.join(' ')}` : null);
     setFotos(prev => prev.map((f, i) => ({ ...f, comment: f.comment.trim() || draft.pies[i] || '' })));
   };
 
@@ -115,6 +120,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     const problem = validate();
     if (problem) return setError(problem);
     setError(null);
+    setNotice(null);
     try {
       const { fotoPaths, docs } = await uploadAll();
       setStatus('Redactando con IA...');
@@ -138,12 +144,13 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       const { fotoPaths, docs } = await uploadAll();
       let text = { asunto, intro, pasos, cierre };
       let aiNote: string | null = null;
-      if (!intro.trim()) {
+      if (pasos.length === 0) {
         setStatus('Redactando con IA...');
         try {
           const draft = await requestDraft(fotoPaths, docs);
           text = { asunto: draft.asunto || asunto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre };
           if (!draft.generadoPorIa) aiNote = AI_FALLBACK_MESSAGE;
+          else if (draft.sugerencias.length) aiNote = `El documento se guardó. Para mejorarlo: ${draft.sugerencias.join(' ')} Ábrelo con "Editar" y pulsa "Regenerar con IA" cuando lo tengas.`;
         } catch {
           // El comunicado no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
           aiNote = 'El comunicado se guardó, pero la IA no alcanzó a redactar el texto. Ábrelo con "Editar" y pulsa "Generar texto con IA" para completarlo.';
@@ -206,8 +213,11 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       </div>
 
       <div>
-        <label className={LABEL}>¿Qué se comunica? *</label>
-        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Describe el cambio, la mejora de diseño o el producto nuevo: qué cambia, en qué áreas aplica, cómo se debe hacer. La IA lo redactará con la plantilla oficial y con los documentos de referencia." />
+        <label className={LABEL}>¿Qué se comunica o qué quieres que redacte la IA? *</label>
+        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción: por ejemplo, &quot;explica en detalle el proceso de ensamble de este marco&quot;. La IA completa el documento con la plantilla oficial y los documentos de referencia." />
+        <button type="button" onClick={regenerate} disabled={busy} className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
+          <Sparkles className="w-3 h-3" /> {pasos.length ? 'Regenerar con IA' : 'Generar texto con IA'}
+        </button>
       </div>
 
       <div className="space-y-2">
@@ -227,10 +237,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
       <SupplierClaimPhotoGroup title="Imágenes del comunicado (el comentario de cada una es su pie de foto)" photos={fotos} disabled={busy} onAdd={f => addPhotosToGroup(f, setFotos)} onRemove={removePhoto} onUpdate={updatePhoto} />
 
-      <details className="border border-slate-200 rounded-xl p-3 bg-slate-50" open={Boolean(initial)}>
+      <details className="border border-slate-200 rounded-xl p-3 bg-slate-50" open={textOpen} onToggle={e => setTextOpen(e.currentTarget.open)}>
         <summary className="text-xs font-bold text-slate-700 cursor-pointer">Texto del documento (lo redacta la IA; puedes ajustarlo)</summary>
         <div className="space-y-3 mt-3">
-          <div><label className={LABEL}>Introducción</label><textarea className={INPUT} rows={4} value={intro} onChange={e => setIntro(e.target.value)} placeholder="Se genera con IA. Puedes resaltar términos con **asteriscos dobles**." /></div>
+          <div><label className={LABEL}>Introducción</label><textarea className={INPUT} rows={4} value={intro} onChange={e => setIntro(e.target.value)} placeholder="La redacta la IA. Si la ajustas aquí, pulsa &quot;Regenerar con IA&quot; para que la IA pula tu versión. Puedes resaltar términos con **asteriscos dobles**." /></div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className={LABEL + ' mb-0'}>{KIND_CONFIG[tipo].stepsHeading.replace(/:$/, '')}</label>
@@ -260,12 +270,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
               </div>
             ))}
           </div>
-          <button type="button" onClick={regenerate} disabled={busy} className="flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
-            <RefreshCw className="w-3 h-3" /> {intro ? 'Regenerar con IA' : 'Generar texto con IA'}
-          </button>
         </div>
       </details>
 
+      {notice && <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-900">{notice}</div>}
       {error && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">{error}</div>}
 
       <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">

@@ -21,6 +21,8 @@ export interface CommuniqueDraftInput {
   images: { buffer: Buffer; mimeType: string }[];
   /** Documentos de referencia: PDF e imágenes se envían a Gemini; el texto plano va dentro del prompt. */
   documents: { buffer: Buffer; mimeType: string; nombre: string }[];
+  /** Texto que ya tiene el formulario: puede ser un borrador a mejorar o instrucciones dirigidas a la IA. */
+  borrador?: { intro: string; pasos: CommuniqueStep[]; cierre: string };
 }
 
 export interface CommuniqueDraft {
@@ -29,7 +31,17 @@ export interface CommuniqueDraft {
   pasos: CommuniqueStep[];
   pies: string[];
   cierre: string;
+  /** Avisos para el colaborador (qué adjuntar o precisar); no van dentro del documento. */
+  sugerencias: string[];
   generadoPorIa: boolean;
+}
+
+function describeDraft(borrador: CommuniqueDraftInput['borrador']): string {
+  const pasos = (borrador?.pasos || []).map((p, i) => `${i + 1}) ${p.titulo} ${p.detalle}`).join(' ');
+  const text = [borrador?.intro?.trim(), pasos].filter(Boolean).join(' | ');
+  return text
+    ? `\nBORRADOR ACTUAL DEL FORMULARIO: ${text}\nEl borrador puede traer instrucciones dirigidas a ti en vez de texto final (por ejemplo "genera una explicación detallada del proceso"): si es así, cúmplelas. Si ya es texto, mejóralo (ortografía, claridad, detalle) y conserva lo que esté correcto.\n`
+    : '';
 }
 
 function buildPrompt(input: CommuniqueDraftInput): string {
@@ -42,19 +54,22 @@ DATOS
 - De: ${input.de}
 - Para: ${input.para}
 - Asunto propuesto: ${input.asunto}
-- Lo que se comunica, según el colaborador: ${input.contexto}
+- Lo que pide el colaborador: ${input.contexto}
+  Puede ser una descripción del cambio o una instrucción dirigida a ti (por ejemplo "genera una explicación detallada del proceso"). Si es una instrucción, cúmplela y desarrolla el contenido completo del documento.
 - Pies de foto escritos por el colaborador (en el orden de las ${input.piesFotos.length} imágenes adjuntas): ${input.piesFotos.map((p, i) => `${i + 1}) ${p || '(sin pie)'}`).join(' | ') || 'no hay imágenes'}
 - Documentos de referencia adjuntos: ${docs}
-
+${describeDraft(input.borrador)}
 FUENTES
 - Las imágenes y los documentos de referencia (por ejemplo una ficha técnica) vienen adjuntos antes de este texto. Úsalos como fuente de las especificaciones, medidas, normas y pasos. Lo que diga el colaborador manda sobre cualquier otra fuente.
-- No inventes especificaciones, medidas, normas, fechas ni nombres que no aparezcan en lo anterior. Si falta un dato, no lo menciones.
+- No inventes cifras, medidas, torques, tiempos, normas, referencias, fechas ni nombres que no aparezcan en lo anterior. Cuando falte un dato técnico específico, redacta el paso de forma general y verificable, basado en las buenas prácticas de ensamble, producción y control de calidad, y remite al documento correspondiente ("según la ficha técnica del producto", "según la orden de producción").
+- El documento debe quedar COMPLETO y listo para divulgar: nunca dejes secciones vacías, ni pidas más información dentro del texto, ni repitas las instrucciones del colaborador como si fueran el contenido. Corrige los errores de ortografía de lo que escribió el colaborador, incluidos nombres de productos (por ejemplo "batiente" en lugar de "bantiente").
 
 ESTRUCTURA (igual a la plantilla oficial)
 - asunto: título corto y claro del tema, por ejemplo "Marcado de vidrio laminado templado claro". Si el propuesto ya es claro, consérvalo corregido; sin punto final.
 - intro: un párrafo que inicia con "${opening}" y explica con claridad qué cambia, a quién aplica y para qué. Marca con **dos asteriscos** hasta 3 términos clave (nombres de producto, marca o el cambio principal).
-- pasos: de 3 a 6 objetos { "titulo", "detalle" }, en orden de ejecución. "titulo" es una acción corta que termina en punto (por ejemplo "Identificar la composición del vidrio laminado."). "detalle" son 1 a 3 oraciones que explican cómo hacerlo, con los datos de la fuente.
+- pasos: de 4 a 7 objetos { "titulo", "detalle" }, en orden de ejecución. "titulo" es una acción corta que termina en punto (por ejemplo "Identificar la composición del vidrio laminado."). "detalle" son 1 a 3 oraciones que explican cómo hacerlo, con los datos de la fuente.
 - pies: arreglo con exactamente ${input.piesFotos.length} textos, uno por imagen, en el mismo orden. Si el colaborador escribió un pie, consérvalo corregido; si no, propón uno de máximo 8 palabras según lo que muestra la imagen. Sin punto final.
+- sugerencias: de 0 a 3 frases cortas dirigidas al colaborador sobre qué adjuntar o precisar para mejorar el documento (por ejemplo "Adjunta la ficha técnica para incluir las medidas exactas"). Arreglo vacío si no falta nada. No forman parte del documento.
 - cierre: una sola oración de agradecimiento por la atención y el compromiso, como "${DEFAULT_CLOSING}", adaptada al tema.
 
 TONO Y REDACCIÓN
@@ -70,6 +85,7 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
   "intro": "...",
   "pasos": [{ "titulo": "...", "detalle": "..." }],
   "pies": ["..."],
+  "sugerencias": ["..."],
   "cierre": "..."
 }`;
 }
@@ -82,6 +98,7 @@ export function buildFallbackDraft(input: CommuniqueDraftInput): CommuniqueDraft
     pasos: [],
     pies: input.piesFotos,
     cierre: DEFAULT_CLOSING,
+    sugerencias: [],
     generadoPorIa: false
   };
 }
@@ -99,6 +116,7 @@ function draftFromParsed(parsed: any, input: CommuniqueDraftInput): CommuniqueDr
       : [],
     pies: input.piesFotos.map((fallback, i) => (pies[i] || fallback).replace(/[.]+$/, '')),
     cierre: polishText(clean(parsed.cierre)) || DEFAULT_CLOSING,
+    sugerencias: Array.isArray(parsed.sugerencias) ? parsed.sugerencias.map(clean).filter(Boolean).slice(0, 3) : [],
     generadoPorIa: true
   };
 }
@@ -112,6 +130,6 @@ function buildParts(input: CommuniqueDraftInput): any[] {
 
 export async function generateCommuniqueDraft(input: CommuniqueDraftInput): Promise<CommuniqueDraft> {
   const contents = [{ role: 'user', parts: buildParts(input) }];
-  const parsed = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos), 'el comunicado');
+  const parsed = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado');
   return parsed ? draftFromParsed(parsed, input) : buildFallbackDraft(input);
 }
