@@ -10,15 +10,17 @@ import { KIND_LABELS, PROCESS_SECTIONS, formatSheetDate } from '@/src/lib/divulg
 const INPUT = 'w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const LABEL = 'text-xs font-bold text-slate-600 block mb-1.5';
 const MIN_ID_DIGITS = 5;
+const SEARCH_FROM = 6;
 
 /**
  * Página pública de registro de asistencia (/asistencia): un único enlace, el mismo para todos los colaboradores.
- * Quien lo abre elige la divulgación (la más reciente ya viene elegida) y registra su nombre, cédula, proceso o
+ * Quien lo abre elige la divulgación y registra su nombre, cédula, proceso o
  * sección y firma dibujada con el dedo, pensado para el celular. No muestra a los demás asistentes.
  */
 export const AttendanceRegistration: React.FC = () => {
   const [sessions, setSessions] = useState<DivulgacionPublic[] | null>(null);
   const [token, setToken] = useState('');
+  const [search, setSearch] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
   const [cedula, setCedula] = useState('');
@@ -36,14 +38,15 @@ export const AttendanceRegistration: React.FC = () => {
         if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo abrir el registro.');
         const list = data.divulgaciones as DivulgacionPublic[];
         setSessions(list);
-        // El enlace directo a una divulgación (?d=<código>) la deja elegida; si no, la más reciente.
+        // Solo el enlace directo a una divulgación (?d=<código>) la deja elegida; con el enlace general cada quien elige la suya.
         const wanted = new URLSearchParams(window.location.search).get('d');
-        setToken(list.find(s => s.token === wanted)?.token ?? list[0]?.token ?? '');
+        setToken(list.find(s => s.token === wanted)?.token ?? '');
       })
       .catch(err => setLoadError(err.message));
   }, []);
 
   const info = sessions?.find(s => s.token === token) ?? null;
+  const visible = (sessions ?? []).filter(s => s.token === token || `${s.tema} ${s.responsable}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,24 +108,28 @@ export const AttendanceRegistration: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 p-5 text-sm text-slate-600">Por ahora no hay divulgaciones abiertas para registrar asistencia. Pídele a quien dicta la divulgación que la cree en la aplicación.</div>
         )}
 
-        {info && (
-          <>
-            <section className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
-              {sessions!.length > 1 && (
-                <div>
-                  <label className={LABEL}>¿A qué divulgación asististe? *</label>
-                  <select className={INPUT} value={token} onChange={e => setToken(e.target.value)}>
-                    {sessions!.map(s => <option key={s.token} value={s.token}>{formatSheetDate(s.fecha)} · {s.tema}</option>)}
-                  </select>
-                </div>
-              )}
-              <div className="space-y-1">
+        {sessions && sessions.length > 0 && (
+          <section className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+            <div>
+              <label className={LABEL}>¿A qué divulgación asististe? *</label>
+              {sessions.length > SEARCH_FROM && <input className={`${INPUT} mb-2`} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por tema o responsable" aria-label="Buscar divulgación" />}
+              <select className={INPUT} value={token} onChange={e => setToken(e.target.value)} aria-label="Divulgación">
+                <option value="">Elige la divulgación</option>
+                {visible.map(s => <option key={s.token} value={s.token}>{formatSheetDate(s.fecha)} · {s.tema}</option>)}
+              </select>
+            </div>
+            {info && (
+              <div className="space-y-1 border-t border-slate-100 pt-3">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{KIND_LABELS[info.tipo]} · {formatSheetDate(info.fecha)}</p>
                 <p className="text-sm font-bold text-slate-900">{info.tema}</p>
                 <p className="text-xs text-slate-500">Responsable: {info.responsable}</p>
               </div>
-            </section>
+            )}
+          </section>
+        )}
 
+        {info && (
+          <>
             {done ? (
               <section className="bg-white rounded-2xl border border-emerald-200 p-5 text-center space-y-3">
                 <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
