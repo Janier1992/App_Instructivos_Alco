@@ -92,7 +92,9 @@ export async function callOpenRouterModel(
   userPrompt: string,
   historyMessages: { role: 'user' | 'assistant'; content: string }[] = [],
   /** Tope de espera total (lo que quede del presupuesto de la consulta). */
-  maxWaitMs: number = OPENROUTER_TIMEOUT_MS
+  maxWaitMs: number = OPENROUTER_TIMEOUT_MS,
+  /** Para respuestas largas (por ejemplo un JSON completo): sube el tope total y el de cada modelo, que por defecto son los del chat. */
+  limits: { totalMs?: number; perModelMs?: number } = {}
 ): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -103,12 +105,13 @@ export async function callOpenRouterModel(
     { role: 'user', content: userPrompt }
   ];
   const models = getOpenRouterModels().filter(m => Date.now() >= (modelDisabledUntilMs.get(m) ?? 0));
-  const deadline = Date.now() + Math.min(OPENROUTER_TIMEOUT_MS, maxWaitMs);
+  const deadline = Date.now() + Math.min(limits.totalMs ?? OPENROUTER_TIMEOUT_MS, maxWaitMs);
+  const perModelMs = limits.perModelMs ?? PER_MODEL_TIMEOUT_MS;
 
   for (let i = 0; i < models.length; i++) {
     const remaining = deadline - Date.now();
     if (remaining < 1500) break;
-    const timeoutMs = models.length > 1 && i < models.length - 1 ? Math.min(PER_MODEL_TIMEOUT_MS, remaining) : remaining;
+    const timeoutMs = models.length > 1 && i < models.length - 1 ? Math.min(perModelMs, remaining) : remaining;
     const result = await attemptModel(apiKey, models[i], messages, timeoutMs);
     if (result.kind === 'ok') return result.text;
     if (result.kind === 'stop') return null;
