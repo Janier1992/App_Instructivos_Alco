@@ -20,10 +20,9 @@ interface Props {
 
 /** Cada asistente registra su propia fila: nombre, cédula, proceso o sección y su firma dibujada en la pantalla. */
 export const DivulgacionAttendanceModal: React.FC<Props> = ({ divulgacion, onClose, onRegistered }) => {
-  const initialProcess = PROCESS_SECTIONS.includes(divulgacion.procesoArea.toUpperCase()) ? divulgacion.procesoArea.toUpperCase() : '';
   const [nombre, setNombre] = useState('');
   const [cedula, setCedula] = useState('');
-  const [proceso, setProceso] = useState(initialProcess);
+  const [proceso, setProceso] = useState('');
   const [drawn, setDrawn] = useState('');
   const [padKey, setPadKey] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -33,7 +32,7 @@ export const DivulgacionAttendanceModal: React.FC<Props> = ({ divulgacion, onClo
   const reset = () => {
     setNombre('');
     setCedula('');
-    setProceso(initialProcess);
+    setProceso('');
     setDrawn('');
     setPadKey(k => k + 1);
     setError(null);

@@ -144,10 +144,31 @@ export async function getDivulgacion(id: string): Promise<Divulgacion | null> {
 
 type Result = { success: boolean; divulgacion?: Divulgacion; error?: string };
 
-export async function createDivulgacion(input: DivulgacionInput): Promise<Result> {
-  const { data, error } = await client().from('divulgaciones').insert(toDbRow(input)).select().single();
+const asistenteRow = (divulgacionId: string, a: AsistenteInput) => ({
+  divulgacion_id: divulgacionId,
+  nombre: a.nombre.trim(),
+  cedula: a.cedula.trim(),
+  proceso_seccion: (a.procesoSeccion || '').trim(),
+  firma: a.firma
+});
+
+/** Texto del error de la base de datos al registrar asistentes (la cédula repetida se explica en lenguaje claro). */
+const asistenteError = (error: { code?: string; message: string }) => (error.code === '23505' ? 'Hay una cédula repetida en la lista de asistentes.' : error.message);
+
+/** Crea la divulgación con las personas que ya se ingresaron en el formulario; si falla el registro de asistentes, no queda una planilla a medias. */
+export async function createDivulgacion(input: DivulgacionInput, asistentes: AsistenteInput[] = []): Promise<Result> {
+  const supabase = client();
+  const { data, error } = await supabase.from('divulgaciones').insert(toDbRow(input)).select().single();
   if (error || !data) return { success: false, error: error?.message || 'No se pudo guardar la divulgación.' };
-  return { success: true, divulgacion: mapRow(data, []) };
+
+  if (asistentes.length > 0) {
+    const { error: insertError } = await supabase.from('divulgacion_asistentes').insert(asistentes.map(a => asistenteRow(data.id, a)));
+    if (insertError) {
+      await supabase.from('divulgaciones').delete().eq('id', data.id);
+      return { success: false, error: asistenteError(insertError) };
+    }
+  }
+  return { success: true, divulgacion: (await getDivulgacion(data.id)) ?? mapRow(data, []) };
 }
 
 export async function updateDivulgacion(id: string, input: DivulgacionInput): Promise<Result> {
@@ -165,13 +186,7 @@ export async function deleteDivulgacion(id: string): Promise<{ success: boolean 
 
 /** Registra la fila de un asistente. Una misma cédula se registra una sola vez por divulgación. */
 export async function addAsistente(divulgacionId: string, input: AsistenteInput): Promise<{ success: boolean; divulgacion?: Divulgacion; error?: string }> {
-  const { error } = await client().from('divulgacion_asistentes').insert({
-    divulgacion_id: divulgacionId,
-    nombre: input.nombre.trim(),
-    cedula: input.cedula.trim(),
-    proceso_seccion: (input.procesoSeccion || '').trim(),
-    firma: input.firma
-  });
+  const { error } = await client().from('divulgacion_asistentes').insert(asistenteRow(divulgacionId, input));
   if (error) return { success: false, error: error.code === '23505' ? 'Esa cédula ya está registrada en esta divulgación.' : error.message };
   return { success: true, divulgacion: (await getDivulgacion(divulgacionId)) ?? undefined };
 }

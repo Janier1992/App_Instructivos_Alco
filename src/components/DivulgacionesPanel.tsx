@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ClipboardCheck, RefreshCw, Plus, X, Pencil, Trash2, Search, Users } from 'lucide-react';
 import { DivulgacionForm } from './DivulgacionForm';
 import { DivulgacionSheetModal } from './DivulgacionSheetModal';
+import type { DocumentType } from './DocumentTypeTiles';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
 import type { Divulgacion } from '@/src/lib/divulgacionStore';
 import { KIND_LABELS, formatSheetDate } from '@/src/lib/divulgacionShared';
@@ -17,10 +18,10 @@ const API_BASE = '/api/divulgaciones';
  * (a partir de un comunicado si se quiere), cada asistente registra su fila con su firma y la planilla se exporta
  * a Word y PDF con el diseño original.
  */
-export const DivulgacionesPanel: React.FC = () => {
+export const DivulgacionesPanel: React.FC<{ initialFormOpen?: boolean; onSelectType: (type: DocumentType) => void }> = ({ initialFormOpen = false, onSelectType }) => {
   const [items, setItems] = useState<Divulgacion[] | null>(null);
   const [search, setSearch] = useState('');
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(initialFormOpen);
   const [editing, setEditing] = useState<Divulgacion | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
@@ -64,6 +65,19 @@ export const DivulgacionesPanel: React.FC = () => {
     closeForm();
     await load();
     if (!wasEditing) setSheetId(saved.id);
+  };
+
+  /** La lista no trae las filas de asistencia: para editar se pide la planilla completa. */
+  const openEdit = async (d: Divulgacion) => {
+    try {
+      const res = await fetch(`${API_BASE}/${d.id}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+      setEditing(data.divulgacion as Divulgacion);
+      setFormOpen(true);
+    } catch {
+      window.alert('No se pudo abrir la planilla. Intenta de nuevo.');
+    }
   };
 
   const handleSheetChanged = (updated: Divulgacion) => setItems(prev => (prev ? prev.map(d => (d.id === updated.id ? { ...d, asistentesCount: updated.asistentes.length } : d)) : prev));
@@ -136,7 +150,7 @@ export const DivulgacionesPanel: React.FC = () => {
                   <td className="p-2">
                     <div className="flex items-center gap-3 whitespace-nowrap">
                       <button onClick={() => setSheetId(d.id)} className="text-[#003366] hover:underline flex items-center gap-1 font-semibold"><Users className="w-3.5 h-3.5" /> Planilla</button>
-                      <button onClick={() => { setEditing(d); setFormOpen(true); }} className="text-[#003366] hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5" /> Editar</button>
+                      <button onClick={() => openEdit(d)} className="text-[#003366] hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5" /> Editar</button>
                       <button onClick={() => handleExport(d, 'word')} disabled={exportingKey === `${d.id}-word`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><WordIcon className="w-4 h-4" /> {exportingKey === `${d.id}-word` ? 'Generando...' : 'Word'}</button>
                       <button onClick={() => handleExport(d, 'pdf')} disabled={exportingKey === `${d.id}-pdf`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><PdfIcon className="w-4 h-4" /> {exportingKey === `${d.id}-pdf` ? 'Generando...' : 'PDF'}</button>
                       <button onClick={() => handleDelete(d)} className="text-rose-600 hover:underline flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Eliminar</button>
@@ -156,7 +170,7 @@ export const DivulgacionesPanel: React.FC = () => {
               <h3 className="font-bold text-slate-900">{editing ? 'Editar planilla de asistencia' : 'Nueva divulgación, capacitación o charla'}</h3>
               <button onClick={closeForm} aria-label="Cerrar"><X className="w-4 h-4 text-slate-400" /></button>
             </div>
-            <DivulgacionForm initial={editing || undefined} onCancel={closeForm} onSaved={handleSaved} />
+            <DivulgacionForm initial={editing || undefined} onCancel={closeForm} onSaved={handleSaved} onSelectType={onSelectType} />
           </div>
         </div>
       )}

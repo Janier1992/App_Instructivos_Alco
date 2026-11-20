@@ -42,8 +42,6 @@ export interface ProcessItem {
   showSupplierClaimsTab?: boolean;
   /** true muestra la pestaña "Comunicados y Procedimientos" (comunicados de Calidad Producción con IA, Word y PDF). Por defecto false. */
   showCommuniquesTab?: boolean;
-  /** true muestra la pestaña "Divulgaciones" (planilla de asistencia a capacitación, divulgación y charla, con firma digital). Por defecto false. */
-  showDivulgacionesTab?: boolean;
   /** true muestra la pestaña "Criterios NTC 1909" (tabla de aceptación/rechazo de defectos de vidrio). Por defecto false. */
   showGlassCriteriaTab?: boolean;
 }
