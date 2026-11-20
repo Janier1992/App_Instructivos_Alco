@@ -131,6 +131,8 @@ function draftFromParsed(parsed: any): SupplierClaimDraft {
 export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput): Promise<SupplierClaimDraft> {
   const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
   const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
-  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor');
+  // Un modelo de solo texto (respaldo de OpenRouter) no puede ver fotos: solo entra a la carrera si no hay imágenes.
+  const textFallback = input.images.length === 0 ? { system: 'Eres un Asistente de Calidad de ALCO S.A.S. Responde exclusivamente con un JSON válido.', prompt: buildPrompt(input) } : undefined;
+  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor', textFallback);
   return data ? draftFromParsed(data) : buildFallbackDraft(input, motivo);
 }

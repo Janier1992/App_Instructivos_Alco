@@ -42,7 +42,7 @@ function describeDraft(borrador: CommuniqueDraftInput['borrador']): string {
   const pasos = (borrador?.pasos || []).map((p, i) => `${i + 1}) ${p.titulo} ${p.detalle}`).join(' ');
   const text = [borrador?.intro?.trim(), pasos].filter(Boolean).join(' | ');
   return text
-    ? `\nBORRADOR ACTUAL DEL FORMULARIO: ${text}\nEl borrador puede traer instrucciones dirigidas a ti en vez de texto final (por ejemplo "genera una explicación detallada del proceso"): si es así, cúmplelas. Si ya es texto, mejóralo (ortografía, claridad, detalle) y conserva lo que esté correcto.\n`
+    ? `\nBORRADOR ACTUAL DEL FORMULARIO: ${text}\nEl borrador puede traer instrucciones dirigidas a ti en vez de texto final (por ejemplo "genera una explicación detallada del proceso"): si es así, cúmplelas. Si ya es texto, mejóralo (ortografía, claridad, detalle) y conserva lo que esté correcto. Puede venir pegado desde Word, con viñetas, títulos, tabulaciones y saltos de línea: interpreta su contenido, estructúralo en la introducción y los pasos de la plantilla y no copies su formato.\n`
     : '';
 }
 
@@ -65,6 +65,8 @@ ${describeDraft(input.borrador)}
 FUENTES
 - Las imágenes y los documentos adjuntos vienen antes de este texto. Cada documento es una "ficha técnica" (fuente de especificaciones, medidas, normas y pasos) o un "borrador del comunicado" (punto de partida del texto). Lo que diga el colaborador manda sobre cualquier otra fuente.${hasDraftDoc ? `
 - HAY UN BORRADOR ADJUNTO: es el punto de partida. Conserva su contenido, sus datos, su intención y el orden de sus pasos; solo reorganízalo en la estructura de la plantilla, complétalo con las demás fuentes y corrige su ortografía, redacción y tono. No inventes un contenido distinto al del borrador ni pidas instrucciones adicionales: el colaborador no tiene por qué repetirlas.` : ''}
+- Ignora las frases del colaborador que se refieren al propio trámite, como "se adjunta borrador", "ver adjunto" o "según lo conversado": no las copies al documento.
+- No inventes motivos, beneficios ni objetivos (por ejemplo "para optimizar el ajuste"): si el colaborador no indica el para qué, no lo menciones.
 - No inventes cifras, medidas, torques, tiempos, normas, referencias, fechas ni nombres que no aparezcan en lo anterior. Cuando falte un dato técnico específico, redacta el paso de forma general y verificable, basado en las buenas prácticas de ensamble, producción y control de calidad, y remite al documento correspondiente ("según la ficha técnica del producto", "según la orden de producción").
 - El documento debe quedar COMPLETO y listo para divulgar: nunca dejes secciones vacías, ni pidas más información dentro del texto, ni repitas las instrucciones del colaborador como si fueran el contenido. Corrige los errores de ortografía de lo que escribió el colaborador, incluidos nombres de productos (por ejemplo "batiente" en lugar de "bantiente").
 
@@ -134,15 +136,27 @@ function draftFromParsed(parsed: any, input: CommuniqueDraftInput): CommuniqueDr
   };
 }
 
+/** Documentos de texto (TXT o Word ya convertido) como texto plano, con su papel de ficha o borrador. */
+function textDocumentParts(input: CommuniqueDraftInput): string[] {
+  return input.documents.filter(d => d.mimeType === 'text/plain').map(d => `Documento adjunto "${d.nombre}" (${REFERENCE_ROLES[d.rol]}):\n${d.buffer.toString('utf-8').slice(0, 30000)}`);
+}
+
 function buildParts(input: CommuniqueDraftInput): any[] {
   const toPart = (f: { buffer: Buffer; mimeType: string }) => ({ inlineData: { mimeType: f.mimeType, data: f.buffer.toString('base64') } });
-  const textDocs = input.documents.filter(d => d.mimeType === 'text/plain').map(d => ({ text: `Documento adjunto "${d.nombre}" (${REFERENCE_ROLES[d.rol]}):\n${d.buffer.toString('utf-8').slice(0, 30000)}` }));
   const binaryDocs = input.documents.filter(d => d.mimeType !== 'text/plain').map(toPart);
-  return [...input.images.map(toPart), ...binaryDocs, ...textDocs, { text: buildPrompt(input) }];
+  return [...input.images.map(toPart), ...binaryDocs, ...textDocumentParts(input).map(text => ({ text })), { text: buildPrompt(input) }];
+}
+
+/** Un modelo de solo texto (respaldo de OpenRouter) no puede ver imágenes ni PDF: solo entra a la carrera si todas las fuentes son texto. */
+function buildTextFallback(input: CommuniqueDraftInput) {
+  const hasBinary = input.images.length > 0 || input.documents.some(d => d.mimeType !== 'text/plain');
+  return hasBinary
+    ? undefined
+    : { system: 'Eres un Asistente de Calidad de ALCO S.A.S. Responde exclusivamente con un JSON válido.', prompt: [...textDocumentParts(input), buildPrompt(input)].join('\n\n') };
 }
 
 export async function generateCommuniqueDraft(input: CommuniqueDraftInput): Promise<CommuniqueDraft> {
   const contents = [{ role: 'user', parts: buildParts(input) }];
-  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado');
+  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado', buildTextFallback(input));
   return data ? draftFromParsed(data, input) : buildFallbackDraft(input, motivo);
 }

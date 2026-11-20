@@ -51,10 +51,11 @@ const richRuns = (text: string, baseBold = false): TextRun[] => splitBold(text).
 const justified = (text: string, after = 120) =>
   new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { after, line: 276 }, children: richRuns(text) });
 
-/** Celda del encabezado con borde fino, centrada verticalmente. */
-function headerCell(children: Paragraph[], width: number): TableCell {
+/** Celda del encabezado con borde fino, centrada verticalmente; `span` une columnas de la cuadrícula. */
+function headerCell(children: Paragraph[], width: number, span = 1): TableCell {
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
+    columnSpan: span > 1 ? span : undefined,
     borders: BOX,
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 40, bottom: 40, left: 100, right: 100 },
@@ -62,18 +63,20 @@ function headerCell(children: Paragraph[], width: number): TableCell {
   });
 }
 
+/** Fila De, Para o Asunto: etiqueta en la primera columna y valor en el resto del ancho. */
 const infoRow = (label: string, value: string) =>
   new TableRow({
     height: { value: 449, rule: 'atLeast' },
     children: [
       headerCell([new Paragraph({ children: [run(label, { bold: true, italics: true, size: INFO_SIZE })] })], INFO_LABEL_DXA),
-      headerCell([new Paragraph({ children: [run(value, { size: INFO_SIZE })] })], PAGE_CONTENT_DXA - INFO_LABEL_DXA)
+      headerCell([new Paragraph({ children: [run(value, { size: INFO_SIZE })] })], PAGE_CONTENT_DXA - INFO_LABEL_DXA, 2)
     ]
   });
 
 /**
- * Encabezado de todas las páginas, igual al de la plantilla: una tabla con el logo y el título
- * (COMUNICADO / CALIDAD PRODUCCIÓN) y debajo otra con De, Para y Asunto.
+ * Encabezado de todas las páginas, igual al de la plantilla y en una sola tabla: la primera fila lleva el logo y el
+ * título (COMUNICADO / CALIDAD PRODUCCIÓN) y las tres siguientes De, Para y Asunto, con la columna de etiquetas más
+ * angosta que la del logo. La cuadrícula de tres columnas hace que todas las filas compartan los mismos bordes.
  */
 function buildHeader(c: Communique, logo: LoadedImage | null): Header {
   const titleW = PAGE_CONTENT_DXA - LOGO_COL_DXA;
@@ -87,13 +90,13 @@ function buildHeader(c: Communique, logo: LoadedImage | null): Header {
     children: [
       new Table({
         width: { size: PAGE_CONTENT_DXA, type: WidthType.DXA },
-        columnWidths: [LOGO_COL_DXA, titleW],
-        rows: [new TableRow({ height: { value: 1260, rule: 'atLeast' }, children: [headerCell([logoParagraph], LOGO_COL_DXA), headerCell(titleParagraphs, titleW)] })]
-      }),
-      new Table({
-        width: { size: PAGE_CONTENT_DXA, type: WidthType.DXA },
-        columnWidths: [INFO_LABEL_DXA, PAGE_CONTENT_DXA - INFO_LABEL_DXA],
-        rows: [infoRow('DE:', c.de), infoRow('PARA:', c.para), infoRow('ASUNTO:', c.asunto)]
+        columnWidths: [INFO_LABEL_DXA, LOGO_COL_DXA - INFO_LABEL_DXA, titleW],
+        rows: [
+          new TableRow({ height: { value: 1260, rule: 'atLeast' }, children: [headerCell([logoParagraph], LOGO_COL_DXA, 2), headerCell(titleParagraphs, titleW)] }),
+          infoRow('DE:', c.de),
+          infoRow('PARA:', c.para),
+          infoRow('ASUNTO:', c.asunto)
+        ]
       })
     ]
   });
