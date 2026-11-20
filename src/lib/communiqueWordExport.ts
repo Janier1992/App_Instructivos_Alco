@@ -149,8 +149,8 @@ function signatureTable(c: Communique): Table | null {
       margins: { top: 200, bottom: 60, left: 100, right: 500 },
       children: signer
         ? [
-            new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, children: [signatureMark(signer)] }),
-            new Paragraph({ children: [run(signer.nombre, { size: 16 })] }),
+            new Paragraph({ alignment: signer.firma ? AlignmentType.CENTER : AlignmentType.LEFT, spacing: { before: 120, after: 0 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, children: [signatureMark(signer)] }),
+            new Paragraph({ spacing: { before: 60 }, children: [run(signer.nombre, { size: 16 })] }),
             new Paragraph({ children: [run(signer.cargo, { size: 16 })] }),
             ...(signer.firma ? [new Paragraph({ children: [run(signatureDateLabel(signer.firmadoEn), { size: 14, italics: true })] })] : [])
           ]
