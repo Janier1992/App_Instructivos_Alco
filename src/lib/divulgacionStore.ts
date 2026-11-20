@@ -31,8 +31,23 @@ export interface Divulgacion {
   /** Filas de asistencia, en el orden en que se registraron. En la lista general viene vacío (solo se cuenta). */
   asistentes: DivulgacionAsistente[];
   asistentesCount: number;
+  /** Código del enlace público de registro (/asistencia/<código>); null si falta ejecutar la migración. */
+  registroToken: string | null;
   createdAt: string;
 }
+
+/** Lo único que ve quien abre el enlace público: el tema de cada divulgación reciente, sin datos de ningún asistente. */
+export interface DivulgacionPublic {
+  /** Código de la divulgación: es lo que el enlace público usa para identificarla (nunca su id interno). */
+  token: string;
+  tema: string;
+  fecha: string;
+  tipo: DivulgacionKind;
+  responsable: string;
+}
+
+/** Días hacia atrás en los que una divulgación sigue apareciendo en el enlace público de registro. */
+export const REGISTRATION_WINDOW_DAYS = 30;
 
 export interface DivulgacionInput {
   fecha: string;
@@ -93,6 +108,7 @@ function mapRow(row: any, asistentes: DivulgacionAsistente[], count = asistentes
     resultados: row.resultados || '',
     asistentes,
     asistentesCount: count,
+    registroToken: row.registro_token || null,
     createdAt: row.created_at
   };
 }
@@ -140,6 +156,25 @@ export async function getDivulgacion(id: string): Promise<Divulgacion | null> {
   if (!row) return null;
   const { data: attendees } = await supabase.from('divulgacion_asistentes').select('*').eq('divulgacion_id', id).order('created_at', { ascending: true });
   return mapRow(row, (attendees || []).map(mapAsistente));
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const toPublic = (row: any): DivulgacionPublic => ({ token: row.registro_token, tema: row.tema, fecha: row.fecha, tipo: normalizeKind(row.tipo), responsable: row.responsable });
+
+/** Divulgaciones recientes para el enlace público de registro, de la más reciente a la más antigua (solo tema, fecha y responsable). */
+export async function getRecentDivulgacionesPublic(): Promise<DivulgacionPublic[]> {
+  const since = new Date(Date.now() - REGISTRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const { data, error } = await client().from('divulgaciones').select('*').gte('fecha', since).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(20);
+  if (error) throw new Error(`No se pudieron cargar las divulgaciones: ${error.message}`);
+  return (data || []).filter(row => row.registro_token).map(toPublic);
+}
+
+/** Id interno de la divulgación a la que pertenece un código del enlace público; null si el código no existe. */
+export async function getDivulgacionIdByToken(token: string): Promise<string | null> {
+  if (!UUID_PATTERN.test(token)) return null;
+  const { data } = await client().from('divulgaciones').select('id').eq('registro_token', token).maybeSingle();
+  return data?.id ?? null;
 }
 
 type Result = { success: boolean; divulgacion?: Divulgacion; error?: string };

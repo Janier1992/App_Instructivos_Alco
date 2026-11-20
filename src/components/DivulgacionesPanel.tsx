@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ClipboardCheck, RefreshCw, Plus, X, Pencil, Trash2, Search, Users } from 'lucide-react';
+import { ClipboardCheck, RefreshCw, Plus, X, Pencil, Trash2, Search, Users, Link2 } from 'lucide-react';
 import { DivulgacionForm } from './DivulgacionForm';
 import { DivulgacionSheetModal } from './DivulgacionSheetModal';
+import { DivulgacionLinkModal } from './DivulgacionLinkModal';
 import type { DocumentType } from './DocumentTypeTiles';
 import { WordIcon, PdfIcon } from './ExportFormatIcons';
 import type { Divulgacion } from '@/src/lib/divulgacionStore';
@@ -24,6 +25,7 @@ export const DivulgacionesPanel: React.FC<{ initialFormOpen?: boolean; onSelectT
   const [formOpen, setFormOpen] = useState(initialFormOpen);
   const [editing, setEditing] = useState<Divulgacion | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
+  const [linkFor, setLinkFor] = useState<Divulgacion | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -150,6 +152,7 @@ export const DivulgacionesPanel: React.FC<{ initialFormOpen?: boolean; onSelectT
                   <td className="p-2">
                     <div className="flex items-center gap-3 whitespace-nowrap">
                       <button onClick={() => setSheetId(d.id)} className="text-[#003366] hover:underline flex items-center gap-1 font-semibold"><Users className="w-3.5 h-3.5" /> Planilla</button>
+                      <button onClick={() => setLinkFor(d)} className="text-[#003366] hover:underline flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> Enlace</button>
                       <button onClick={() => openEdit(d)} className="text-[#003366] hover:underline flex items-center gap-1"><Pencil className="w-3.5 h-3.5" /> Editar</button>
                       <button onClick={() => handleExport(d, 'word')} disabled={exportingKey === `${d.id}-word`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><WordIcon className="w-4 h-4" /> {exportingKey === `${d.id}-word` ? 'Generando...' : 'Word'}</button>
                       <button onClick={() => handleExport(d, 'pdf')} disabled={exportingKey === `${d.id}-pdf`} className="text-[#003366] hover:underline flex items-center gap-1 disabled:opacity-50"><PdfIcon className="w-4 h-4" /> {exportingKey === `${d.id}-pdf` ? 'Generando...' : 'PDF'}</button>
@@ -174,6 +177,8 @@ export const DivulgacionesPanel: React.FC<{ initialFormOpen?: boolean; onSelectT
           </div>
         </div>
       )}
+
+      {linkFor && <DivulgacionLinkModal tema={linkFor.tema} registroToken={linkFor.registroToken} onClose={() => setLinkFor(null)} />}
 
       {sheetId && <DivulgacionSheetModal divulgacionId={sheetId} onClose={() => { setSheetId(null); load(); }} onChanged={handleSheetChanged} />}
     </div>
