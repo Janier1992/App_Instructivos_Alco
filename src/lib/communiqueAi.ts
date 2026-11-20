@@ -1,6 +1,6 @@
 import { generateJsonWithFallback } from './geminiJson';
 import { polishText, stripDashes } from './supplierClaimShared';
-import { DEFAULT_CLOSING, KIND_CONFIG } from './communiqueShared';
+import { DEFAULT_CLOSING, KIND_CONFIG, REFERENCE_ROLES, ReferenceRole } from './communiqueShared';
 import type { CommuniqueKind, CommuniqueStep } from './communiqueStore';
 
 /**
@@ -20,7 +20,7 @@ export interface CommuniqueDraftInput {
   piesFotos: string[];
   images: { buffer: Buffer; mimeType: string }[];
   /** Documentos de referencia: PDF e imágenes se envían a Gemini; el texto plano va dentro del prompt. */
-  documents: { buffer: Buffer; mimeType: string; nombre: string }[];
+  documents: { buffer: Buffer; mimeType: string; nombre: string; rol: ReferenceRole }[];
   /** Texto que ya tiene el formulario: puede ser un borrador a mejorar o instrucciones dirigidas a la IA. */
   borrador?: { intro: string; pasos: CommuniqueStep[]; cierre: string };
 }
@@ -42,27 +42,31 @@ function describeDraft(borrador: CommuniqueDraftInput['borrador']): string {
   const pasos = (borrador?.pasos || []).map((p, i) => `${i + 1}) ${p.titulo} ${p.detalle}`).join(' ');
   const text = [borrador?.intro?.trim(), pasos].filter(Boolean).join(' | ');
   return text
-    ? `\nBORRADOR ACTUAL DEL FORMULARIO: ${text}\nEl borrador puede traer instrucciones dirigidas a ti en vez de texto final (por ejemplo "genera una explicación detallada del proceso"): si es así, cúmplelas. Si ya es texto, mejóralo (ortografía, claridad, detalle) y conserva lo que esté correcto.\n`
+    ? `\nBORRADOR ACTUAL DEL FORMULARIO: ${text}\nEl borrador puede traer instrucciones dirigidas a ti en vez de texto final (por ejemplo "genera una explicación detallada del proceso"): si es así, cúmplelas. Si ya es texto, mejóralo (ortografía, claridad, detalle) y conserva lo que esté correcto. Puede venir pegado desde Word, con viñetas, títulos, tabulaciones y saltos de línea: interpreta su contenido, estructúralo en la introducción y los pasos de la plantilla y no copies su formato.\n`
     : '';
 }
 
-function buildPrompt(input: CommuniqueDraftInput): string {
+export function buildPrompt(input: CommuniqueDraftInput): string {
   const cfg = KIND_CONFIG[input.tipo];
   const opening = `${cfg.opening}...`;
-  const docs = input.documents.length ? input.documents.map(d => d.nombre).join(', ') : 'ninguno';
+  const docs = input.documents.length ? input.documents.map(d => `${d.nombre} (${REFERENCE_ROLES[d.rol]})`).join(', ') : 'ninguno';
+  const hasDraftDoc = input.documents.some(d => d.rol === 'borrador');
   return `Eres un Asistente de Calidad de ALCO S.A.S. (fabricante de ventanas y puertas de aluminio y vidrio). Redacta el texto de un ${cfg.label.toUpperCase()} interno de "Calidad Producción" dirigido a los colaboradores de las áreas de la planta, para divulgar implementaciones, mejoras de diseño, integración de nuevos productos o cambios en el proceso de control y de producción.
 
 DATOS
 - De: ${input.de}
 - Para: ${input.para}
 - Asunto propuesto: ${input.asunto}
-- Lo que pide el colaborador: ${input.contexto}
+- Lo que pide el colaborador: ${input.contexto.trim() || '(sin instrucción adicional: parte del borrador y de los documentos adjuntos)'}
   Puede ser una descripción del cambio o una instrucción dirigida a ti (por ejemplo "genera una explicación detallada del proceso"). Si es una instrucción, cúmplela y desarrolla el contenido completo del documento.
 - Pies de foto escritos por el colaborador (en el orden de las ${input.piesFotos.length} imágenes adjuntas): ${input.piesFotos.map((p, i) => `${i + 1}) ${p || '(sin pie)'}`).join(' | ') || 'no hay imágenes'}
 - Documentos de referencia adjuntos: ${docs}
 ${describeDraft(input.borrador)}
 FUENTES
-- Las imágenes y los documentos de referencia (por ejemplo una ficha técnica) vienen adjuntos antes de este texto. Úsalos como fuente de las especificaciones, medidas, normas y pasos. Lo que diga el colaborador manda sobre cualquier otra fuente.
+- Las imágenes y los documentos adjuntos vienen antes de este texto. Cada documento es una "ficha técnica" (fuente de especificaciones, medidas, normas y pasos) o un "borrador del comunicado" (punto de partida del texto). Lo que diga el colaborador manda sobre cualquier otra fuente.${hasDraftDoc ? `
+- HAY UN BORRADOR ADJUNTO: es el punto de partida. Conserva su contenido, sus datos, su intención y el orden de sus pasos; solo reorganízalo en la estructura de la plantilla, complétalo con las demás fuentes y corrige su ortografía, redacción y tono. No inventes un contenido distinto al del borrador ni pidas instrucciones adicionales: el colaborador no tiene por qué repetirlas.` : ''}
+- Ignora las frases del colaborador que se refieren al propio trámite, como "se adjunta borrador", "ver adjunto" o "según lo conversado": no las copies al documento.
+- No inventes motivos, beneficios ni objetivos (por ejemplo "para optimizar el ajuste"): si el colaborador no indica el para qué, no lo menciones.
 - No inventes cifras, medidas, torques, tiempos, normas, referencias, fechas ni nombres que no aparezcan en lo anterior. Cuando falte un dato técnico específico, redacta el paso de forma general y verificable, basado en las buenas prácticas de ensamble, producción y control de calidad, y remite al documento correspondiente ("según la ficha técnica del producto", "según la orden de producción").
 - El documento debe quedar COMPLETO y listo para divulgar: nunca dejes secciones vacías, ni pidas más información dentro del texto, ni repitas las instrucciones del colaborador como si fueran el contenido. Corrige los errores de ortografía de lo que escribió el colaborador, incluidos nombres de productos (por ejemplo "batiente" en lugar de "bantiente").
 
@@ -73,6 +77,14 @@ ESTRUCTURA (igual a la plantilla oficial)
 - pies: arreglo con exactamente ${input.piesFotos.length} textos, uno por imagen, en el mismo orden. Si el colaborador escribió un pie, consérvalo corregido; si no, propón uno de máximo 8 palabras según lo que muestra la imagen. Sin punto final.
 - sugerencias: de 0 a 3 frases cortas dirigidas al colaborador sobre qué adjuntar o precisar para mejorar el documento (por ejemplo "Adjunta la ficha técnica para incluir las medidas exactas"). Arreglo vacío si no falta nada. No forman parte del documento.
 - cierre: una sola oración de agradecimiento por la atención y el compromiso, como "${DEFAULT_CLOSING}", adaptada al tema.
+
+EJEMPLO DE LA PLANTILLA OFICIAL (solo para imitar el estilo, el tono, la extensión y la estructura; NO copies su contenido, sus datos ni sus frases: el contenido de tu documento sale únicamente de los datos de esta solicitud)
+- asunto: "Marcado de vidrio laminado templado claro"
+- intro: "Por medio del presente comunicado, les informamos que, el marcado (logo de **ALCO Windows & Doors**) de todos los vidrios laminados templados de color claro se debe hacer en el vidrio de mayor espesor y no se marca el espesor, ya que éste es el que va para el lado exterior del recinto donde se instala en la obra."
+- pasos: [{ "titulo": "Identificar la composición del vidrio laminado.", "detalle": "Revisar la orden de pedido para conocer la composición del vidrio, es decir, saber los espesores de los vidrios que lo conforman y seleccionar el de mayor espesor." }, { "titulo": "Identificar el uso del vidrio laminado.", "detalle": "Revisar la orden de pedido para saber la tipología del producto o diseño y poner el marcado según corresponda." }, { "titulo": "Marcado del vidrio laminado.", "detalle": "Se procede a ubicar el vidrio en la zona de carga del horno y se hace el marcado del vidrio con el **logo ALCO Windows & Doors**." }]
+- pies: ["Vidrio de mayor espesor para ventanería, fachada y cabinas", "Detalle del marcado del vidrio"]
+- cierre: "Agradecemos su atención y compromiso en la implementación de este cambio."
+Observa que la introducción es un solo párrafo directo, los títulos de los pasos nombran la acción en una frase corta y el detalle es operativo y concreto.
 
 TONO Y REDACCIÓN
 - Español formal, claro y cordial, propio de un profesional colombiano de calidad. Primera persona del plural cuando corresponda.
@@ -96,7 +108,7 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 export function buildFallbackDraft(input: CommuniqueDraftInput, motivo?: string): CommuniqueDraft {
   return {
     asunto: input.asunto,
-    intro: `${KIND_CONFIG[input.tipo].opening} ${input.contexto.trim()}`,
+    intro: input.contexto.trim() ? `${KIND_CONFIG[input.tipo].opening} ${input.contexto.trim()}` : '',
     pasos: [],
     pies: input.piesFotos,
     cierre: DEFAULT_CLOSING,
@@ -124,15 +136,27 @@ function draftFromParsed(parsed: any, input: CommuniqueDraftInput): CommuniqueDr
   };
 }
 
+/** Documentos de texto (TXT o Word ya convertido) como texto plano, con su papel de ficha o borrador. */
+function textDocumentParts(input: CommuniqueDraftInput): string[] {
+  return input.documents.filter(d => d.mimeType === 'text/plain').map(d => `Documento adjunto "${d.nombre}" (${REFERENCE_ROLES[d.rol]}):\n${d.buffer.toString('utf-8').slice(0, 30000)}`);
+}
+
 function buildParts(input: CommuniqueDraftInput): any[] {
   const toPart = (f: { buffer: Buffer; mimeType: string }) => ({ inlineData: { mimeType: f.mimeType, data: f.buffer.toString('base64') } });
-  const textDocs = input.documents.filter(d => d.mimeType === 'text/plain').map(d => ({ text: `Documento de referencia "${d.nombre}":\n${d.buffer.toString('utf-8').slice(0, 20000)}` }));
   const binaryDocs = input.documents.filter(d => d.mimeType !== 'text/plain').map(toPart);
-  return [...input.images.map(toPart), ...binaryDocs, ...textDocs, { text: buildPrompt(input) }];
+  return [...input.images.map(toPart), ...binaryDocs, ...textDocumentParts(input).map(text => ({ text })), { text: buildPrompt(input) }];
+}
+
+/** Un modelo de solo texto (respaldo de OpenRouter) no puede ver imágenes ni PDF: solo entra a la carrera si todas las fuentes son texto. */
+function buildTextFallback(input: CommuniqueDraftInput) {
+  const hasBinary = input.images.length > 0 || input.documents.some(d => d.mimeType !== 'text/plain');
+  return hasBinary
+    ? undefined
+    : { system: 'Eres un Asistente de Calidad de ALCO S.A.S. Responde exclusivamente con un JSON válido.', prompt: [...textDocumentParts(input), buildPrompt(input)].join('\n\n') };
 }
 
 export async function generateCommuniqueDraft(input: CommuniqueDraftInput): Promise<CommuniqueDraft> {
   const contents = [{ role: 'user', parts: buildParts(input) }];
-  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado');
+  const { data, motivo } = await generateJsonWithFallback(contents, p => typeof p.intro === 'string' && Array.isArray(p.pasos) && p.pasos.length > 0, 'el comunicado', buildTextFallback(input));
   return data ? draftFromParsed(data, input) : buildFallbackDraft(input, motivo);
 }

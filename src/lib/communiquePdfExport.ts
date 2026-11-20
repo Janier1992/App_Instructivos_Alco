@@ -12,15 +12,15 @@ import { LoadedImage, formatLongDate, loadClaimImages } from './supplierClaimSha
  */
 
 const MARGIN = 20;
-const BODY_TOP = 64;
+const INFO_SIZE = 12;
 const BOTTOM_LIMIT = 262;
-const LINE_H = 4.8;
-const TEXT_SIZE = 10;
+const LINE_H = 5.8;
+const TEXT_SIZE = 12; // Arial 12 pt, como el Word
 const MAX_IMAGE_W = 120;
 const MAX_IMAGE_H = 90;
 
 class CommuniqueWriter {
-  y = BODY_TOP;
+  y = 0;
   readonly contentW: number;
 
   constructor(private doc: jsPDF, private logo: string | null, private c: Communique) {
@@ -38,7 +38,6 @@ class CommuniqueWriter {
     const labelW = this.contentW * 0.141;
     const top = 10;
     const titleH = 22;
-    const rowH = 8.5;
 
     doc.setDrawColor(0, 0, 0).setLineWidth(0.3);
     doc.rect(MARGIN, top, logoW, titleH).rect(MARGIN + logoW, top, this.contentW - logoW, titleH);
@@ -54,19 +53,23 @@ class CommuniqueWriter {
     }
 
     const titleX = MARGIN + logoW + (this.contentW - logoW) / 2;
-    doc.setTextColor(0, 0, 0).setFont('helvetica', 'bold').setFontSize(15);
+    doc.setTextColor(0, 0, 0).setFont('helvetica', 'bold').setFontSize(18);
     doc.text(KIND_CONFIG[c.tipo].title, titleX, top + 9.5, { align: 'center' }).text(COMMUNIQUE_SUBTITLE, titleX, top + 16.5, { align: 'center' });
 
-    [['DE:', c.de], ['PARA:', c.para], ['ASUNTO:', c.asunto]].forEach(([label, value], i) => {
-      const rowTop = top + titleH + rowH * i;
+    // Cada fila crece según las líneas que ocupe su valor, como la tabla de Word.
+    let rowTop = top + titleH;
+    [['DE:', c.de], ['PARA:', c.para], ['ASUNTO:', c.asunto]].forEach(([label, value]) => {
+      const lines: string[] = doc.setFont('helvetica', 'normal').setFontSize(INFO_SIZE).splitTextToSize(value, this.contentW - labelW - 6);
+      const rowH = Math.max(9, lines.length * 5.2 + 3.8);
       doc.rect(MARGIN, rowTop, labelW, rowH).rect(MARGIN + labelW, rowTop, this.contentW - labelW, rowH);
-      doc.setFont('helvetica', 'bolditalic').setFontSize(10).text(label, MARGIN + 3, rowTop + 5.7);
-      doc.setFont('helvetica', 'normal').text(doc.splitTextToSize(value, this.contentW - labelW - 6)[0], MARGIN + labelW + 3, rowTop + 5.7);
+      doc.setFont('helvetica', 'bolditalic').setFontSize(INFO_SIZE).text(label, MARGIN + 3, rowTop + 6);
+      doc.setFont('helvetica', 'normal').text(lines, MARGIN + labelW + 3, rowTop + 6, { lineHeightFactor: 1.2 });
+      rowTop += rowH;
     });
 
     doc.setFont('helvetica', 'italic').setFontSize(9).setTextColor(40, 40, 40).text(COMMUNIQUE_FOOTER, MARGIN, 272);
     doc.setTextColor(20, 20, 20);
-    this.y = BODY_TOP;
+    this.y = rowTop + 8;
   }
 
   ensureSpace(height: number) {
@@ -90,8 +93,8 @@ class CommuniqueWriter {
     return width + (withSpace ? this.doc.setFont('helvetica', 'normal').getTextWidth(' ') : 0);
   }
 
-  /** Párrafo con **negritas** en línea: reparte las palabras en líneas según su ancho real. */
-  richParagraph(text: string, opts: { bold?: boolean; indent?: number; after?: number } = {}) {
+  /** Párrafo con **negritas** en línea, justificado: reparte las palabras en líneas según su ancho real y estira los espacios de cada línea menos la última. */
+  richParagraph(text: string, opts: { bold?: boolean; indent?: number; after?: number; justify?: boolean } = {}) {
     const { doc } = this;
     const indent = opts.indent ?? 0;
     const maxW = this.contentW - indent;
@@ -119,15 +122,19 @@ class CommuniqueWriter {
       lineW += wordW;
     });
 
-    lines.forEach(line => {
+    const spaceW = this.wordWidth([], true);
+    lines.forEach((line, lineIndex) => {
       this.ensureSpace(LINE_H);
+      const isLast = lineIndex === lines.length - 1;
+      const wordsW = line.reduce((sum, word) => sum + this.wordWidth(word, false), 0);
+      const gap = opts.justify !== false && !isLast && line.length > 1 ? (maxW - wordsW) / (line.length - 1) : spaceW;
       let x = MARGIN + indent;
       line.forEach(word => {
         word.forEach(seg => {
           doc.setFont('helvetica', seg.bold ? 'bold' : 'normal').setFontSize(TEXT_SIZE).text(seg.text, x, this.y);
           x += doc.getTextWidth(seg.text);
         });
-        x += doc.setFont('helvetica', 'normal').getTextWidth(' ');
+        x += gap;
       });
       this.y += LINE_H;
     });
@@ -138,10 +145,10 @@ class CommuniqueWriter {
     const { c } = this;
     if (c.pasos.length === 0) return;
     this.ensureSpace(20);
-    this.richParagraph(KIND_CONFIG[c.tipo].stepsHeading, { bold: true, after: 3 });
+    this.richParagraph(KIND_CONFIG[c.tipo].stepsHeading, { bold: true, after: 3, justify: false });
     c.pasos.forEach((step, i) => {
       this.ensureSpace(LINE_H * 3);
-      this.richParagraph(`${i + 1}) ${step.titulo}`, { bold: true, after: 1 });
+      this.richParagraph(`${i + 1}) ${step.titulo}`, { bold: true, after: 1, justify: false });
       this.richParagraph(step.detalle, { indent: 6, after: 3 });
     });
   }
@@ -200,7 +207,7 @@ export async function buildCommuniquePdf(rawCommunique: Communique): Promise<jsP
   w.gap(3);
   w.richParagraph(c.cierre || DEFAULT_CLOSING, { after: 6 });
   w.ensureSpace(34);
-  w.richParagraph('Atentamente,', { after: 4 });
+  w.richParagraph('Atentamente,', { after: 4, justify: false });
   w.signatures();
   return doc;
 }
