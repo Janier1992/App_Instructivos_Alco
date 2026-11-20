@@ -74,6 +74,14 @@ ESTRUCTURA (igual a la plantilla oficial)
 - sugerencias: de 0 a 3 frases cortas dirigidas al colaborador sobre qué adjuntar o precisar para mejorar el documento (por ejemplo "Adjunta la ficha técnica para incluir las medidas exactas"). Arreglo vacío si no falta nada. No forman parte del documento.
 - cierre: una sola oración de agradecimiento por la atención y el compromiso, como "${DEFAULT_CLOSING}", adaptada al tema.
 
+EJEMPLO DE LA PLANTILLA OFICIAL (solo para imitar el estilo, el tono, la extensión y la estructura; NO copies su contenido, sus datos ni sus frases: el contenido de tu documento sale únicamente de los datos de esta solicitud)
+- asunto: "Marcado de vidrio laminado templado claro"
+- intro: "Por medio del presente comunicado, les informamos que, el marcado (logo de **ALCO Windows & Doors**) de todos los vidrios laminados templados de color claro se debe hacer en el vidrio de mayor espesor y no se marca el espesor, ya que éste es el que va para el lado exterior del recinto donde se instala en la obra."
+- pasos: [{ "titulo": "Identificar la composición del vidrio laminado.", "detalle": "Revisar la orden de pedido para conocer la composición del vidrio, es decir, saber los espesores de los vidrios que lo conforman y seleccionar el de mayor espesor." }, { "titulo": "Identificar el uso del vidrio laminado.", "detalle": "Revisar la orden de pedido para saber la tipología del producto o diseño y poner el marcado según corresponda." }, { "titulo": "Marcado del vidrio laminado.", "detalle": "Se procede a ubicar el vidrio en la zona de carga del horno y se hace el marcado del vidrio con el **logo ALCO Windows & Doors**." }]
+- pies: ["Vidrio de mayor espesor para ventanería, fachada y cabinas", "Detalle del marcado del vidrio"]
+- cierre: "Agradecemos su atención y compromiso en la implementación de este cambio."
+Observa que la introducción es un solo párrafo directo, los títulos de los pasos nombran la acción en una frase corta y el detalle es operativo y concreto.
+
 TONO Y REDACCIÓN
 - Español formal, claro y cordial, propio de un profesional colombiano de calidad. Primera persona del plural cuando corresponda.
 - Ortografía impecable según la RAE: tildes, puntuación, concordancia y mayúsculas solo en nombres propios, siglas y códigos. Números con su unidad (por ejemplo "6 mm").

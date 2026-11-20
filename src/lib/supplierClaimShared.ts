@@ -25,9 +25,9 @@ export function defectLine(claim: SupplierClaim): string {
   return `Reporte de No Conformidad, Defecto: ${claim.defectoTitulo || 'Novedad en recepción'}`;
 }
 
-/** Quita guiones largos y medios (—, –): se reemplazan por coma para que el texto no parezca generado automáticamente. */
+/** Quita guiones largos y medios (—, –) y los guiones sueltos entre espacios: se reemplazan por coma para que el texto no parezca generado automáticamente. El guion de códigos (A-0046) se conserva. */
 export function stripDashes(text: string): string {
-  return text.replace(/\s*[—–]\s*/g, ', ').replace(/,\s*,/g, ',');
+  return text.replace(/\s*[—–]\s*/g, ', ').replace(/\s+-\s+/g, ', ').replace(/,\s*,/g, ',');
 }
 
 /** Pulido mínimo de un texto redactado: espacios limpios, mayúscula inicial y punto final (sin tocar títulos). */

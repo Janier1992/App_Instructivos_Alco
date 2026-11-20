@@ -27,7 +27,7 @@ import { LoadedImage, formatLongDate, loadClaimImages, loadLogoImage } from './s
  */
 
 const FONT = 'Arial';
-const BODY_SIZE = 20; // half-points: 10 pt
+const BODY_SIZE = 24; // half-points: Arial 12 pt
 const PAGE_CONTENT_DXA = 9974; // Carta con márgenes laterales de 20 mm
 const LOGO_COL_DXA = 2632;
 const INFO_LABEL_DXA = 1417;
@@ -157,7 +157,7 @@ export async function buildCommuniqueWord(rawCommunique: Communique): Promise<Bl
     ...(c.intro ? c.intro.split(/\n\s*\n/).map(block => justified(block.replace(/\n/g, ' ').trim())) : []),
     ...stepParagraphs(c),
     ...imageBlocks(images),
-    new Paragraph({ spacing: { before: 200, after: 200 }, keepNext: true, children: richRuns(c.cierre || DEFAULT_CLOSING) }),
+    new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { before: 200, after: 200, line: 276 }, keepNext: true, children: richRuns(c.cierre || DEFAULT_CLOSING) }),
     new Paragraph({ spacing: { after: 120 }, keepNext: true, children: [run('Atentamente,')] })
   ];
   const signatures = signatureTable(c);

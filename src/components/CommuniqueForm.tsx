@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Sparkles, Plus, Trash2, RefreshCw, Paperclip, FileText } from 'lucide-react';
 import { SupplierClaimPhotoGroup, PhotoItem } from './SupplierClaimPhotoGroup';
+import { VoiceDictationButton } from './VoiceDictationButton';
 import { parseJson, photosFromPaths, buildPhotoMeta, addPhotosToGroup, uploadPhotoGroup, uploadFileToStorage } from './supplierClaimPhotoHelpers';
 import { Communique, CommuniqueDocument, CommuniqueInput, CommuniqueKind, CommuniqueSigner, CommuniqueStep } from '@/src/lib/communiqueStore';
 import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, KIND_ORDER, MAX_REFERENCE_DOCUMENTS } from '@/src/lib/communiqueShared';
@@ -46,6 +47,9 @@ interface Props {
   onSaved: () => Promise<void>;
 }
 
+/** Huella de todo lo que el colaborador puede cambiar: si difiere de la última redacción de la IA, al guardar la IA vuelve a ajustar el documento. */
+const snapshotOf = (v: { tipo: string; de: string; para: string; asunto: string; contexto: string; intro: string; pasos: CommuniqueStep[]; cierre: string; pies: string[]; docs: string[] }) => JSON.stringify(v);
+
 const docsFromSaved = (docs: CommuniqueDocument[]): DocItem[] => docs.map(d => ({ key: d.path, nombre: d.nombre, path: d.path }));
 const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
 
@@ -68,6 +72,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [notice, setNotice] = useState<string | null>(null);
   const [textOpen, setTextOpen] = useState(Boolean(initial));
   const busy = status !== null;
+
+  const currentSnapshot = () => snapshotOf({ tipo, de, para, asunto, contexto, intro, pasos, cierre, pies: fotos.map(f => f.comment.trim()), docs: documentos.map(d => d.nombre) });
+  const aiSnapshot = useRef<string | null>(null);
+  if (aiSnapshot.current === null) aiSnapshot.current = currentSnapshot();
 
   const addDocuments = (files: FileList | null) => {
     if (!files) return;
@@ -112,6 +120,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   };
 
   const applyDraft = (draft: Draft, fuentes: Sources) => {
+    aiSnapshot.current = snapshotOf({ tipo, de, para, asunto: draft.asunto || asunto, contexto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre, pies: fotos.map((f, i) => f.comment.trim() || draft.pies[i] || ''), docs: documentos.map(d => d.nombre) });
     setAsunto(draft.asunto || asunto);
     setIntro(draft.intro);
     setPasos(draft.pasos);
@@ -143,8 +152,9 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       const { fotoPaths, docs } = await uploadAll();
       setStatus('Redactando con IA...');
       const { draft, fuentes } = await requestDraft(fotoPaths, docs);
-      applyDraft(draft, fuentes);
-      if (!draft.generadoPorIa) setError(fallbackMessage(draft.motivo));
+      // Si la IA falla y ya hay texto, se conserva el actual en vez de reemplazarlo por el texto base.
+      if (draft.generadoPorIa || pasos.length === 0) applyDraft(draft, fuentes);
+      if (!draft.generadoPorIa) setError(`${fallbackMessage(draft.motivo)}${pasos.length ? ' Se conservó el texto actual.' : ''}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -162,12 +172,14 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       const { fotoPaths, docs } = await uploadAll();
       let text = { asunto, intro, pasos, cierre };
       let aiNote: string | null = null;
-      if (pasos.length === 0) {
+      // Al crear o guardar cambios, la IA vuelve a ajustar el documento si falta el texto o si algo cambió desde su última redacción.
+      const needsAi = pasos.length === 0 || currentSnapshot() !== aiSnapshot.current;
+      if (needsAi) {
         setStatus('Redactando con IA...');
         try {
           const { draft, fuentes } = await requestDraft(fotoPaths, docs);
-          text = { asunto: draft.asunto || asunto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre };
-          if (!draft.generadoPorIa) aiNote = fallbackMessage(draft.motivo);
+          if (draft.generadoPorIa || pasos.length === 0) text = { asunto: draft.asunto || asunto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre };
+          if (!draft.generadoPorIa) aiNote = `${fallbackMessage(draft.motivo)}${pasos.length ? ' Se guardó el texto actual sin cambios.' : ''}`;
           else aiNote = buildNotice(draft, fuentes) && `El documento se guardó. ${buildNotice(draft, fuentes)}`;
         } catch {
           // El comunicado no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
@@ -231,8 +243,11 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       </div>
 
       <div>
-        <label className={LABEL}>¿Qué se comunica o qué quieres que redacte la IA? *</label>
-        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción: por ejemplo, &quot;explica en detalle el proceso de ensamble de este marco&quot;. La IA completa el documento con la plantilla oficial y los documentos de referencia." />
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <label className={LABEL + ' mb-0'}>¿Qué se comunica o qué quieres que redacte la IA? *</label>
+          <VoiceDictationButton disabled={busy} onTranscript={text => setContexto(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+        </div>
+        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Escribe o dicta con el micrófono: describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción, por ejemplo &quot;explica en detalle el proceso de ensamble de este marco&quot;. Al guardar, la IA ordena y redacta todo con la plantilla oficial y los documentos de referencia." />
         <button type="button" onClick={regenerate} disabled={busy} className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
           <Sparkles className="w-3 h-3" /> {pasos.length ? 'Regenerar con IA' : 'Generar texto con IA'}
         </button>
