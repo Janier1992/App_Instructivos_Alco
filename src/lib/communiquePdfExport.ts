@@ -12,7 +12,7 @@ import { LoadedImage, formatLongDate, loadClaimImages } from './supplierClaimSha
  */
 
 const MARGIN = 20;
-const BODY_TOP = 58;
+const BODY_TOP = 64;
 const BOTTOM_LIMIT = 262;
 const LINE_H = 4.8;
 const TEXT_SIZE = 10;
@@ -28,36 +28,40 @@ class CommuniqueWriter {
     this.drawPageFrame();
   }
 
-  /** Encabezado (logo, título, De, Para, Asunto) y pie de página; se repite en cada hoja. */
+  /**
+   * Encabezado igual al de la plantilla: una fila con el logo y el título (COMUNICADO / CALIDAD PRODUCCIÓN)
+   * y debajo las filas De, Para y Asunto, con la columna de etiquetas más angosta que la del logo. Pie de página en cada hoja.
+   */
   private drawPageFrame() {
     const { doc, c } = this;
-    const logoW = 52;
+    const logoW = this.contentW * 0.264;
+    const labelW = this.contentW * 0.141;
     const top = 10;
-    const titleH = 15;
+    const titleH = 22;
     const rowH = 8.5;
-    const rightX = MARGIN + logoW;
-    const rightW = this.contentW - logoW;
 
     doc.setDrawColor(0, 0, 0).setLineWidth(0.3);
-    doc.rect(MARGIN, top, logoW, titleH + rowH * 3);
-    doc.rect(rightX, top, rightW, titleH);
-    [c.de, c.para, c.asunto].forEach((_, i) => doc.rect(rightX, top + titleH + rowH * i, rightW, rowH));
+    doc.rect(MARGIN, top, logoW, titleH).rect(MARGIN + logoW, top, this.contentW - logoW, titleH);
 
     if (this.logo) {
       try {
-        doc.addImage(this.logo, 'PNG', MARGIN + 4, top + 5, logoW - 8, titleH + rowH * 3 - 10);
+        const { width, height } = doc.getImageProperties(this.logo);
+        const scale = Math.min((logoW - 6) / width, (titleH - 6) / height);
+        doc.addImage(this.logo, 'PNG', MARGIN + (logoW - width * scale) / 2, top + (titleH - height * scale) / 2, width * scale, height * scale);
       } catch {
-        doc.setFont('helvetica', 'bold').setFontSize(14).setTextColor(0, 51, 102).text('ALCO S.A.S', MARGIN + 6, top + 20);
+        doc.setFont('helvetica', 'bold').setFontSize(14).setTextColor(0, 51, 102).text('ALCO S.A.S', MARGIN + 6, top + 13);
       }
     }
 
-    doc.setTextColor(0, 0, 0).setFont('helvetica', 'bold').setFontSize(11);
-    doc.text(KIND_CONFIG[c.tipo].title, rightX + rightW / 2, top + 6.2, { align: 'center' });
-    doc.text(COMMUNIQUE_SUBTITLE, rightX + rightW / 2, top + 11.6, { align: 'center' });
+    const titleX = MARGIN + logoW + (this.contentW - logoW) / 2;
+    doc.setTextColor(0, 0, 0).setFont('helvetica', 'bold').setFontSize(15);
+    doc.text(KIND_CONFIG[c.tipo].title, titleX, top + 9.5, { align: 'center' }).text(COMMUNIQUE_SUBTITLE, titleX, top + 16.5, { align: 'center' });
+
     [['DE:', c.de], ['PARA:', c.para], ['ASUNTO:', c.asunto]].forEach(([label, value], i) => {
-      const baseline = top + titleH + rowH * i + 5.7;
-      doc.setFont('helvetica', 'bold').setFontSize(9.5).text(label, rightX + 3, baseline);
-      doc.setFont('helvetica', 'normal').text(doc.splitTextToSize(value, rightW - 24)[0], rightX + 3 + doc.getTextWidth(label) + 2, baseline);
+      const rowTop = top + titleH + rowH * i;
+      doc.rect(MARGIN, rowTop, labelW, rowH).rect(MARGIN + labelW, rowTop, this.contentW - labelW, rowH);
+      doc.setFont('helvetica', 'bolditalic').setFontSize(10).text(label, MARGIN + 3, rowTop + 5.7);
+      doc.setFont('helvetica', 'normal').text(doc.splitTextToSize(value, this.contentW - labelW - 6)[0], MARGIN + labelW + 3, rowTop + 5.7);
     });
 
     doc.setFont('helvetica', 'italic').setFontSize(9).setTextColor(40, 40, 40).text(COMMUNIQUE_FOOTER, MARGIN, 272);

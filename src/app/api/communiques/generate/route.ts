@@ -29,10 +29,21 @@ async function download(supabase: NonNullable<ReturnType<typeof getSupabaseClien
 
 const strings = (value: unknown, max: number): string[] => (Array.isArray(value) ? value.filter((v: unknown): v is string => typeof v === 'string').slice(0, max) : []);
 
+/** Borrador actual del formulario (texto ya escrito o generado), con topes de tamaño. */
+function cleanDraft(raw: any): { intro: string; pasos: { titulo: string; detalle: string }[]; cierre: string } | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const text = (value: unknown, max: number) => (typeof value === 'string' ? value.slice(0, max) : '');
+  return {
+    intro: text(raw.intro, 4000),
+    pasos: (Array.isArray(raw.pasos) ? raw.pasos : []).slice(0, 12).map((p: any) => ({ titulo: text(p?.titulo, 300), detalle: text(p?.detalle, 1500) })),
+    cierre: text(raw.cierre, 500)
+  };
+}
+
 /** Pública — redacta el comunicado con Gemini a partir de lo que describe el colaborador, las imágenes y los documentos de referencia ya subidos. */
 export async function POST(request: NextRequest) {
   try {
-    const { tipo, de, para, asunto, contexto, fotoPaths, piesFotos, documentos } = await request.json();
+    const { tipo, de, para, asunto, contexto, fotoPaths, piesFotos, documentos, borrador } = await request.json();
     if (!de?.trim() || !para?.trim() || !asunto?.trim() || !contexto?.trim()) {
       return NextResponse.json({ error: 'Se requiere De, Para, Asunto y lo que se comunica.' }, { status: 400 });
     }
@@ -47,17 +58,23 @@ export async function POST(request: NextRequest) {
     const images = supabase
       ? (await Promise.all(photoPaths.map(async path => ({ buffer: await download(supabase, path), mimeType: mimeFromPath(path) })))).filter((i): i is { buffer: Buffer; mimeType: string } => i.buffer !== null)
       : [];
-    const documents = supabase
-      ? (await Promise.all(docList.map(async d => ({ buffer: await download(supabase, d.path), mimeType: mimeFromPath(d.path), nombre: d.nombre }))))
-          .filter((d): d is { buffer: Buffer; mimeType: string; nombre: string } => d.buffer !== null && d.buffer.length <= MAX_DOCUMENT_BYTES)
-      : [];
+    const downloadedDocs = supabase ? await Promise.all(docList.map(async d => ({ buffer: await download(supabase, d.path), mimeType: mimeFromPath(d.path), nombre: d.nombre }))) : [];
+    const documents = downloadedDocs.filter((d): d is { buffer: Buffer; mimeType: string; nombre: string } => d.buffer !== null && d.buffer.length <= MAX_DOCUMENT_BYTES);
+    // Qué fuentes leyó realmente la IA: se muestra en el formulario para que el colaborador sepa si su adjunto se tuvo en cuenta.
+    const fuentes = {
+      documentosLeidos: documents.map(d => d.nombre),
+      documentosOmitidos: downloadedDocs
+        .filter(d => !documents.includes(d as (typeof documents)[number]))
+        .map(d => `${d.nombre} (${d.buffer ? `pesa más de ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB` : 'no se pudo leer'})`),
+      imagenes: images.length
+    };
 
     const draft = await generateCommuniqueDraft({
       tipo: normalizeKind(tipo), de, para, asunto, contexto,
       piesFotos: photoPaths.map((_, i) => pies[i] || ''),
-      images, documents
+      images, documents, borrador: cleanDraft(borrador)
     });
-    return NextResponse.json({ success: true, draft });
+    return NextResponse.json({ success: true, draft, fuentes });
   } catch (err: any) {
     console.error('Error generando comunicado:', err);
     return NextResponse.json({ error: err?.message || 'Error interno del servidor.' }, { status: 500 });

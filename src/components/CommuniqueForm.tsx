@@ -12,7 +12,7 @@ const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
 const MAX_DOCUMENT_MB = 8;
 const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.txt';
 const DOCUMENT_MIME: Record<string, string> = { pdf: 'application/pdf', txt: 'text/plain', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
-const AI_FALLBACK_MESSAGE = 'La IA no respondió (Gemini está con alta demanda), así que se usó un texto base sin redactar. Pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.';
+const fallbackMessage = (motivo?: string) => `La IA no pudo redactar el documento${motivo ? ` (${motivo})` : ''}, así que se usó un texto base. Pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.`;
 
 /** Documento de referencia del formulario: ya guardado (path en Storage) o recién elegido (archivo pendiente de subir). */
 interface DocItem {
@@ -28,7 +28,16 @@ interface Draft {
   pasos: CommuniqueStep[];
   pies: string[];
   cierre: string;
+  sugerencias: string[];
   generadoPorIa: boolean;
+  motivo?: string;
+}
+
+/** Qué fuentes leyó la IA: documentos de referencia, los que no pudo leer y cantidad de imágenes. */
+interface Sources {
+  documentosLeidos: string[];
+  documentosOmitidos: string[];
+  imagenes: number;
 }
 
 interface Props {
@@ -56,6 +65,8 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [firmantes, setFirmantes] = useState<CommuniqueSigner[]>(initial?.firmantes || DEFAULT_SIGNERS);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [textOpen, setTextOpen] = useState(Boolean(initial));
   const busy = status !== null;
 
   const addDocuments = (files: FileList | null) => {
@@ -79,22 +90,34 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     return uploaded.filter(d => d.path).map(d => ({ path: d.path as string, nombre: d.nombre }));
   };
 
-  const requestDraft = async (fotoPaths: string[], docs: CommuniqueDocument[]): Promise<Draft> => {
+  const requestDraft = async (fotoPaths: string[], docs: CommuniqueDocument[]): Promise<{ draft: Draft; fuentes: Sources }> => {
     const res = await fetch('/api/communiques/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, de, para, asunto, contexto, fotoPaths, piesFotos: fotos.map(f => f.comment.trim()), documentos: docs })
+      body: JSON.stringify({ tipo, de, para, asunto, contexto, fotoPaths, piesFotos: fotos.map(f => f.comment.trim()), documentos: docs, borrador: { intro, pasos, cierre } })
     });
     const data = await parseJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo generar el comunicado.');
-    return data.draft as Draft;
+    return { draft: data.draft as Draft, fuentes: data.fuentes as Sources };
   };
 
-  const applyDraft = (draft: Draft) => {
+  /** Aviso con lo que la IA usó como fuente y lo que sugiere para mejorar el documento. */
+  const buildNotice = (draft: Draft, fuentes: Sources): string | null => {
+    const parts: string[] = [];
+    if (fuentes.documentosLeidos.length) parts.push(`La IA leyó: ${fuentes.documentosLeidos.join(', ')}.`);
+    if (fuentes.documentosOmitidos.length) parts.push(`No pudo usar: ${fuentes.documentosOmitidos.join(', ')}.`);
+    if (fuentes.imagenes) parts.push(`Revisó ${fuentes.imagenes} imagen${fuentes.imagenes > 1 ? 'es' : ''}.`);
+    if (draft.sugerencias.length) parts.push(`Para mejorar el documento: ${draft.sugerencias.join(' ')}`);
+    return parts.length ? parts.join(' ') : null;
+  };
+
+  const applyDraft = (draft: Draft, fuentes: Sources) => {
     setAsunto(draft.asunto || asunto);
     setIntro(draft.intro);
     setPasos(draft.pasos);
     setCierre(draft.cierre);
+    setTextOpen(true);
+    setNotice(buildNotice(draft, fuentes));
     setFotos(prev => prev.map((f, i) => ({ ...f, comment: f.comment.trim() || draft.pies[i] || '' })));
   };
 
@@ -115,12 +138,13 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     const problem = validate();
     if (problem) return setError(problem);
     setError(null);
+    setNotice(null);
     try {
       const { fotoPaths, docs } = await uploadAll();
       setStatus('Redactando con IA...');
-      const draft = await requestDraft(fotoPaths, docs);
-      applyDraft(draft);
-      if (!draft.generadoPorIa) setError(AI_FALLBACK_MESSAGE);
+      const { draft, fuentes } = await requestDraft(fotoPaths, docs);
+      applyDraft(draft, fuentes);
+      if (!draft.generadoPorIa) setError(fallbackMessage(draft.motivo));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -138,12 +162,13 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       const { fotoPaths, docs } = await uploadAll();
       let text = { asunto, intro, pasos, cierre };
       let aiNote: string | null = null;
-      if (!intro.trim()) {
+      if (pasos.length === 0) {
         setStatus('Redactando con IA...');
         try {
-          const draft = await requestDraft(fotoPaths, docs);
+          const { draft, fuentes } = await requestDraft(fotoPaths, docs);
           text = { asunto: draft.asunto || asunto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre };
-          if (!draft.generadoPorIa) aiNote = AI_FALLBACK_MESSAGE;
+          if (!draft.generadoPorIa) aiNote = fallbackMessage(draft.motivo);
+          else aiNote = buildNotice(draft, fuentes) && `El documento se guardó. ${buildNotice(draft, fuentes)}`;
         } catch {
           // El comunicado no se pierde por una falla de la IA: se guarda y el texto se genera después desde Editar.
           aiNote = 'El comunicado se guardó, pero la IA no alcanzó a redactar el texto. Ábrelo con "Editar" y pulsa "Generar texto con IA" para completarlo.';
@@ -206,8 +231,11 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
       </div>
 
       <div>
-        <label className={LABEL}>¿Qué se comunica? *</label>
-        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Describe el cambio, la mejora de diseño o el producto nuevo: qué cambia, en qué áreas aplica, cómo se debe hacer. La IA lo redactará con la plantilla oficial y con los documentos de referencia." />
+        <label className={LABEL}>¿Qué se comunica o qué quieres que redacte la IA? *</label>
+        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción: por ejemplo, &quot;explica en detalle el proceso de ensamble de este marco&quot;. La IA completa el documento con la plantilla oficial y los documentos de referencia." />
+        <button type="button" onClick={regenerate} disabled={busy} className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
+          <Sparkles className="w-3 h-3" /> {pasos.length ? 'Regenerar con IA' : 'Generar texto con IA'}
+        </button>
       </div>
 
       <div className="space-y-2">
@@ -227,10 +255,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
       <SupplierClaimPhotoGroup title="Imágenes del comunicado (el comentario de cada una es su pie de foto)" photos={fotos} disabled={busy} onAdd={f => addPhotosToGroup(f, setFotos)} onRemove={removePhoto} onUpdate={updatePhoto} />
 
-      <details className="border border-slate-200 rounded-xl p-3 bg-slate-50" open={Boolean(initial)}>
+      <details className="border border-slate-200 rounded-xl p-3 bg-slate-50" open={textOpen} onToggle={e => setTextOpen(e.currentTarget.open)}>
         <summary className="text-xs font-bold text-slate-700 cursor-pointer">Texto del documento (lo redacta la IA; puedes ajustarlo)</summary>
         <div className="space-y-3 mt-3">
-          <div><label className={LABEL}>Introducción</label><textarea className={INPUT} rows={4} value={intro} onChange={e => setIntro(e.target.value)} placeholder="Se genera con IA. Puedes resaltar términos con **asteriscos dobles**." /></div>
+          <div><label className={LABEL}>Introducción</label><textarea className={INPUT} rows={4} value={intro} onChange={e => setIntro(e.target.value)} placeholder="La redacta la IA. Si la ajustas aquí, pulsa &quot;Regenerar con IA&quot; para que la IA pula tu versión. Puedes resaltar términos con **asteriscos dobles**." /></div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className={LABEL + ' mb-0'}>{KIND_CONFIG[tipo].stepsHeading.replace(/:$/, '')}</label>
@@ -260,12 +288,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
               </div>
             ))}
           </div>
-          <button type="button" onClick={regenerate} disabled={busy} className="flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
-            <RefreshCw className="w-3 h-3" /> {intro ? 'Regenerar con IA' : 'Generar texto con IA'}
-          </button>
         </div>
       </details>
 
+      {notice && <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-900">{notice}</div>}
       {error && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">{error}</div>}
 
       <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
