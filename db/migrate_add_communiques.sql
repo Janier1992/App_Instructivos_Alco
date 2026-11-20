@@ -5,8 +5,11 @@
 -- nuevos productos. El colaborador describe el cambio y adjunta imágenes y
 -- documentos de referencia (por ejemplo una ficha técnica); Gemini redacta
 -- el texto y el documento se exporta a Word y PDF con la plantilla oficial.
--- Las imágenes y los documentos de referencia se guardan en el bucket
--- 'supplier-claim-photos' (ya creado por migrate_add_supplier_claims.sql).
+-- Las imágenes se guardan en el bucket 'supplier-claim-photos' (ya creado por
+-- migrate_add_supplier_claims.sql). Los documentos de referencia (ficha
+-- técnica o borrador) solo se usan para generar el texto: se suben de forma
+-- temporal, se borran al leerlos y no se guardan en la base de datos (la
+-- columna 'documentos' ya no se usa).
 -- Ejecutar en: Supabase Dashboard > SQL Editor > New Query. Idempotente.
 -- ============================================================
 

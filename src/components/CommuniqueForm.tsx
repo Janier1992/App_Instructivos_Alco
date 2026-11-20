@@ -5,22 +5,29 @@ import { Sparkles, Plus, Trash2, RefreshCw, Paperclip, FileText } from 'lucide-r
 import { SupplierClaimPhotoGroup, PhotoItem } from './SupplierClaimPhotoGroup';
 import { VoiceDictationButton } from './VoiceDictationButton';
 import { parseJson, photosFromPaths, buildPhotoMeta, addPhotosToGroup, uploadPhotoGroup, uploadFileToStorage } from './supplierClaimPhotoHelpers';
-import { Communique, CommuniqueDocument, CommuniqueInput, CommuniqueKind, CommuniqueSigner, CommuniqueStep } from '@/src/lib/communiqueStore';
-import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, KIND_ORDER, MAX_REFERENCE_DOCUMENTS } from '@/src/lib/communiqueShared';
+import { Communique, CommuniqueInput, CommuniqueKind, CommuniqueSigner, CommuniqueStep } from '@/src/lib/communiqueStore';
+import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, KIND_ORDER, MAX_REFERENCE_DOCUMENTS, REFERENCE_ROLES, ReferenceRole } from '@/src/lib/communiqueShared';
 
 const INPUT = 'w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#003366]';
 const LABEL = 'text-[11px] font-bold text-slate-600 block mb-1';
 const MAX_DOCUMENT_MB = 8;
-const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.txt';
-const DOCUMENT_MIME: Record<string, string> = { pdf: 'application/pdf', txt: 'text/plain', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+const DOCUMENT_ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,.webp,.txt';
+const DOCUMENT_MIME: Record<string, string> = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
 const fallbackMessage = (motivo?: string) => `La IA no pudo redactar el documento${motivo ? ` (${motivo})` : ''}, así que se usó un texto base. Pulsa "Regenerar con IA" en unos minutos para obtener la redacción completa.`;
 
-/** Documento de referencia del formulario: ya guardado (path en Storage) o recién elegido (archivo pendiente de subir). */
+/** Adjunto del formulario (ficha técnica o borrador). Solo vive en el navegador: se sube de forma temporal al generar y no se guarda. */
 interface DocItem {
   key: string;
   nombre: string;
-  path?: string;
-  file?: File;
+  rol: ReferenceRole;
+  file: File;
+}
+
+/** Adjunto ya subido de forma temporal, tal como lo recibe la generación. */
+interface UploadedDoc {
+  path: string;
+  nombre: string;
+  rol: ReferenceRole;
 }
 
 interface Draft {
@@ -50,7 +57,6 @@ interface Props {
 /** Huella de todo lo que el colaborador puede cambiar: si difiere de la última redacción de la IA, al guardar la IA vuelve a ajustar el documento. */
 const snapshotOf = (v: { tipo: string; de: string; para: string; asunto: string; contexto: string; intro: string; pasos: CommuniqueStep[]; cierre: string; pies: string[]; docs: string[] }) => JSON.stringify(v);
 
-const docsFromSaved = (docs: CommuniqueDocument[]): DocItem[] => docs.map(d => ({ key: d.path, nombre: d.nombre, path: d.path }));
 const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
 
 export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) => {
@@ -61,7 +67,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [para, setPara] = useState(initial?.para || '');
   const [asunto, setAsunto] = useState(initial?.asunto || '');
   const [contexto, setContexto] = useState(initial?.contexto || '');
-  const [documentos, setDocumentos] = useState<DocItem[]>(docsFromSaved(initial?.documentos || []));
+  const [documentos, setDocumentos] = useState<DocItem[]>([]);
   const [fotos, setFotos] = useState<PhotoItem[]>(photosFromPaths(initial?.fotoPaths || [], initial?.fotoMeta));
   const [intro, setIntro] = useState(initial?.intro || '');
   const [pasos, setPasos] = useState<CommuniqueStep[]>(initial?.pasos || []);
@@ -73,7 +79,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [textOpen, setTextOpen] = useState(Boolean(initial));
   const busy = status !== null;
 
-  const currentSnapshot = () => snapshotOf({ tipo, de, para, asunto, contexto, intro, pasos, cierre, pies: fotos.map(f => f.comment.trim()), docs: documentos.map(d => d.nombre) });
+  const currentSnapshot = () => snapshotOf({ tipo, de, para, asunto, contexto, intro, pasos, cierre, pies: fotos.map(f => f.comment.trim()), docs: documentos.map(d => `${d.nombre}:${d.rol}`) });
   const aiSnapshot = useRef<string | null>(null);
   if (aiSnapshot.current === null) aiSnapshot.current = currentSnapshot();
 
@@ -81,24 +87,19 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     if (!files) return;
     const accepted: DocItem[] = [];
     for (const file of Array.from(files)) {
-      if (!DOCUMENT_MIME[extensionOf(file.name)]) return setError('Formato no admitido. Adjunta un PDF, una imagen (JPG, PNG, WEBP) o un archivo de texto (TXT).');
+      if (!DOCUMENT_MIME[extensionOf(file.name)]) return setError('Formato no admitido. Adjunta un PDF, un Word (DOCX), una imagen (JPG, PNG, WEBP) o un archivo de texto (TXT).');
       if (file.size > MAX_DOCUMENT_MB * 1024 * 1024) return setError(`"${file.name}" pesa más de ${MAX_DOCUMENT_MB} MB y la IA no podría leerlo. Comprímelo o adjunta solo las páginas necesarias.`);
-      accepted.push({ key: `${Date.now()}-${Math.random()}`, nombre: file.name, file });
+      accepted.push({ key: `${Date.now()}-${Math.random()}`, nombre: file.name, rol: /borrador/i.test(file.name) ? 'borrador' : 'ficha', file });
     }
     setError(null);
     setDocumentos(prev => [...prev, ...accepted].slice(0, MAX_REFERENCE_DOCUMENTS));
   };
 
-  /** Sube los documentos nuevos a Storage y devuelve la lista final guardada. */
-  const uploadDocuments = async (): Promise<CommuniqueDocument[]> => {
-    const uploaded = await Promise.all(
-      documentos.map(async (d): Promise<DocItem> => (d.path || !d.file ? d : { ...d, path: await uploadFileToStorage(d.file, '/api/communiques/upload-url', DOCUMENT_MIME[extensionOf(d.nombre)]), file: undefined }))
-    );
-    setDocumentos(uploaded);
-    return uploaded.filter(d => d.path).map(d => ({ path: d.path as string, nombre: d.nombre }));
-  };
+  /** Sube los adjuntos de forma temporal: la generación los lee una vez y los borra, así que se vuelven a subir cada vez. */
+  const uploadDocuments = (): Promise<UploadedDoc[]> =>
+    Promise.all(documentos.map(async d => ({ path: await uploadFileToStorage(d.file, '/api/communiques/upload-url', DOCUMENT_MIME[extensionOf(d.nombre)]), nombre: d.nombre, rol: d.rol })));
 
-  const requestDraft = async (fotoPaths: string[], docs: CommuniqueDocument[]): Promise<{ draft: Draft; fuentes: Sources }> => {
+  const requestDraft = async (fotoPaths: string[], docs: UploadedDoc[]): Promise<{ draft: Draft; fuentes: Sources }> => {
     const res = await fetch('/api/communiques/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,7 +121,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   };
 
   const applyDraft = (draft: Draft, fuentes: Sources) => {
-    aiSnapshot.current = snapshotOf({ tipo, de, para, asunto: draft.asunto || asunto, contexto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre, pies: fotos.map((f, i) => f.comment.trim() || draft.pies[i] || ''), docs: documentos.map(d => d.nombre) });
+    aiSnapshot.current = snapshotOf({ tipo, de, para, asunto: draft.asunto || asunto, contexto, intro: draft.intro, pasos: draft.pasos, cierre: draft.cierre, pies: fotos.map((f, i) => f.comment.trim() || draft.pies[i] || ''), docs: documentos.map(d => `${d.nombre}:${d.rol}`) });
     setAsunto(draft.asunto || asunto);
     setIntro(draft.intro);
     setPasos(draft.pasos);
@@ -132,7 +133,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
   const validate = (): string | null => {
     if (!de.trim() || !para.trim() || !asunto.trim()) return 'Completa De, Para y Asunto.';
-    if (!contexto.trim()) return 'Describe qué se comunica: el cambio, la mejora o el producto nuevo.';
+    if (!contexto.trim() && !intro.trim() && !documentos.some(d => d.rol === 'borrador')) return 'Describe qué se comunica (el cambio, la mejora o el producto nuevo) o adjunta el borrador del comunicado.';
     return null;
   };
 
@@ -187,8 +188,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
         }
       }
 
+      if (!text.intro.trim() && text.pasos.length === 0) throw new Error('La IA no pudo redactar el documento a partir del borrador adjunto, así que no se guardó. Intenta de nuevo en unos minutos.');
+
       setStatus('Guardando...');
-      const body: CommuniqueInput = { tipo, fecha, de, para, ...text, contexto, firmantes, fotoPaths, fotoMeta: buildPhotoMeta(fotos, fotoPaths), documentos: docs };
+      const body: CommuniqueInput = { tipo, fecha, de, para, ...text, contexto, firmantes, fotoPaths, fotoMeta: buildPhotoMeta(fotos, fotoPaths) };
       const res = await fetch(initial ? `/api/communiques/${initial.id}` : '/api/communiques', {
         method: initial ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -244,10 +247,10 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <label className={LABEL + ' mb-0'}>¿Qué se comunica o qué quieres que redacte la IA? *</label>
+          <label className={LABEL + ' mb-0'}>¿Qué se comunica o qué quieres que redacte la IA?{documentos.some(d => d.rol === 'borrador') ? ' (opcional con borrador)' : ' *'}</label>
           <VoiceDictationButton disabled={busy} onTranscript={text => setContexto(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
         </div>
-        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Escribe o dicta con el micrófono: describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción, por ejemplo &quot;explica en detalle el proceso de ensamble de este marco&quot;. Al guardar, la IA ordena y redacta todo con la plantilla oficial y los documentos de referencia." />
+        <textarea className={INPUT} rows={4} value={contexto} onChange={e => setContexto(e.target.value)} placeholder="Escribe o dicta con el micrófono: describe el cambio, la mejora de diseño o el producto nuevo (qué cambia, en qué áreas aplica, cómo se hace), o dale una instrucción, por ejemplo &quot;explica en detalle el proceso de ensamble de este marco&quot;. Si adjuntas un borrador del comunicado, no necesitas escribir esto: la IA parte de él. Al guardar, la IA ordena y redacta todo con la plantilla oficial." />
         <button type="button" onClick={regenerate} disabled={busy} className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-[#003366] border border-[#003366] rounded-lg px-3 py-1.5 disabled:opacity-50">
           <Sparkles className="w-3 h-3" /> {pasos.length ? 'Regenerar con IA' : 'Generar texto con IA'}
         </button>
@@ -255,15 +258,20 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className={LABEL + ' mb-0'}>Documentos de referencia (opcional)</label>
+          <label className={LABEL + ' mb-0'}>Documentos adjuntos: ficha técnica o borrador (opcional)</label>
           <button type="button" disabled={busy || documentos.length >= MAX_REFERENCE_DOCUMENTS} onClick={() => docInputRef.current?.click()} className="text-[11px] font-bold text-[#003366] flex items-center gap-1 disabled:opacity-50"><Paperclip className="w-3 h-3" /> Adjuntar documento</button>
           <input ref={docInputRef} type="file" accept={DOCUMENT_ACCEPT} multiple className="hidden" onChange={e => { addDocuments(e.target.files); e.target.value = ''; }} />
         </div>
-        <p className="text-[10px] text-slate-500">Fichas técnicas u otros documentos (PDF, imagen o TXT; hasta {MAX_REFERENCE_DOCUMENTS} de {MAX_DOCUMENT_MB} MB). La IA los usa como fuente. Si tu documento está en Word, guárdalo como PDF.</p>
+        <p className="text-[10px] text-slate-500">Adjunta la ficha técnica del producto y, si ya tienes uno adelantado, el borrador del comunicado (PDF, Word, imagen o TXT; hasta {MAX_REFERENCE_DOCUMENTS} archivos de {MAX_DOCUMENT_MB} MB). La IA parte del borrador y toma los datos de la ficha. Los adjuntos solo se usan para redactar: no se guardan en el sistema.</p>
         {documentos.map(d => (
           <div key={d.key} className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs">
             <span className="flex items-center gap-1.5 min-w-0"><FileText className="w-3.5 h-3.5 text-[#003366] shrink-0" /><span className="truncate">{d.nombre}</span></span>
-            <button type="button" disabled={busy} onClick={() => setDocumentos(prev => prev.filter(x => x.key !== d.key))} aria-label="Quitar documento"><Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-rose-600" /></button>
+            <span className="flex items-center gap-2 shrink-0">
+              <select aria-label={`Tipo de documento de ${d.nombre}`} disabled={busy} value={d.rol} onChange={e => setDocumentos(prev => prev.map(x => (x.key === d.key ? { ...x, rol: e.target.value as ReferenceRole } : x)))} className="bg-white border border-slate-300 rounded-md px-1.5 py-1 text-[11px] font-semibold text-slate-700">
+                {(Object.keys(REFERENCE_ROLES) as ReferenceRole[]).map(role => <option key={role} value={role}>{REFERENCE_ROLES[role]}</option>)}
+              </select>
+              <button type="button" disabled={busy} onClick={() => setDocumentos(prev => prev.filter(x => x.key !== d.key))} aria-label="Quitar documento"><Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-rose-600" /></button>
+            </span>
           </div>
         ))}
       </div>

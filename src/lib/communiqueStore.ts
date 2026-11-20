@@ -14,12 +14,6 @@ export interface CommuniqueSigner {
   cargo: string;
 }
 
-/** Documento de referencia subido a Storage (por ejemplo una ficha técnica en PDF). */
-export interface CommuniqueDocument {
-  path: string;
-  nombre: string;
-}
-
 export interface Communique {
   id: string;
   processSlug: string;
@@ -36,7 +30,6 @@ export interface Communique {
   fotoPaths: string[];
   /** Pie de foto y marcas por imagen, indexado por la ruta en Storage. */
   fotoMeta: Record<string, PhotoMeta>;
-  documentos: CommuniqueDocument[];
   createdAt: string;
 }
 
@@ -53,7 +46,6 @@ export interface CommuniqueInput {
   firmantes?: CommuniqueSigner[];
   fotoPaths?: string[];
   fotoMeta?: Record<string, PhotoMeta>;
-  documentos?: CommuniqueDocument[];
 }
 
 export function normalizeKind(value: unknown): CommuniqueKind {
@@ -63,7 +55,7 @@ export function normalizeKind(value: unknown): CommuniqueKind {
 /** Devuelve el mensaje de error de validación, o null si el comunicado es válido. */
 export function validateCommuniqueInput(body: Partial<CommuniqueInput>): string | null {
   if (!body.de?.trim() || !body.para?.trim() || !body.asunto?.trim()) return 'Se requiere De, Para y Asunto.';
-  if (!body.contexto?.trim()) return 'Describe qué se comunica (el cambio, la mejora o el producto nuevo).';
+  if (!body.contexto?.trim() && !body.intro?.trim()) return 'Describe qué se comunica (el cambio, la mejora o el producto nuevo) o adjunta un borrador.';
   return null;
 }
 
@@ -83,7 +75,6 @@ function mapRow(row: any): Communique {
     firmantes: Array.isArray(row.firmantes) ? row.firmantes : [],
     fotoPaths: row.foto_paths || [],
     fotoMeta: row.foto_meta && typeof row.foto_meta === 'object' ? row.foto_meta : {},
-    documentos: Array.isArray(row.documentos) ? row.documentos : [],
     createdAt: row.created_at
   };
 }
@@ -96,14 +87,13 @@ function toDbRow(input: CommuniqueInput) {
     de: input.de.trim(),
     para: input.para.trim(),
     asunto: input.asunto.trim(),
-    contexto: input.contexto.trim(),
+    contexto: (input.contexto || '').trim(),
     intro: input.intro?.trim() || null,
     pasos: input.pasos || [],
     cierre: input.cierre?.trim() || null,
     firmantes: input.firmantes || [],
     foto_paths: input.fotoPaths || [],
-    foto_meta: input.fotoMeta || {},
-    documentos: input.documentos || []
+    foto_meta: input.fotoMeta || {}
   };
 }
 
@@ -147,7 +137,8 @@ export async function deleteCommunique(id: string): Promise<{ success: boolean }
     return { success: false };
   }
 
-  const docPaths = (Array.isArray(row?.documentos) ? row.documentos : []).map((d: CommuniqueDocument) => d.path);
+  // Los documentos de referencia ya no se guardan; esto limpia los de comunicados creados antes de ese cambio.
+  const docPaths = (Array.isArray(row?.documentos) ? row.documentos : []).map((d: { path: string }) => d.path);
   const paths = [...(row?.foto_paths || []), ...docPaths];
   if (paths.length > 0) await supabase.storage.from(SUPPLIER_CLAIM_PHOTO_BUCKET).remove(paths);
   return { success: true };

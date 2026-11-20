@@ -1,6 +1,6 @@
 import { generateJsonWithFallback } from './geminiJson';
 import { polishText, stripDashes } from './supplierClaimShared';
-import { DEFAULT_CLOSING, KIND_CONFIG } from './communiqueShared';
+import { DEFAULT_CLOSING, KIND_CONFIG, REFERENCE_ROLES, ReferenceRole } from './communiqueShared';
 import type { CommuniqueKind, CommuniqueStep } from './communiqueStore';
 
 /**
@@ -20,7 +20,7 @@ export interface CommuniqueDraftInput {
   piesFotos: string[];
   images: { buffer: Buffer; mimeType: string }[];
   /** Documentos de referencia: PDF e imágenes se envían a Gemini; el texto plano va dentro del prompt. */
-  documents: { buffer: Buffer; mimeType: string; nombre: string }[];
+  documents: { buffer: Buffer; mimeType: string; nombre: string; rol: ReferenceRole }[];
   /** Texto que ya tiene el formulario: puede ser un borrador a mejorar o instrucciones dirigidas a la IA. */
   borrador?: { intro: string; pasos: CommuniqueStep[]; cierre: string };
 }
@@ -46,23 +46,25 @@ function describeDraft(borrador: CommuniqueDraftInput['borrador']): string {
     : '';
 }
 
-function buildPrompt(input: CommuniqueDraftInput): string {
+export function buildPrompt(input: CommuniqueDraftInput): string {
   const cfg = KIND_CONFIG[input.tipo];
   const opening = `${cfg.opening}...`;
-  const docs = input.documents.length ? input.documents.map(d => d.nombre).join(', ') : 'ninguno';
+  const docs = input.documents.length ? input.documents.map(d => `${d.nombre} (${REFERENCE_ROLES[d.rol]})`).join(', ') : 'ninguno';
+  const hasDraftDoc = input.documents.some(d => d.rol === 'borrador');
   return `Eres un Asistente de Calidad de ALCO S.A.S. (fabricante de ventanas y puertas de aluminio y vidrio). Redacta el texto de un ${cfg.label.toUpperCase()} interno de "Calidad Producción" dirigido a los colaboradores de las áreas de la planta, para divulgar implementaciones, mejoras de diseño, integración de nuevos productos o cambios en el proceso de control y de producción.
 
 DATOS
 - De: ${input.de}
 - Para: ${input.para}
 - Asunto propuesto: ${input.asunto}
-- Lo que pide el colaborador: ${input.contexto}
+- Lo que pide el colaborador: ${input.contexto.trim() || '(sin instrucción adicional: parte del borrador y de los documentos adjuntos)'}
   Puede ser una descripción del cambio o una instrucción dirigida a ti (por ejemplo "genera una explicación detallada del proceso"). Si es una instrucción, cúmplela y desarrolla el contenido completo del documento.
 - Pies de foto escritos por el colaborador (en el orden de las ${input.piesFotos.length} imágenes adjuntas): ${input.piesFotos.map((p, i) => `${i + 1}) ${p || '(sin pie)'}`).join(' | ') || 'no hay imágenes'}
 - Documentos de referencia adjuntos: ${docs}
 ${describeDraft(input.borrador)}
 FUENTES
-- Las imágenes y los documentos de referencia (por ejemplo una ficha técnica) vienen adjuntos antes de este texto. Úsalos como fuente de las especificaciones, medidas, normas y pasos. Lo que diga el colaborador manda sobre cualquier otra fuente.
+- Las imágenes y los documentos adjuntos vienen antes de este texto. Cada documento es una "ficha técnica" (fuente de especificaciones, medidas, normas y pasos) o un "borrador del comunicado" (punto de partida del texto). Lo que diga el colaborador manda sobre cualquier otra fuente.${hasDraftDoc ? `
+- HAY UN BORRADOR ADJUNTO: es el punto de partida. Conserva su contenido, sus datos, su intención y el orden de sus pasos; solo reorganízalo en la estructura de la plantilla, complétalo con las demás fuentes y corrige su ortografía, redacción y tono. No inventes un contenido distinto al del borrador ni pidas instrucciones adicionales: el colaborador no tiene por qué repetirlas.` : ''}
 - No inventes cifras, medidas, torques, tiempos, normas, referencias, fechas ni nombres que no aparezcan en lo anterior. Cuando falte un dato técnico específico, redacta el paso de forma general y verificable, basado en las buenas prácticas de ensamble, producción y control de calidad, y remite al documento correspondiente ("según la ficha técnica del producto", "según la orden de producción").
 - El documento debe quedar COMPLETO y listo para divulgar: nunca dejes secciones vacías, ni pidas más información dentro del texto, ni repitas las instrucciones del colaborador como si fueran el contenido. Corrige los errores de ortografía de lo que escribió el colaborador, incluidos nombres de productos (por ejemplo "batiente" en lugar de "bantiente").
 
@@ -104,7 +106,7 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 export function buildFallbackDraft(input: CommuniqueDraftInput, motivo?: string): CommuniqueDraft {
   return {
     asunto: input.asunto,
-    intro: `${KIND_CONFIG[input.tipo].opening} ${input.contexto.trim()}`,
+    intro: input.contexto.trim() ? `${KIND_CONFIG[input.tipo].opening} ${input.contexto.trim()}` : '',
     pasos: [],
     pies: input.piesFotos,
     cierre: DEFAULT_CLOSING,
@@ -134,7 +136,7 @@ function draftFromParsed(parsed: any, input: CommuniqueDraftInput): CommuniqueDr
 
 function buildParts(input: CommuniqueDraftInput): any[] {
   const toPart = (f: { buffer: Buffer; mimeType: string }) => ({ inlineData: { mimeType: f.mimeType, data: f.buffer.toString('base64') } });
-  const textDocs = input.documents.filter(d => d.mimeType === 'text/plain').map(d => ({ text: `Documento de referencia "${d.nombre}":\n${d.buffer.toString('utf-8').slice(0, 20000)}` }));
+  const textDocs = input.documents.filter(d => d.mimeType === 'text/plain').map(d => ({ text: `Documento adjunto "${d.nombre}" (${REFERENCE_ROLES[d.rol]}):\n${d.buffer.toString('utf-8').slice(0, 30000)}` }));
   const binaryDocs = input.documents.filter(d => d.mimeType !== 'text/plain').map(toPart);
   return [...input.images.map(toPart), ...binaryDocs, ...textDocs, { text: buildPrompt(input) }];
 }

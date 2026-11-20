@@ -9,6 +9,16 @@ export const DEFAULT_CLOSING = 'Agradecemos su atención y compromiso en la impl
 export const DEFAULT_SENDER = 'Departamento de Calidad';
 export const MAX_REFERENCE_DOCUMENTS = 3;
 
+/** Papel de un documento adjunto: la ficha técnica es fuente de datos; el borrador es el punto de partida del texto. */
+export type ReferenceRole = 'ficha' | 'borrador';
+
+export const REFERENCE_ROLES: Record<ReferenceRole, string> = {
+  ficha: 'Ficha técnica',
+  borrador: 'Borrador del comunicado'
+};
+
+export const normalizeRole = (value: unknown): ReferenceRole => (value === 'borrador' ? 'borrador' : 'ficha');
+
 /** Firmantes por defecto de la plantilla oficial; se pueden editar o quitar en el formulario. */
 export const DEFAULT_SIGNERS: CommuniqueSigner[] = [
   { nombre: 'Víctor Bermúdez', cargo: 'Jefe de producción' },
