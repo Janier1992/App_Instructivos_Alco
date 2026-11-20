@@ -1,5 +1,4 @@
-import { MediaResolution, ThinkingLevel } from '@google/genai';
-import { getGeminiClient } from './geminiClient';
+import { generateJsonWithFallback } from './geminiJson';
 import type { SupplierClaimAction, SupplierClaimRejectItem } from './supplierClaimsStore';
 import { polishText, stripDashes } from './supplierClaimShared';
 import { MATERIAL_TYPES, normalizeMaterialType, type SupplierClaimMaterialType } from './supplierClaimMaterialType';
@@ -10,10 +9,6 @@ import { MATERIAL_TYPES, normalizeMaterialType, type SupplierClaimMaterialType }
  * inspector: su análisis y las fotos del defecto. Mismo patrón de las demás
  * visiones de la app: modo JSON nativo de Gemini.
  */
-
-const MODEL = 'gemini-3.6-flash';
-// La función serverless de la ruta vive 60 s: si Gemini tarda más, se entrega el texto base en vez de dejar caer la petición (504).
-const AI_TIMEOUT_MS = 40000;
 
 export interface SupplierClaimDraftInput {
   proveedor: string;
@@ -97,26 +92,6 @@ Responde exclusivamente con un JSON de esta forma, sin texto adicional:
 }`;
 }
 
-function parseJson(text: string | undefined): any | null {
-  if (!text) return null;
-  const cleaned = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Gemini no respondió en ${ms / 1000} s.`)), ms);
-    promise.then(
-      value => { clearTimeout(timer); resolve(value); },
-      err => { clearTimeout(timer); reject(err); }
-    );
-  });
-}
-
 /** Texto base cuando la IA no está disponible: el informe se puede generar igual y editar después. */
 export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClaimDraft {
   return {
@@ -136,50 +111,23 @@ export function buildFallbackDraft(input: SupplierClaimDraftInput): SupplierClai
   };
 }
 
+function draftFromParsed(parsed: any): SupplierClaimDraft {
+  return {
+    defectoTitulo: typeof parsed.defectoTitulo === 'string' ? stripDashes(parsed.defectoTitulo) : '',
+    descripcionNc: stripDashes(parsed.descripcionNc).split(/\n\s*\n/).map(polishText).filter(Boolean).join('\n\n'),
+    observacionesTecnicas: Array.isArray(parsed.observacionesTecnicas) ? parsed.observacionesTecnicas.filter((o: unknown) => typeof o === 'string').map((o: string) => polishText(stripDashes(o))).filter(Boolean) : [],
+    accionesCorrectivas: Array.isArray(parsed.accionesCorrectivas)
+      ? parsed.accionesCorrectivas
+          .filter((a: any) => a && typeof a.titulo === 'string' && typeof a.detalle === 'string')
+          .map((a: any) => ({ titulo: stripDashes(a.titulo), detalle: polishText(stripDashes(a.detalle)) }))
+      : [],
+    generadoPorIa: true
+  };
+}
+
 export async function generateSupplierClaimDraft(input: SupplierClaimDraftInput): Promise<SupplierClaimDraft> {
-  if (!process.env.GEMINI_API_KEY) return buildFallbackDraft(input);
-
-  try {
-    const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
-    const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
-    const call = (fast: boolean) =>
-      withTimeout(
-        getGeminiClient().models.generateContent({
-          model: MODEL,
-          contents,
-          // Razonamiento medio: suficiente para interpretar la novedad, mantener coherencia entre secciones y revisar la ortografía sin pasar el límite de la función. Fotos en resolución baja para reducir la espera.
-          config: fast
-            ? { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM }, mediaResolution: MediaResolution.MEDIA_RESOLUTION_LOW }
-            : { responseMimeType: 'application/json' }
-        }),
-        AI_TIMEOUT_MS
-      );
-
-    let response;
-    try {
-      response = await call(true);
-    } catch (err: any) {
-      // Si el modelo rechaza la configuración rápida (no por tiempo agotado), reintenta con la configuración estándar.
-      if (/no respondió/.test(String(err?.message))) throw err;
-      response = await call(false);
-    }
-
-    const parsed = parseJson(response.text);
-    if (!parsed || typeof parsed.descripcionNc !== 'string') return buildFallbackDraft(input);
-
-    return {
-      defectoTitulo: typeof parsed.defectoTitulo === 'string' ? stripDashes(parsed.defectoTitulo) : '',
-      descripcionNc: stripDashes(parsed.descripcionNc).split(/\n\s*\n/).map(polishText).filter(Boolean).join('\n\n'),
-      observacionesTecnicas: Array.isArray(parsed.observacionesTecnicas) ? parsed.observacionesTecnicas.filter((o: unknown) => typeof o === 'string').map(o => polishText(stripDashes(o))).filter(Boolean) : [],
-      accionesCorrectivas: Array.isArray(parsed.accionesCorrectivas)
-        ? parsed.accionesCorrectivas
-            .filter((a: any) => a && typeof a.titulo === 'string' && typeof a.detalle === 'string')
-            .map((a: any) => ({ titulo: stripDashes(a.titulo), detalle: polishText(stripDashes(a.detalle)) }))
-        : [],
-      generadoPorIa: true
-    };
-  } catch (err: any) {
-    console.warn('⚠️ Error generando informe de reclamo a proveedor con IA:', err?.message || err);
-    return buildFallbackDraft(input);
-  }
+  const imageParts = input.images.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.buffer.toString('base64') } }));
+  const contents = [{ role: 'user', parts: [...imageParts, { text: buildPrompt(input) }] }];
+  const parsed = await generateJsonWithFallback(contents, p => typeof p.descripcionNc === 'string', 'el informe de reclamo a proveedor');
+  return parsed ? draftFromParsed(parsed) : buildFallbackDraft(input);
 }

@@ -28,7 +28,7 @@ const DEFAULT_GEMINI_FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash-li
 const TOTAL_BUDGET_MS = 46000;
 const MIN_ATTEMPT_MS = 6000;
 
-function getGeminiModelChain(): string[] {
+export function getGeminiModelChain(): string[] {
   const primary = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
   const fallbacks = process.env.GEMINI_FALLBACK_MODELS
     ? process.env.GEMINI_FALLBACK_MODELS.split(',').map(m => m.trim()).filter(Boolean)
