@@ -20,6 +20,8 @@ const MAX_IMAGE_W = 120;
 const MAX_IMAGE_H = 90;
 const MAX_SIGNATURE_W = 55;
 const MAX_SIGNATURE_H = 15;
+/** Espacio libre encima de cada línea de firma: la firma más alta cabe sin tocar el texto de arriba. */
+const SIGNATURE_ZONE_H = MAX_SIGNATURE_H + 3;
 
 class CommuniqueWriter {
   y = 0;
@@ -179,11 +181,12 @@ class CommuniqueWriter {
   }
 
   /** Firma dibujada sobre la línea de firma; si el PNG no se puede leer, queda la X de la plantilla. */
-  private drawSignature(firma: string, x: number, lineY: number): boolean {
+  private drawSignature(firma: string, x: number, lineW: number, lineY: number): boolean {
     try {
       const { w, h } = pngSize(dataUrlToBytes(firma));
       const scale = Math.min(MAX_SIGNATURE_W / w, MAX_SIGNATURE_H / h);
-      this.doc.addImage(firma, 'PNG', x + 2, lineY - h * scale - 0.5, w * scale, h * scale);
+      // Centrada sobre la línea y apoyada en ella; la altura máxima cabe en el espacio reservado encima de la línea.
+      this.doc.addImage(firma, 'PNG', x + (lineW - w * scale) / 2, lineY - h * scale - 0.6, w * scale, h * scale);
       return true;
     } catch {
       return false;
@@ -194,17 +197,19 @@ class CommuniqueWriter {
   signatures() {
     const colW = this.contentW / 2;
     const lineW = colW - 12;
+    const lineOffset = SIGNATURE_ZONE_H + 1;
     for (let i = 0; i < this.c.firmantes.length; i += 2) {
-      this.ensureSpace(26);
+      this.ensureSpace(lineOffset + 20);
       this.c.firmantes.slice(i, i + 2).forEach((signer, col) => {
         const x = MARGIN + col * colW;
-        this.doc.setDrawColor(0, 0, 0).setLineWidth(0.4).line(x, this.y + 8, x + lineW, this.y + 8);
-        const signed = Boolean(signer.firma) && this.drawSignature(signer.firma as string, x, this.y + 8);
-        if (!signed) this.doc.setFont('helvetica', 'normal').setFontSize(14).text('X', x + 1, this.y + 6.5);
-        this.doc.setFont('helvetica', 'normal').setFontSize(8).text(signer.nombre, x + 1, this.y + 12).text(signer.cargo, x + 1, this.y + 16);
-        if (signed) this.doc.setFont('helvetica', 'italic').setFontSize(7).text(signatureDateLabel(signer.firmadoEn), x + 1, this.y + 19.5);
+        const lineY = this.y + lineOffset;
+        this.doc.setDrawColor(0, 0, 0).setLineWidth(0.4).line(x, lineY, x + lineW, lineY);
+        const signed = Boolean(signer.firma) && this.drawSignature(signer.firma as string, x, lineW, lineY);
+        if (!signed) this.doc.setFont('helvetica', 'normal').setFontSize(14).text('X', x + 1, lineY - 1.5);
+        this.doc.setFont('helvetica', 'normal').setFontSize(8).text(signer.nombre, x + 1, lineY + 4).text(signer.cargo, x + 1, lineY + 8);
+        if (signed) this.doc.setFont('helvetica', 'italic').setFontSize(7).text(signatureDateLabel(signer.firmadoEn), x + 1, lineY + 11.5);
       });
-      this.y += 26;
+      this.y += lineOffset + 18;
     }
   }
 }
