@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Sparkles, Plus, Trash2, RefreshCw, Paperclip, FileText } from 'lucide-react';
+import { Sparkles, Plus, Trash2, RefreshCw, Paperclip, FileText, PenLine } from 'lucide-react';
 import { SupplierClaimPhotoGroup, PhotoItem } from './SupplierClaimPhotoGroup';
 import { VoiceDictationButton } from './VoiceDictationButton';
+import { CommuniqueSignModal } from './CommuniqueSignModal';
 import { parseJson, photosFromPaths, buildPhotoMeta, addPhotosToGroup, uploadPhotoGroup, uploadFileToStorage } from './supplierClaimPhotoHelpers';
 import { Communique, CommuniqueInput, CommuniqueKind, CommuniqueSigner, CommuniqueStep } from '@/src/lib/communiqueStore';
 import { DEFAULT_CLOSING, DEFAULT_SENDER, DEFAULT_SIGNERS, KIND_CONFIG, KIND_ORDER, MAX_REFERENCE_DOCUMENTS, REFERENCE_ROLES, ReferenceRole } from '@/src/lib/communiqueShared';
@@ -76,6 +77,9 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Copia guardada del comunicado: se actualiza al firmar desde el formulario (las firmas se registran sobre lo ya guardado).
+  const [saved, setSaved] = useState<Communique | undefined>(initial);
+  const [signOpen, setSignOpen] = useState(false);
   const [textOpen, setTextOpen] = useState(Boolean(initial));
   const busy = status !== null;
 
@@ -85,7 +89,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     JSON.stringify([fecha, de, para, text, firmantes.map(f => [f.nombre, f.cargo]), fotos.map(f => [f.path ?? f.key, f.comment.trim(), f.marks])]);
   const initialContentKey = useRef<string | null>(null);
   if (initialContentKey.current === null) initialContentKey.current = contentKey({ asunto, intro, pasos, cierre });
-  const hadSignatures = (initial?.firmantes || []).some(f => f.firma);
+  const hadSignatures = (saved?.firmantes || []).some(f => f.firma);
   const aiSnapshot = useRef<string | null>(null);
   if (aiSnapshot.current === null) aiSnapshot.current = currentSnapshot();
 
@@ -219,6 +223,18 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     }
   };
 
+  /** Tras firmar en la ventana, la casilla correspondiente del formulario pasa a "Firmado". */
+  const handleSignatureChanged = (updated: Communique) => {
+    setSaved(updated);
+    setFirmantes(prev => prev.map((f, i) => {
+      const s = updated.firmantes[i];
+      return s && s.nombre === f.nombre && s.cargo === f.cargo ? { ...f, firma: s.firma, firmadoEn: s.firmadoEn } : f;
+    }));
+  };
+
+  /** Una casilla se puede firmar si el comunicado ya está guardado con ese mismo firmante (mismo lugar, nombre y cargo). */
+  const canSign = (f: CommuniqueSigner, idx: number) => Boolean(saved && saved.firmantes[idx] && saved.firmantes[idx].nombre === f.nombre && saved.firmantes[idx].cargo === f.cargo);
+
   const removePhoto = (key: string) => setFotos(prev => prev.filter(p => p.key !== key));
   const updatePhoto = (key: string, patch: Partial<PhotoItem>) => setFotos(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)));
   const updateStep = (idx: number, patch: Partial<CommuniqueStep>) => setPasos(pasos.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
@@ -331,13 +347,21 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
                   <input className={INPUT} value={f.cargo} onChange={e => updateSigner(idx, { cargo: e.target.value })} placeholder="Cargo" />
                   <button type="button" onClick={() => setFirmantes(firmantes.filter((_, i) => i !== idx))} aria-label="Quitar firma"><Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-600" /></button>
                 </div>
-                {f.firma && <p className="text-[10px] font-semibold text-emerald-700">Firmado en la app</p>}
+                {f.firma ? (
+                  <p className="text-[10px] font-semibold text-emerald-700">Firmado en la app</p>
+                ) : (
+                  saved && (canSign(f, idx)
+                    ? <button type="button" onClick={() => setSignOpen(true)} disabled={busy} className="flex items-center gap-1 text-[10px] font-bold text-[#003366] hover:underline disabled:opacity-50"><PenLine className="w-3 h-3" /> Firmar</button>
+                    : <p className="text-[10px] text-slate-400">Guarda los cambios para poder firmar esta casilla.</p>)
+                )}
               </div>
             ))}
-            <p className="text-[10px] text-slate-500">Cada responsable firma desde la lista con el botón "Firmar", una vez guardado el comunicado. Si cambias el contenido de uno ya firmado, las firmas se eliminan para que no avalen un texto distinto.</p>
+            <p className="text-[10px] text-slate-500">{saved ? 'Cada responsable pulsa "Firmar" en su casilla y dibuja su firma (también desde la lista, con el botón "Firmar").' : 'Guarda el comunicado para que cada responsable pueda firmar en su casilla, aquí o desde la lista.'} Si cambias el contenido de uno ya firmado, las firmas se eliminan para que no avalen un texto distinto.</p>
           </div>
         </div>
       </details>
+
+      {signOpen && saved && <CommuniqueSignModal communique={saved} onClose={() => setSignOpen(false)} onChanged={handleSignatureChanged} />}
 
       {notice && <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-900">{notice}</div>}
       {error && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs font-medium text-rose-800">{error}</div>}
