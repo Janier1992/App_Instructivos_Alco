@@ -53,18 +53,10 @@ export const KIND_CONFIG: Record<CommuniqueKind, KindConfig> = {
     opening: 'Por medio del presente documento, se establece el procedimiento para',
     hint: 'Pasos para ejecutar una actividad del proceso.',
     available: false
-  },
-  divulgacion: {
-    label: 'Divulgación',
-    title: 'DIVULGACIÓN',
-    stepsHeading: 'Puntos a Divulgar:',
-    opening: 'Por medio del presente documento, se divulga',
-    hint: 'Socialización de información o lecciones aprendidas a las áreas.',
-    available: false
   }
 };
 
-export const KIND_ORDER: CommuniqueKind[] = ['comunicado', 'procedimiento', 'divulgacion'];
+export const KIND_ORDER: CommuniqueKind[] = ['comunicado', 'procedimiento'];
 
 export interface TextSegment {
   text: string;

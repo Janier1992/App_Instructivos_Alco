@@ -244,7 +244,7 @@ export const CommuniqueForm: React.FC<Props> = ({ initial, onCancel, onSaved }) 
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className={LABEL}>Tipo de documento *</label>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de documento">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de documento">
           {KIND_ORDER.map(kind => {
             const cfg = KIND_CONFIG[kind];
             return (

@@ -2,7 +2,7 @@ import { getSupabaseClient } from './supabaseService';
 import type { PhotoMeta } from './photoMarks';
 import { SUPPLIER_CLAIM_PHOTO_BUCKET } from './supplierClaimsStore';
 
-export type CommuniqueKind = 'comunicado' | 'procedimiento' | 'divulgacion';
+export type CommuniqueKind = 'comunicado' | 'procedimiento';
 
 export interface CommuniqueStep {
   titulo: string;
@@ -54,7 +54,7 @@ export interface CommuniqueInput {
 }
 
 export function normalizeKind(value: unknown): CommuniqueKind {
-  return value === 'procedimiento' || value === 'divulgacion' ? value : 'comunicado';
+  return value === 'procedimiento' ? value : 'comunicado';
 }
 
 /** Devuelve el mensaje de error de validación, o null si el comunicado es válido. */

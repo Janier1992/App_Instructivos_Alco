@@ -187,7 +187,7 @@ export const ProcessDetail: React.FC<ProcessDetailProps> = ({
       </div>
 
       {/* Navegación por Tabs de Proceso Exclusivamente Solicitados */}
-      <div className="flex items-center gap-1 sm:gap-2 border-b border-slate-200 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2 border-b border-slate-200 pb-1">
         <button
           onClick={() => setActiveTab('principal')}
           id="tab-principal"
