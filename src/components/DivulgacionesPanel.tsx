@@ -180,7 +180,7 @@ export const DivulgacionesPanel: React.FC<{ initialFormOpen?: boolean; onSelectT
 
       {linkFor && <DivulgacionLinkModal tema={linkFor.tema} registroToken={linkFor.registroToken} onClose={() => setLinkFor(null)} />}
 
-      {sheetId && <DivulgacionSheetModal divulgacionId={sheetId} onClose={() => { setSheetId(null); load(); }} onChanged={handleSheetChanged} />}
+      {sheetId && <DivulgacionSheetModal divulgacionId={sheetId} onClose={() => { setSheetId(null); load(); }} onChanged={handleSheetChanged} onEditDetails={d => { setSheetId(null); openEdit(d); }} />}
     </div>
   );
 };
