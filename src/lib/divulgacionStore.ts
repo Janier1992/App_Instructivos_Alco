@@ -280,6 +280,19 @@ export async function addAsistente(divulgacionId: string, input: AsistenteInput)
   return { success: true, divulgacion: (await getDivulgacion(divulgacionId)) ?? undefined };
 }
 
+/** Corrige los datos de una fila de asistencia (nombre, cédula, proceso o sección); la firma registrada se conserva. */
+export async function updateAsistente(divulgacionId: string, asistenteId: string, input: Omit<AsistenteInput, 'firma'>): Promise<{ success: boolean; divulgacion?: Divulgacion; error?: string }> {
+  const { data, error } = await client()
+    .from('divulgacion_asistentes')
+    .update({ nombre: input.nombre.trim(), cedula: input.cedula.trim(), proceso_seccion: (input.procesoSeccion || '').trim() })
+    .eq('id', asistenteId)
+    .eq('divulgacion_id', divulgacionId)
+    .select('id');
+  if (error) return { success: false, error: error.code === '23505' ? 'Esa cédula ya está registrada en esta divulgación.' : error.message };
+  if (!data || data.length === 0) return { success: false, error: 'No se encontró el registro.' };
+  return { success: true, divulgacion: (await getDivulgacion(divulgacionId)) ?? undefined };
+}
+
 export async function deleteAsistente(divulgacionId: string, asistenteId: string): Promise<{ success: boolean; divulgacion?: Divulgacion }> {
   const { error } = await client().from('divulgacion_asistentes').delete().eq('id', asistenteId).eq('divulgacion_id', divulgacionId);
   if (error) return { success: false };
